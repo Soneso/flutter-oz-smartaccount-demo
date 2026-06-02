@@ -1,0 +1,107 @@
+# smart_account_demo — Flutter demo for the OZ smart account SDK.
+# Targets: iOS, Android, Web.
+#
+# Wallet integration library — resolved 2026-05-16:
+#   Candidates evaluated: walletconnect_flutter_v2 (2.4.1, discontinued),
+#     reown_core (1.3.8) + reown_sign (1.3.9).
+#   Resolution: Option 4 — reown_core ^1.3.8 + reown_sign ^1.3.9.
+#   Rationale:
+#     - walletconnect_flutter_v2 is marked discontinued on pub.dev as of 2026-05-16.
+#       Its successor is the reown_* package family.
+#     - walletconnect_flutter_v2 ^2.4.1 requires pointycastle ^3.9.1 which is
+#       incompatible with stellar_flutter_sdk's pointycastle ^4.0.0.
+#     - reown_sign ^1.3.9 declares pointycastle ^4.0.0 directly; no conflict.
+#     - reown_core ^1.3.8 declares pointycastle >=3.9.1 <5.0.0; resolves to 4.x.
+#     - reown_core supports platform:web; ReownWalletHandler is mobile-only
+#       (guarded by kIsWeb) so web builds do not exercise Reown signing paths.
+#     - reown_sign exposes the Sign client (dApp-side) used by ReownWalletHandler.
+#   Version sources: pub.dev API queried 2026-05-16.
+#
+# Pinned dependency versions — verified from pub.dev 2026-05-16:
+#   stellar_flutter_sdk          local path ../stellar_flutter_sdk (branch feature/oz-smart-account)
+#   reown_core                   1.3.8  pub.dev 2026-05-16
+#   reown_sign                   1.3.9  pub.dev 2026-05-16
+#   flutter_riverpod             3.3.1  pub.dev 2026-05-16
+#   go_router                   17.2.3  pub.dev 2026-05-16
+#   intl                         0.20.2  pub.dev 2026-05-16
+#   url_launcher                 6.3.2  pub.dev 2026-05-16
+#   path_provider                2.1.5  pub.dev 2026-05-16
+#   meta                         1.16.0  pub.dev 2026-05-16 (pinned to flutter_test constraint)
+#   flutter_lints (dev)          6.0.0  pub.dev 2026-05-16
+
+name: smart_account_demo
+description: Flutter demo for the Stellar OZ smart account SDK.
+publish_to: none
+
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Stellar SDK — local path dependency for fast iteration during development.
+  # Switch to a git reference pinned to a commit SHA before any public release.
+  stellar_flutter_sdk:
+    path: ../stellar_flutter_sdk
+
+  # Reown WalletConnect integration — dApp-side Sign client.
+  # Resolved via Option 4 (see header comment). ReownWalletHandler uses these
+  # packages on iOS and Android only; web builds use FreighterWalletHandler.
+  reown_core: ^1.3.8
+  reown_sign: ^1.3.9
+
+  # State management.
+  flutter_riverpod: ^3.3.1
+
+  # Typed navigation.
+  go_router: ^17.2.3
+
+  # Internationalisation helpers (date/number formatting).
+  intl: ^0.20.2
+
+  # External URL and deep-link handling.
+  url_launcher: ^6.3.2
+
+  # Platform-specific storage paths (used by StorageAdapter bootstrap).
+  path_provider: ^2.1.5
+
+  # Lightweight key-value store for user preferences (theme mode, etc).
+  shared_preferences: ^2.5.5
+
+  # @internal annotation and other meta-programming support.
+  # Pinned to 1.16.0 to match flutter_test's constraint from the Flutter SDK.
+  # Do not upgrade until flutter_test drops its pin.
+  meta: ^1.16.0
+
+  # SHA-256 and other hash functions used by DemoTokenService and
+  # ExternalSignerManagerAdapter. Declared as a direct dependency because
+  # the linter enforces depend_on_referenced_packages.
+  crypto: ^3.0.6
+
+  # Runtime detection of iOS Simulator / Android Emulator so the demo can
+  # hide wallet-pairing UI that depends on a deep-link to a real wallet app.
+  # Pinned to 12.x because 13.x requires Flutter >=3.38.1; this project's
+  # constraint is >=3.35.0. Verified from pub.dev 2026-05-28.
+  device_info_plus: ^12.4.0
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+  # Required to mock UrlLauncherPlatform in url_opener_test.dart.
+  plugin_platform_interface: ^2.1.8
+  url_launcher_platform_interface: ^2.3.2
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/wasm/

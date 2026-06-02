@@ -1,0 +1,61 @@
+# Static analysis configuration for smart_account_demo.
+#
+# Extends the Flutter recommended lint set with stricter rules enforced
+# across all source files. Zero warnings is the baseline — any unresolved
+# issue blocks the build.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Treat the following rules as compile errors so the CI/analyze gate rejects them.
+    avoid_print: error
+    avoid_dynamic_calls: error
+
+linter:
+  rules:
+    # --- Output ---
+    # print() is forbidden in library code; use the ActivityLogState instead.
+    avoid_print: true
+
+    # --- Type safety ---
+    # Dynamic calls are banned; use concrete types or cast explicitly.
+    avoid_dynamic_calls: true
+
+    # --- Immutability ---
+    # Fields and local variables that can be final must be final.
+    prefer_final_fields: true
+    prefer_final_locals: true
+
+    # --- Closure style ---
+    # Prefer named function references over identical single-expression lambdas.
+    unnecessary_lambdas: true
+
+    # --- Dart style best-practices (additive, consistent with flutter_lints base) ---
+    always_declare_return_types: true
+    annotate_overrides: true
+    avoid_empty_else: true
+    avoid_redundant_argument_values: true
+    avoid_relative_lib_imports: true
+    avoid_returning_null_for_void: true
+    avoid_type_to_string: true
+    avoid_unnecessary_containers: true
+    await_only_futures: true
+    cancel_subscriptions: true
+    close_sinks: true
+    directives_ordering: true
+    exhaustive_cases: true
+    noop_primitive_operations: true
+    parameter_assignments: true
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_const_declarations: true
+    prefer_const_literals_to_create_immutables: true
+    prefer_constructors_over_static_methods: true
+    prefer_if_null_operators: true
+    prefer_null_aware_method_calls: true
+    prefer_single_quotes: true
+    sort_child_properties_last: true
+    unawaited_futures: true
+    unnecessary_await_in_return: true
+    unnecessary_null_checks: true
+    use_named_constants: true

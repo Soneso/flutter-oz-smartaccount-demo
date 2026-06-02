@@ -1,0 +1,35 @@
+{
+    "name": "Smart Account Demo",
+    "short_name": "SmartAccountDemo",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#2E4FBF",
+    "theme_color": "#2E4FBF",
+    "description": "Stellar testnet smart account wallet demo.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

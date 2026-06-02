@@ -1,0 +1,121 @@
+# Podfile for the Smart Account Demo Flutter iOS target.
+#
+# The post_install hook below adds a shell script build phase to the Runner
+# Xcode target that FAILS any Release build which still carries the
+# "?mode=developer" suffix in the Associated Domains entitlement.
+#
+# The hook must be in the Podfile (not hand-edited into the .xcodeproj) so it
+# survives `flutter clean && flutter pub get` regenerating the Xcode workspace.
+# Flutter re-runs pod install after clean, which re-invokes this post_install.
+
+platform :ios, '16.0'
+
+# CocoaPods analytics sends network stats synchronously; disable it.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(
+    File.join('..', 'Flutter', 'Generated.xcconfig'),
+    __FILE__
+  )
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're " \
+          "running pod install manually, make sure flutter pub get is " \
+          "executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. " \
+        "If you're running pod install manually, make sure flutter pub get is " \
+        "executed first"
+end
+
+require File.expand_path(
+  File.join('packages', 'flutter_tools', 'bin', 'podhelper'),
+  flutter_root
+)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Build-time gate: fail Release builds that still carry ?mode=developer.
+  #
+  # The ?mode=developer suffix in the webcredentials Associated Domain
+  # entitlement is required for WebAuthn passkeys to work on a device that is
+  # connected to Xcode (development mode). It must NOT be present in any build
+  # distributed via TestFlight or the App Store, because Apple's CDN will not
+  # serve the AASA file with ?mode=developer in the bundle ID.
+  #
+  # This script phase is added here so it survives `flutter clean && flutter
+  # pub get` regenerating the Xcode project from scratch. Pod install is
+  # always run after clean, so this hook reliably re-adds the script phase.
+  # ---------------------------------------------------------------------------
+
+  runner_target = installer.pods_project.targets.find { |t| t.name == 'Pods-Runner' }
+  if runner_target.nil?
+    # Fall back to adding to the main project's Runner target.
+    runner_target = installer.aggregate_targets.find { |t| t.name == 'Pods-Runner' }
+  end
+
+  # Locate the Runner.xcodeproj and add the script phase there.
+  runner_project_path = File.expand_path('../Runner.xcodeproj', __FILE__)
+  runner_project = Xcodeproj::Project.open(runner_project_path)
+
+  runner_native_target = runner_project.targets.find { |t| t.name == 'Runner' }
+  if runner_native_target
+    phase_name = '[SmartAccountDemo] Fail Release build with ?mode=developer'
+    existing = runner_native_target.build_phases.find { |p|
+      p.respond_to?(:name) && p.name == phase_name
+    }
+
+    unless existing
+      script_phase = runner_native_target.new_shell_script_build_phase(phase_name)
+      script_phase.shell_path = '/bin/sh'
+      script_phase.shell_script = <<~'SHELL'
+        # Fail the build if the Release configuration still carries ?mode=developer
+        # in the Associated Domains entitlement. This prevents distributing a build
+        # that will not pass Apple's AASA validation check at runtime.
+        if [ "${CONFIGURATION}" = "Release" ]; then
+          ENTITLEMENTS="${CODESIGNING_FOLDER_PATH}/${PRODUCT_NAME}.entitlements"
+          if [ ! -f "${ENTITLEMENTS}" ]; then
+            ENTITLEMENTS="${SRCROOT}/Runner/Runner.entitlements"
+          fi
+          if [ -f "${ENTITLEMENTS}" ] && grep -q '?mode=developer' "${ENTITLEMENTS}"; then
+            echo "error: Release build blocked: Runner.entitlements contains webcredentials:soneso.com?mode=developer."
+            echo "error: Update the AASA at https://soneso.com/.well-known/apple-app-site-association to include"
+            echo "error: com.soneso.stellar.smartaccount.demo.flutter in webcredentials.apps, then remove"
+            echo "error: ?mode=developer from the entitlement before distributing."
+            exit 1
+          fi
+        fi
+      SHELL
+      # Run as early as possible — before code signing.
+      runner_native_target.build_phases.move(script_phase, 0)
+      runner_project.save
+    end
+  end
+end

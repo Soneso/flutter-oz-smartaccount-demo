@@ -1,0 +1,57 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ / Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Flutter / Dart / Pub
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication
+app.*.symbols
+
+# Obfuscation
+app.*.map.json
+
+# Android build artifacts
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# iOS / Xcode
+ios/Pods/
+ios/.symlinks/
+ios/Podfile.lock
+
+# Web agent-browser PID file + log (ephemeral, created by tool/run_web_dev.sh)
+tool/.web_dev.pid
+tool/.web_dev.log
+
+# Browser-test scenario artifacts (screenshots, logs, CDP transcripts)
+tool/scenarios/artifacts/
+
+# Secrets / local environment overrides
+*.env
+.env.*

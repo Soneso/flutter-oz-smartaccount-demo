@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- ?mode=developer bypasses Apple's hosted-AASA check so passkeys for the RP
+	     domain work on the Simulator and on devices in developer mode without the
+	     domain listing this bundle ID. The Release build gate removes it before
+	     distribution; switch to your own RP domain for production. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>webcredentials:soneso.com?mode=developer</string>
+	</array>
+	<!-- App Group: required for Reown WalletConnect relay session storage shared between
+	     the app and any app-extension targets. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.soneso.stellar.smartaccount.demo.flutter</string>
+	</array>
+</dict>
+</plist>

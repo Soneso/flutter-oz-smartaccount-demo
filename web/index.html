@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!--
+    Base href: change if the app is served from a sub-path.
+    This placeholder is replaced by flutter build --base-href.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Smart Account Demo — Stellar testnet smart account wallet.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- PWA meta tags -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Smart Account Demo">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Smart Account Demo</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!--
+    Loads the @stellar/freighter-api npm package from a CDN and re-exports
+    its functions on window.freighterApi so the Flutter @JS bindings in
+    FreighterWalletHandler resolve. The npm package wraps the Freighter
+    browser extension's postMessage protocol and exposes a stable
+    request/response surface (isConnected, requestAccess, getNetworkDetails,
+    signAuthEntry, getApiVersion).
+  -->
+  <script type="module">
+    try {
+      const mod = await import('https://esm.sh/@stellar/freighter-api@6');
+      // The package publishes its API surface as the default export only.
+      window.freighterApi = mod.default ?? mod;
+    } catch (e) {
+      console.error('[freighter-api] load failed:', e);
+    }
+  </script>
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
