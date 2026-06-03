@@ -396,8 +396,6 @@ class MainScreenFlow {
       networkPassphrase: config.networkPassphrase,
       accountWasmHash: config.accountWasmHash,
       webauthnVerifierAddress: config.webauthnVerifierAddress,
-      rpId: config.defaultRpId,
-      rpName: config.rpName,
       // Empty URL strings disable the corresponding optional feature: the
       // kit treats `null` as absent, falls back to the RPC-only submission
       // path (no relayer) and the on-chain scan path (no indexer).

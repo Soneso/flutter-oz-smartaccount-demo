@@ -76,7 +76,7 @@ iOS uses the AuthenticationServices framework (`ASAuthorizationPlatformPublicKey
 
 ### Step 1: Set the RP ID
 
-Pass the RP ID to `OZSmartAccountConfig.rpId`, or rely on the `DemoConfig` defaults configured through the `RP_ID` dart-define.
+The RP ID is set on `PlatformWebAuthnProvider(rpId: ...)`. In this demo, `defaultRpId` from `DemoConfig` is used (overridable via `--dart-define=RP_ID=<value>`).
 
 ### Step 2: Associated Domains entitlement
 
@@ -153,7 +153,7 @@ Android uses the Credential Manager API (API 28+) for passkey operations. The ap
 
 ### Step 1: Set the RP ID
 
-Pass the RP ID to `OZSmartAccountConfig.rpId`, or rely on the `DemoConfig` defaults configured through the `RP_ID` dart-define.
+The RP ID is set on `PlatformWebAuthnProvider(rpId: ...)`. In this demo, `defaultRpId` from `DemoConfig` is used (overridable via `--dart-define=RP_ID=<value>`).
 
 ### Step 2: Host `assetlinks.json`
 
@@ -255,8 +255,8 @@ When deploying to production, replace `soneso.com` with your production domain.
 
 | Item | Web | iOS | Android |
 |------|-----|-----|---------|
-| `rpId` in SDK config | Set to your domain | Set to your domain | Set to your domain |
-| `rpName` in SDK config | Set display name | Set display name | Set display name |
+| `rpId` on provider | Set to your domain | Set to your domain | Set to your domain |
+| `rpName` on provider | Set display name | Set display name | Set display name |
 | Domain file | `.well-known/webauthn` (only if cross-origin) | `.well-known/apple-app-site-association` | `.well-known/assetlinks.json` |
 | App config | None | Team ID + bundle ID in association file | Package name + signing fingerprint in `assetlinks.json` |
 | Entitlement | None | `webcredentials:<domain>` | None |
