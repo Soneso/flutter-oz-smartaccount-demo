@@ -104,7 +104,7 @@ enum ConnectionSection {
 /// tests can inject mocks without a live kit.
 abstract interface class CredentialOperationsType {
   /// Returns all credentials that are still pending on-chain deployment.
-  Future<List<StoredCredential>> getPendingCredentials();
+  Future<List<OZStoredCredential>> getPendingCredentials();
 
   /// Permanently deletes [credentialId] from local storage.
   Future<void> deleteCredential({required String credentialId});
@@ -129,7 +129,7 @@ final class CredentialOperationsAdapter implements CredentialOperationsType {
   final OZSmartAccountKit _kit;
 
   @override
-  Future<List<StoredCredential>> getPendingCredentials() =>
+  Future<List<OZStoredCredential>> getPendingCredentials() =>
       _kit.credentialManager.getPendingCredentials();
 
   @override
@@ -158,11 +158,11 @@ final class CredentialOperationsAdapter implements CredentialOperationsType {
 abstract interface class WalletConnectionOperationsType {
   /// Connects to a wallet using the supplied options.
   Future<OZConnectWalletResult?> connectWallet({
-    required ConnectWalletOptions options,
+    required OZConnectWalletOptions options,
   });
 
   /// Authenticates with a passkey and returns the credential ID.
-  Future<AuthenticatePasskeyResult> authenticatePasskey();
+  Future<OZAuthenticatePasskeyResult> authenticatePasskey();
 
   /// Deploys a pending credential (retry or deferred deploy).
   ///
@@ -170,7 +170,7 @@ abstract interface class WalletConnectionOperationsType {
   /// FriendBot using [nativeTokenContract] as the SAC address. Passing
   /// [autoFund] without [nativeTokenContract] raises a validation error
   /// inside the SDK.
-  Future<DeployPendingResult> deployPendingCredential({
+  Future<OZDeployPendingResult> deployPendingCredential({
     required String credentialId,
     bool autoFund = false,
     String? nativeTokenContract,
@@ -192,16 +192,16 @@ final class WalletConnectionOperationsAdapter
 
   @override
   Future<OZConnectWalletResult?> connectWallet({
-    required ConnectWalletOptions options,
+    required OZConnectWalletOptions options,
   }) =>
       _inner.connectWallet(options: options);
 
   @override
-  Future<AuthenticatePasskeyResult> authenticatePasskey() =>
+  Future<OZAuthenticatePasskeyResult> authenticatePasskey() =>
       _inner.authenticatePasskey();
 
   @override
-  Future<DeployPendingResult> deployPendingCredential({
+  Future<OZDeployPendingResult> deployPendingCredential({
     required String credentialId,
     bool autoFund = false,
     String? nativeTokenContract,
@@ -263,7 +263,7 @@ final class WalletConnectionFlow {
     _activityLog.info('Auto connect: restoring session or prompting passkey...');
     try {
       final sdkResult = await _walletOperations.connectWallet(
-        options: const ConnectWalletOptions(prompt: true),
+        options: const OZConnectWalletOptions(prompt: true),
       );
       if (sdkResult == null) {
         _activityLog.info('Auto connect: no wallet found for this passkey.');
@@ -294,7 +294,7 @@ final class WalletConnectionFlow {
   /// Throws [WebAuthnCancelled] on user cancellation.
   Future<ConnectionResult?> connectViaIndexer() async {
     _activityLog.info('Connect via indexer: authenticating passkey...');
-    final AuthenticatePasskeyResult authResult;
+    final OZAuthenticatePasskeyResult authResult;
     try {
       authResult = await _walletOperations.authenticatePasskey();
     } on WebAuthnCancelled {
@@ -309,7 +309,7 @@ final class WalletConnectionFlow {
     _activityLog.info('Passkey authenticated. Looking up contract via indexer...');
     try {
       final sdkResult = await _walletOperations.connectWallet(
-        options: ConnectWalletOptions(credentialId: authResult.credentialId),
+        options: OZConnectWalletOptions(credentialId: authResult.credentialId),
       );
       if (sdkResult == null) {
         _activityLog.info('Indexer: no contract found for this credential.');
@@ -343,7 +343,7 @@ final class WalletConnectionFlow {
       'Connect with address: authenticating passkey for '
       '${truncateAddress(contractAddress)}...',
     );
-    final AuthenticatePasskeyResult authResult;
+    final OZAuthenticatePasskeyResult authResult;
     try {
       authResult = await _walletOperations.authenticatePasskey();
     } on WebAuthnCancelled {
@@ -358,7 +358,7 @@ final class WalletConnectionFlow {
     _activityLog.info('Passkey authenticated. Connecting to contract...');
     try {
       final sdkResult = await _walletOperations.connectWallet(
-        options: ConnectWalletOptions(
+        options: OZConnectWalletOptions(
           credentialId: authResult.credentialId,
           contractId: contractAddress,
         ),
@@ -399,7 +399,7 @@ final class WalletConnectionFlow {
     );
     try {
       final sdkResult = await _walletOperations.connectWallet(
-        options: ConnectWalletOptions(
+        options: OZConnectWalletOptions(
           credentialId: credentialId,
           contractId: contractAddress,
         ),
@@ -494,7 +494,7 @@ final class WalletConnectionFlow {
 
   /// Loads all credentials that have a stored public key and contract ID but
   /// whose on-chain deployment has not been confirmed.
-  Future<List<StoredCredential>> loadPendingCredentials() async {
+  Future<List<OZStoredCredential>> loadPendingCredentials() async {
     try {
       return await _credentialOperations.getPendingCredentials();
     } catch (e) {

@@ -185,7 +185,7 @@ class MainScreenFlow {
   /// Silently exits when no wallet is connected or no kit is present.
   ///
   /// XLM balance is fetched from the native SAC address
-  /// ([config.nativeTokenContract]) via the kit's [SorobanServer].
+  /// ([config.nativeTokenContract]) via a short-lived [SorobanServer].
   ///
   /// DEMO token balance is only fetched when
   /// [WalletConnectionState.demoTokenContractId] is non-null.
@@ -197,8 +197,7 @@ class MainScreenFlow {
     if (!state.isConnected) return;
     final contractId = state.contractId;
     if (contractId == null) return;
-    final kit = _demoState.kit;
-    if (kit == null) return;
+    if (_demoState.kit == null) return;
 
     _activityLog.info('Refreshing balances...');
 
@@ -206,7 +205,7 @@ class MainScreenFlow {
       final xlm = await SACBalanceFetcher.fetchBalance(
         contract: config.nativeTokenContract,
         account: contractId,
-        kit: kit,
+        rpcUrl: config.rpcUrl,
       );
       _demoState.updateXlmBalance(formatStroopsBigIntAsXlm(xlm));
     } catch (e) {
@@ -221,7 +220,7 @@ class MainScreenFlow {
         final demo = await SACBalanceFetcher.fetchBalance(
           contract: demoTokenContractId,
           account: contractId,
-          kit: kit,
+          rpcUrl: config.rpcUrl,
         );
         _demoState.updateDemoTokenBalance(formatStroopsBigIntAsXlm(demo));
       } catch (e) {
@@ -372,7 +371,7 @@ class MainScreenFlow {
   /// only handles keys that the demo intentionally keeps out-of-process.
   ///
   /// Throws [BootstrapError] when the App entry point did not inject the
-  /// providers. Throws [ConfigurationException] when [config] constants are
+  /// providers. Throws [SmartAccountConfigurationException] when [config] constants are
   /// invalid.
   OZSmartAccountKit _buildKit({
     required ExternalSignerManagerAdapter externalAdapter,
@@ -434,15 +433,15 @@ class MainScreenFlow {
   // Kit event description (pure, static — testable without a flow instance)
   // -------------------------------------------------------------------------
 
-  /// Converts a [SmartAccountEvent] to a [(LogLevel, String)] pair.
+  /// Converts a [OZSmartAccountEvent] to a [(LogLevel, String)] pair.
   ///
   /// Extracted as a pure static method so tests can verify each mapping
   /// independently without setting up a full kit or flow instance.
   ///
   /// Credential IDs are truncated via [_redactCredentialId].
   /// Transaction hashes are allowed in full (public on-chain identifiers).
-  static (LogLevel, String) describeKitEvent(SmartAccountEvent event) {
-    if (event is SmartAccountEventWalletConnected) {
+  static (LogLevel, String) describeKitEvent(OZSmartAccountEvent event) {
+    if (event is OZSmartAccountEventWalletConnected) {
       final safeCredId = _redactCredentialId(event.credentialId);
       return (
         LogLevel.success,
@@ -450,21 +449,21 @@ class MainScreenFlow {
             '(cred: $safeCredId)',
       );
     }
-    if (event is SmartAccountEventWalletDisconnected) {
+    if (event is OZSmartAccountEventWalletDisconnected) {
       return (
         LogLevel.info,
         'Wallet disconnected: ${truncateAddress(event.contractId)}',
       );
     }
-    if (event is SmartAccountEventCredentialCreated) {
+    if (event is OZSmartAccountEventCredentialCreated) {
       final safeCredId = _redactCredentialId(event.credential.credentialId);
       return (LogLevel.success, 'Credential registered: $safeCredId');
     }
-    if (event is SmartAccountEventCredentialDeleted) {
+    if (event is OZSmartAccountEventCredentialDeleted) {
       final safeCredId = _redactCredentialId(event.credentialId);
       return (LogLevel.info, 'Credential removed: $safeCredId');
     }
-    if (event is SmartAccountEventSessionExpired) {
+    if (event is OZSmartAccountEventSessionExpired) {
       final safeCredId = _redactCredentialId(event.credentialId);
       return (
         LogLevel.error,
@@ -472,7 +471,7 @@ class MainScreenFlow {
             '(cred: $safeCredId). Please reconnect.',
       );
     }
-    if (event is SmartAccountEventTransactionSigned) {
+    if (event is OZSmartAccountEventTransactionSigned) {
       final credDesc = event.credentialId != null
           ? _redactCredentialId(event.credentialId!)
           : 'external';
@@ -482,7 +481,7 @@ class MainScreenFlow {
             'via $credDesc',
       );
     }
-    if (event is SmartAccountEventTransactionSubmitted) {
+    if (event is OZSmartAccountEventTransactionSubmitted) {
       // Transaction hashes are public on-chain identifiers — no redaction.
       final level = event.success ? LogLevel.success : LogLevel.error;
       final prefix = event.hash.length > 16
@@ -493,7 +492,7 @@ class MainScreenFlow {
           : 'Transaction submission failed: $prefix';
       return (level, msg);
     }
-    if (event is SmartAccountEventCredentialSyncFailed) {
+    if (event is OZSmartAccountEventCredentialSyncFailed) {
       final safeCredId = _redactCredentialId(event.credentialId);
       return (
         LogLevel.error,
@@ -521,7 +520,7 @@ class MainScreenFlow {
   static String _actionableMessage(Object error) {
     if (error is BootstrapError) return error.message;
     if (error is SACBalanceFetcherError) return error.message;
-    if (error is ConfigurationException) {
+    if (error is SmartAccountConfigurationException) {
       return 'Configuration error: ${error.message}';
     }
     // Avoid surfacing raw SDK exception messages (may contain XDR/RPC payload

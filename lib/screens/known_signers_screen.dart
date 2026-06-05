@@ -18,7 +18,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../flows/account_signers_flow.dart';
-import '../flows/context_rule_builder_types.dart' show ParsedContextRule;
+import '../flows/context_rule_builder_types.dart' show OZParsedContextRule;
 import '../navigation/routes.dart';
 import '../state/account_signers_flow_provider.dart';
 import '../state/demo_state.dart';
@@ -394,7 +394,7 @@ class _SignerRow extends StatelessWidget {
     );
   }
 
-  String _ruleName(ParsedContextRule rule) =>
+  String _ruleName(OZParsedContextRule rule) =>
       rule.name.trim().isEmpty ? 'Unnamed Rule' : rule.name;
 }
 
@@ -405,7 +405,7 @@ class _SignerRow extends StatelessWidget {
 class _RuleChip extends StatelessWidget {
   const _RuleChip({required this.rule});
 
-  final ParsedContextRule rule;
+  final OZParsedContextRule rule;
 
   @override
   Widget build(BuildContext context) {

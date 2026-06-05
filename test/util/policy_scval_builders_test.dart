@@ -82,10 +82,10 @@ void main() {
       expect(() => buildSimpleThresholdScVal(threshold: 1), returnsNormally);
     });
 
-    test('threshold 0 throws ValidationException', () {
+    test('threshold 0 throws SmartAccountValidationException', () {
       expect(
         () => buildSimpleThresholdScVal(threshold: 0),
-        throwsA(isA<ValidationException>()),
+        throwsA(isA<SmartAccountValidationException>()),
       );
     });
 
@@ -127,24 +127,24 @@ void main() {
       expect(limitEntry.val.discriminant, XdrSCValType.SCV_I128);
     });
 
-    test('limit 0 throws ValidationException', () {
+    test('limit 0 throws SmartAccountValidationException', () {
       expect(
         () => buildSpendingLimitScVal(limit: 0, periodLedgers: 10),
-        throwsA(isA<ValidationException>()),
+        throwsA(isA<SmartAccountValidationException>()),
       );
     });
 
-    test('negative limit throws ValidationException', () {
+    test('negative limit throws SmartAccountValidationException', () {
       expect(
         () => buildSpendingLimitScVal(limit: -1, periodLedgers: 10),
-        throwsA(isA<ValidationException>()),
+        throwsA(isA<SmartAccountValidationException>()),
       );
     });
 
-    test('period_ledgers 0 throws ValidationException', () {
+    test('period_ledgers 0 throws SmartAccountValidationException', () {
       expect(
         () => buildSpendingLimitScVal(limit: 100, periodLedgers: 0),
-        throwsA(isA<ValidationException>()),
+        throwsA(isA<SmartAccountValidationException>()),
       );
     });
 
@@ -202,7 +202,7 @@ void main() {
       expect(threshEntry.val.u32?.uint32, 2);
     });
 
-    test('threshold 0 throws ValidationException', () {
+    test('threshold 0 throws SmartAccountValidationException', () {
       final signerScVal = XdrSCVal.forBytes(
         Uint8List.fromList([0x01]),
       );
@@ -211,29 +211,29 @@ void main() {
           weights: [(signer: signerScVal, weight: 1)],
           threshold: 0,
         ),
-        throwsA(isA<ValidationException>()),
+        throwsA(isA<SmartAccountValidationException>()),
       );
     });
 
-    test('empty weights throws ValidationException', () {
+    test('empty weights throws SmartAccountValidationException', () {
       expect(
         () => buildWeightedThresholdScVal(weights: const [], threshold: 1),
-        throwsA(isA<ValidationException>()),
+        throwsA(isA<SmartAccountValidationException>()),
       );
     });
 
-    test('weight of 0 throws ValidationException', () {
+    test('weight of 0 throws SmartAccountValidationException', () {
       final signerScVal = XdrSCVal.forBytes(Uint8List.fromList([0x01]));
       expect(
         () => buildWeightedThresholdScVal(
           weights: [(signer: signerScVal, weight: 0)],
           threshold: 1,
         ),
-        throwsA(isA<ValidationException>()),
+        throwsA(isA<SmartAccountValidationException>()),
       );
     });
 
-    test('total weight less than threshold throws ValidationException', () {
+    test('total weight less than threshold throws SmartAccountValidationException', () {
       final s1 = XdrSCVal.forBytes(Uint8List.fromList([0x01]));
       final s2 = XdrSCVal.forBytes(Uint8List.fromList([0x02]));
       expect(
@@ -244,7 +244,7 @@ void main() {
           ],
           threshold: 3,
         ),
-        throwsA(isA<ValidationException>()),
+        throwsA(isA<SmartAccountValidationException>()),
       );
     });
 

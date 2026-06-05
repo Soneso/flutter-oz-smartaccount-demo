@@ -70,7 +70,7 @@ final class ApproveResult {
 abstract interface class ContractCallType {
   /// Invokes [targetFn] on [target] with [targetArgs]; triggers a WebAuthn
   /// ceremony when authorisation is required.
-  Future<TransactionResult> contractCall({
+  Future<OZTransactionResult> contractCall({
     required String target,
     required String targetFn,
     required List<XdrSCVal> targetArgs,
@@ -85,7 +85,7 @@ final class ContractCallAdapter implements ContractCallType {
   final OZTransactionOperations _ops;
 
   @override
-  Future<TransactionResult> contractCall({
+  Future<OZTransactionResult> contractCall({
     required String target,
     required String targetFn,
     required List<XdrSCVal> targetArgs,
@@ -107,11 +107,11 @@ final class ContractCallAdapter implements ContractCallType {
 abstract interface class MultiSignerContractCallType {
   /// Invokes [targetFn] on [target] with [targetArgs], signed by the
   /// explicit [selectedSigners] list.
-  Future<TransactionResult> multiSignerContractCall({
+  Future<OZTransactionResult> multiSignerContractCall({
     required String target,
     required String targetFn,
     required List<XdrSCVal> targetArgs,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
   });
 }
 
@@ -124,11 +124,11 @@ final class MultiSignerContractCallAdapter
   final OZMultiSignerManager _manager;
 
   @override
-  Future<TransactionResult> multiSignerContractCall({
+  Future<OZTransactionResult> multiSignerContractCall({
     required String target,
     required String targetFn,
     required List<XdrSCVal> targetArgs,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
   }) {
     return _manager.multiSignerContractCall(
       target: target,
@@ -378,7 +378,7 @@ final class ApproveFlow {
         );
       }
 
-      final TransactionResult result;
+      final OZTransactionResult result;
       try {
         result = await _contractCall.contractCall(
           target: tokenContract,
@@ -432,7 +432,7 @@ final class ApproveFlow {
     required String spenderAddress,
     required String amount,
     required int expirationLedgerOffset,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
   }) async {
     if (_isApproving) {
       throw StateError('An approve is already in progress.');
@@ -458,7 +458,7 @@ final class ApproveFlow {
         );
       }
 
-      final TransactionResult result;
+      final OZTransactionResult result;
       try {
         result = await _multiSignerContractCall.multiSignerContractCall(
           target: tokenContract,
@@ -635,11 +635,14 @@ final class ApproveFlow {
 /// contract, simulates it against the configured RPC, and decodes the i128
 /// result into a stroop [BigInt]. Returns null on any failure path so the
 /// screen can render "Unable to fetch" without raising an exception.
+///
+/// A short-lived [SorobanServer] is created from [rpcUrl] for each fetch and
+/// closed in a `finally` block so the connection is always released.
 final class AllowanceFetcherAdapter implements AllowanceFetcherType {
-  /// Constructs the adapter bound to the supplied kit.
-  const AllowanceFetcherAdapter(this._kit);
+  /// Constructs the adapter with the Soroban RPC endpoint.
+  const AllowanceFetcherAdapter({required String rpcUrl}) : _rpcUrl = rpcUrl;
 
-  final OZSmartAccountKit _kit;
+  final String _rpcUrl;
 
   @override
   Future<BigInt?> fetchAllowance({
@@ -647,6 +650,7 @@ final class AllowanceFetcherAdapter implements AllowanceFetcherType {
     required String fromAddress,
     required String spenderAddress,
   }) async {
+    final server = SorobanServer(_rpcUrl);
     try {
       final transaction = _buildAllowanceTransaction(
         tokenContract: tokenContract,
@@ -654,7 +658,7 @@ final class AllowanceFetcherAdapter implements AllowanceFetcherType {
         spenderAddress: spenderAddress,
       );
 
-      final simulation = await _kit.sorobanServer.simulateTransaction(
+      final simulation = await server.simulateTransaction(
         SimulateTransactionRequest(transaction),
       );
       if (simulation.isErrorResponse) return null;
@@ -667,6 +671,8 @@ final class AllowanceFetcherAdapter implements AllowanceFetcherType {
       return _extractI128AsBigInt(scVal);
     } catch (_) {
       return null;
+    } finally {
+      server.close();
     }
   }
 
@@ -694,19 +700,10 @@ final class AllowanceFetcherAdapter implements AllowanceFetcherType {
     final sourceAccount =
         Account.fromAccountId(DemoTokenService.adminAddress(), BigInt.zero);
 
-    final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final timeBounds = TimeBounds(
-      0,
-      nowSeconds + _kit.config.timeoutInSeconds,
-    );
-    final preconditions = TransactionPreconditions()
-      ..timeBounds = timeBounds;
-
     return TransactionBuilder(sourceAccount)
         .setMaxOperationFee(AbstractTransaction.MIN_BASE_FEE)
         .addOperation(operation)
         .addMemo(Memo.none())
-        .addPreconditions(preconditions)
         .build();
   }
 

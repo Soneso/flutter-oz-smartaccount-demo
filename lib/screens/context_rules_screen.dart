@@ -26,7 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../flows/context_rule_builder_types.dart'
-    show ParsedContextRule, SelectedSigner;
+    show OZParsedContextRule, OZSelectedSigner;
 
 import '../flows/context_rule_flow.dart';
 import '../flows/transfer_flow.dart' show Ed25519SignerIdentity, SignerInfo;
@@ -70,7 +70,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
 
   // ---- Rule list state ----
 
-  List<ParsedContextRule> _rules = const <ParsedContextRule>[];
+  List<OZParsedContextRule> _rules = const <OZParsedContextRule>[];
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -141,7 +141,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
   // Edit rule
   // -------------------------------------------------------------------------
 
-  Future<void> _onEditTap(ParsedContextRule rule) async {
+  Future<void> _onEditTap(OZParsedContextRule rule) async {
     final result = await context.push<bool>(
       '${AppRoutes.contextRuleBuilder}'
       '?${AppRoutes.editRuleIdParam}=${rule.id}',
@@ -160,7 +160,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
   // Remove rule
   // -------------------------------------------------------------------------
 
-  Future<void> _onRemoveTap(ParsedContextRule rule) async {
+  Future<void> _onRemoveTap(OZParsedContextRule rule) async {
     final flow = _flow;
     if (flow == null || _isRemoving) return;
 
@@ -193,7 +193,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
     // If there is only the connected passkey (single-signer path), remove
     // directly without the picker.
     if (availableSigners.length <= 1) {
-      await _executeRemoval(rule.id, const <SelectedSigner>[]);
+      await _executeRemoval(rule.id, const <OZSelectedSigner>[]);
       return;
     }
 
@@ -236,7 +236,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
   /// the completion of `_executeRemoval`, so key material never lingers in
   /// memory.
   Future<void> _onSignerPickerConfirm({
-    required ParsedContextRule rule,
+    required OZParsedContextRule rule,
     required List<SignerInfo> selectedSigners,
     required Map<String, String> delegatedKeyPairs,
     required Map<Ed25519SignerIdentity, Uint8List> ed25519Secrets,
@@ -249,7 +249,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
         body: () async {
           final selected = await flow.buildSelectedSigners(selectedSigners);
           if (flow.isSinglePasskeyRemoval(selected)) {
-            await _executeRemoval(rule.id, const <SelectedSigner>[]);
+            await _executeRemoval(rule.id, const <OZSelectedSigner>[]);
           } else {
             await _executeRemoval(rule.id, selected);
           }
@@ -266,7 +266,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
 
   Future<void> _executeRemoval(
     int ruleId,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   ) async {
     final flow = _flow;
     if (flow == null) return;
@@ -469,7 +469,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
         const SizedBox(height: 8),
 
         // Rule list.
-        for (final ParsedContextRule rule in _rules) ...[
+        for (final OZParsedContextRule rule in _rules) ...[
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: ContextRuleCard(

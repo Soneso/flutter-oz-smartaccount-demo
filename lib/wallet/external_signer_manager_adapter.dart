@@ -1,6 +1,6 @@
-/// Adapter bridging [WalletConnector] to the SDK's [ExternalWalletAdapter].
+/// Adapter bridging [WalletConnector] to the SDK's [OZExternalWalletAdapter].
 ///
-/// [ExternalSignerManagerAdapter] implements the SDK's [ExternalWalletAdapter]
+/// [ExternalSignerManagerAdapter] implements the SDK's [OZExternalWalletAdapter]
 /// so that the kit's external signer manager can route wallet-connected signing
 /// requests to the active [WalletConnector] session (Reown on mobile, Freighter
 /// on web) when the requested address matches [WalletConnector.connectedAddress].
@@ -41,7 +41,7 @@ import 'wallet_connector.dart';
 /// failure means the wallet returned a malformed or wrong-payload response
 /// rather than a valid Ed25519 signature over what the adapter sent.
 ///
-/// This exception is wrapped as [TransactionException.signingFailed] before
+/// This exception is wrapped as [SmartAccountTransactionException.signingFailed] before
 /// propagating to the SDK caller.
 final class AdapterSignatureRecheckException implements Exception {
   /// Constructs a recheck exception.
@@ -64,7 +64,7 @@ final class AdapterSignatureRecheckException implements Exception {
 // ExternalSignerManagerAdapter
 // ---------------------------------------------------------------------------
 
-/// [ExternalWalletAdapter] implementation that bridges [WalletConnector] to
+/// [OZExternalWalletAdapter] implementation that bridges [WalletConnector] to
 /// the kit's external signer manager for the wallet-connector signing path.
 ///
 /// Construct one instance per app session and supply it via
@@ -76,7 +76,7 @@ final class AdapterSignatureRecheckException implements Exception {
 /// Thread safety: Dart's single-isolate model ensures method calls are
 /// serialised as long as callers do not use [Isolate.run]. This adapter does
 /// not use any additional synchronisation primitives.
-class ExternalSignerManagerAdapter extends ExternalWalletAdapter {
+class ExternalSignerManagerAdapter extends OZExternalWalletAdapter {
   /// Constructs an adapter with no active wallet connector.
   ExternalSignerManagerAdapter();
 
@@ -89,7 +89,7 @@ class ExternalSignerManagerAdapter extends ExternalWalletAdapter {
   WalletConnector? walletConnector;
 
   // ---------------------------------------------------------------------------
-  // ExternalWalletAdapter — connection
+  // OZExternalWalletAdapter — connection
   // ---------------------------------------------------------------------------
 
   /// Not used — this adapter does not initiate wallet connections directly.
@@ -97,37 +97,37 @@ class ExternalSignerManagerAdapter extends ExternalWalletAdapter {
   ///
   /// Returns `null` to signal that no connection was established via this path.
   @override
-  Future<ConnectedWallet?> connect() async => null;
+  Future<OZConnectedWallet?> connect() async => null;
 
   /// Disconnects the active wallet connector session.
   ///
-  /// Called by the kit's [OZExternalSignerManager.removeAll]. After this
-  /// returns, [walletConnector] is cleared so that no session persists across
-  /// signing ceremonies.
+  /// Called by the kit's [OZExternalSignerManager.removeAll]. Clears the
+  /// connector's own session (its [WalletConnector.connectedAddress] drops to
+  /// null) but keeps the [walletConnector] reference. The connector is a
+  /// long-lived app singleton shared with the picker UI: keeping the reference
+  /// lets the adapter observe a later reconnection made through that same
+  /// singleton, so [canSignFor] reflects the live connector session.
   @override
   Future<void> disconnect() async {
-    final connector = walletConnector;
-    if (connector != null) {
-      await connector.disconnect();
-      walletConnector = null;
-    }
+    await walletConnector?.disconnect();
   }
 
   /// Disconnects the active connector session if its address matches [address].
   ///
-  /// Does not affect in-memory G-address keypairs registered on the kit-owned
-  /// manager — those are managed via [OZExternalSignerManager.remove].
+  /// Clears the connector session but keeps the [walletConnector] reference,
+  /// for the same reason as [disconnect]. Does not affect in-memory G-address
+  /// keypairs registered on the kit-owned manager — those are managed via
+  /// [OZExternalSignerManager.remove].
   @override
   Future<void> disconnectByAddress(String address) async {
     final connector = walletConnector;
     if (connector != null && connector.connectedAddress == address) {
       await connector.disconnect();
-      walletConnector = null;
     }
   }
 
   // ---------------------------------------------------------------------------
-  // ExternalWalletAdapter — signing
+  // OZExternalWalletAdapter — signing
   // ---------------------------------------------------------------------------
 
   /// Signs the given [preimageXdr] for [address] via the active wallet connector.
@@ -136,16 +136,16 @@ class ExternalSignerManagerAdapter extends ExternalWalletAdapter {
   /// SDK. [options.address] identifies which signer must sign.
   ///
   /// Routes to the active [walletConnector] when its connected address matches
-  /// [options.address]. Throws [SignerException.notFound] when no connector
+  /// [options.address]. Throws [SmartAccountSignerException.notFound] when no connector
   /// session is active for the requested address.
   @override
-  Future<SignAuthEntryResult> signAuthEntry(
+  Future<OZSignAuthEntryResult> signAuthEntry(
     String preimageXdr, {
-    SignAuthEntryOptions? options,
+    OZSignAuthEntryOptions? options,
   }) async {
     final address = options?.address;
     if (address == null || address.isEmpty) {
-      throw TransactionException.signingFailed(
+      throw SmartAccountTransactionException.signingFailed(
         'signAuthEntry requires options.address to identify the signer',
       );
     }
@@ -155,7 +155,7 @@ class ExternalSignerManagerAdapter extends ExternalWalletAdapter {
     try {
       preimageBytes = base64Decode(preimageXdr);
     } catch (e) {
-      throw TransactionException.signingFailed(
+      throw SmartAccountTransactionException.signingFailed(
         'Failed to base64-decode auth entry preimage for $address',
         cause: e,
       );
@@ -177,24 +177,24 @@ class ExternalSignerManagerAdapter extends ExternalWalletAdapter {
       );
     }
 
-    throw SignerException.notFound(
+    throw SmartAccountSignerException.notFound(
       '$address — no wallet connector is active for this address.',
     );
   }
 
   // ---------------------------------------------------------------------------
-  // ExternalWalletAdapter — query
+  // OZExternalWalletAdapter — query
   // ---------------------------------------------------------------------------
 
   @override
-  List<ConnectedWallet> getConnectedWallets() {
+  List<OZConnectedWallet> getConnectedWallets() {
     final connector = walletConnector;
-    if (connector == null) return const <ConnectedWallet>[];
+    if (connector == null) return const <OZConnectedWallet>[];
     final address = connector.connectedAddress;
-    if (address == null) return const <ConnectedWallet>[];
+    if (address == null) return const <OZConnectedWallet>[];
     final meta = connector.walletMetadata;
-    return <ConnectedWallet>[
-      ConnectedWallet(
+    return <OZConnectedWallet>[
+      OZConnectedWallet(
         address: address,
         walletId: meta?.name ?? 'external-wallet',
         walletName: meta?.name ?? 'External Wallet',
@@ -209,11 +209,11 @@ class ExternalSignerManagerAdapter extends ExternalWalletAdapter {
   }
 
   @override
-  ConnectedWallet? getWalletForAddress(String address) {
+  OZConnectedWallet? getWalletForAddress(String address) {
     final connector = walletConnector;
     if (connector == null || connector.connectedAddress != address) return null;
     final meta = connector.walletMetadata;
-    return ConnectedWallet(
+    return OZConnectedWallet(
       address: address,
       walletId: meta?.name ?? 'external-wallet',
       walletName: meta?.name ?? 'External Wallet',
@@ -237,7 +237,7 @@ class ExternalSignerManagerAdapter extends ExternalWalletAdapter {
   /// This is the "what you sign is what you see" guarantee at the demo layer.
   /// A wrong-payload or wrong-key wallet response is caught here before
   /// reaching the SDK or the network.
-  Future<SignAuthEntryResult> _signWithConnector({
+  Future<OZSignAuthEntryResult> _signWithConnector({
     required WalletConnector connector,
     required String preimageXdr,
     required Uint8List expectedPayload,
@@ -250,12 +250,12 @@ class ExternalSignerManagerAdapter extends ExternalWalletAdapter {
         contextRuleIds: const <int>[],
       );
     } on WalletSigningException catch (e) {
-      throw TransactionException.signingFailed(
+      throw SmartAccountTransactionException.signingFailed(
         'Wallet connector signing failed for $address: ${e.message}',
         cause: e,
       );
     } catch (e) {
-      throw TransactionException.signingFailed(
+      throw SmartAccountTransactionException.signingFailed(
         'Wallet connector signing failed for $address: $e',
         cause: e,
       );
@@ -295,7 +295,7 @@ class ExternalSignerManagerAdapter extends ExternalWalletAdapter {
       );
     }
 
-    return SignAuthEntryResult(
+    return OZSignAuthEntryResult(
       signedAuthEntry: result.signedAuthEntry,
       signerAddress: result.signerAddress,
     );
@@ -309,7 +309,7 @@ class ExternalSignerManagerAdapter extends ExternalWalletAdapter {
   ///
   /// Verifies that [signedAuthEntryBase64] base64-decodes to exactly 64 bytes
   /// and is not all-zero. Throws [AdapterSignatureRecheckException] on failure,
-  /// which propagates as [TransactionException.signingFailed] to the SDK caller.
+  /// which propagates as [SmartAccountTransactionException.signingFailed] to the SDK caller.
   ///
   /// A full cryptographic verification against the wallet's public key is NOT
   /// performed here — it is enforced on-chain by the Soroban host.

@@ -352,7 +352,7 @@ final class WalletCreationFlow {
   /// [WebAuthnCancelled] is mapped to [WalletCreationError.userCanceled] and
   /// logged at info level. All other errors are mapped to
   /// [WalletCreationError.creationFailed] and logged at error level.
-  Future<CreateWalletResult> _invokeSDK({
+  Future<OZCreateWalletResult> _invokeSDK({
     required String userName,
     required bool autoSubmit,
     required bool autoFund,
@@ -414,13 +414,13 @@ final class WalletCreationFlow {
   /// on-chain.
   ///
   /// Note: [clientDataJSON] fields (origin, type, crossOrigin) cannot be
-  /// re-verified here because [CreateWalletResult] does not surface
+  /// re-verified here because [OZCreateWalletResult] does not surface
   /// [clientDataJSON] or [attestationObject]. The structural ceiling for
   /// registration-time demo-layer rechecks is this key-format guard.
   ///
   /// Throws [WalletCreationError.webAuthnKeyFormatInvalid] when the key does
   /// not pass the 65-byte / 0x04-prefix check.
-  void _verifyCredentialPublicKey(CreateWalletResult sdkResult) {
+  void _verifyCredentialPublicKey(OZCreateWalletResult sdkResult) {
     final key = sdkResult.publicKey;
     final isValid = key.length == 65 && key[0] == 0x04;
     if (!isValid) {
@@ -434,7 +434,7 @@ final class WalletCreationFlow {
 
   /// Updates [DemoStateNotifier] to the connected state and logs success.
   void _commitConnectionState({
-    required CreateWalletResult sdkResult,
+    required OZCreateWalletResult sdkResult,
     required bool autoSubmit,
   }) {
     _demoState.setConnected(
@@ -471,7 +471,7 @@ final class WalletCreationFlow {
   /// helper logs the curated [DemoTokenServiceException.message] when present
   /// and returns null.
   Future<String?> _attemptMint({
-    required CreateWalletResult sdkResult,
+    required OZCreateWalletResult sdkResult,
   }) {
     return provisionDemoTokens(
       service: _demoTokenService,

@@ -15,7 +15,7 @@ import '../flows/context_rule_test_support.dart';
 /// Pumps the dialog directly inside a [MaterialApp] to simulate an overlay.
 Future<void> _pumpDialog(
   WidgetTester tester, {
-  required ParsedContextRule rule,
+  required OZParsedContextRule rule,
   required bool canRemove,
 }) async {
   await tester.pumpWidget(MaterialApp(

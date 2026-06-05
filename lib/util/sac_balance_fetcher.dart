@@ -76,9 +76,8 @@ abstract final class SACBalanceFetcher {
   /// Fetches the SAC `balance(id: <account>)` for the given [contract] and
   /// [account].
   ///
-  /// Simulation is performed via [kit.sorobanServer]. The time bounds on the
-  /// simulation envelope use [kit.config.timeoutInSeconds] so the envelope
-  /// remains valid for the same window used by all other kit operations.
+  /// A short-lived [SorobanServer] is created from [rpcUrl] for the simulation
+  /// call and closed in a `finally` block regardless of success or failure.
   ///
   /// - Returns the balance as a [BigInt] in stroops (i128 range).
   /// - Throws [SACBalanceFetcherError] on simulation failure or unexpected
@@ -86,14 +85,16 @@ abstract final class SACBalanceFetcher {
   static Future<BigInt> fetchBalance({
     required String contract,
     required String account,
-    required OZSmartAccountKit kit,
+    required String rpcUrl,
   }) async {
     final transaction = _buildBalanceTransaction(
       contractAddress: contract,
       accountAddress: account,
-      kit: kit,
     );
-    final simulation = await _simulate(transaction: transaction, kit: kit);
+    final simulation = await _simulate(
+      transaction: transaction,
+      rpcUrl: rpcUrl,
+    );
     return _decodeI128Result(simulation);
   }
 
@@ -105,13 +106,12 @@ abstract final class SACBalanceFetcher {
   /// `balance(id:)` on a SAC token contract.
   ///
   /// The `id` argument is a `contract`-variant [XdrSCVal] wrapping the smart
-  /// account's C-strkey. Time bounds are derived from
-  /// [kit.config.timeoutInSeconds] to match the timeout window the kit uses
-  /// for its own submissions.
+  /// account's C-strkey. No time bounds are set — this transaction is only
+  /// passed to [simulateTransaction] and never submitted on-chain; the network
+  /// does not enforce time bounds during simulation.
   static Transaction _buildBalanceTransaction({
     required String contractAddress,
     required String accountAddress,
-    required OZSmartAccountKit kit,
   }) {
     final addressArg = XdrSCVal.forContractAddress(accountAddress);
 
@@ -133,19 +133,10 @@ abstract final class SACBalanceFetcher {
       BigInt.zero,
     );
 
-    final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final timeBounds = TimeBounds(
-      0,
-      nowSeconds + kit.config.timeoutInSeconds,
-    );
-    final preconditions = TransactionPreconditions()
-      ..timeBounds = timeBounds;
-
     return TransactionBuilder(sourceAccount)
         .setMaxOperationFee(AbstractTransaction.MIN_BASE_FEE)
         .addOperation(operation)
         .addMemo(Memo.none())
-        .addPreconditions(preconditions)
         .build();
   }
 
@@ -156,33 +147,39 @@ abstract final class SACBalanceFetcher {
   /// Sends the transaction to the Soroban RPC simulation endpoint and returns
   /// the unwrapped success result.
   ///
+  /// Creates a [SorobanServer] from [rpcUrl] for this request and closes it in
+  /// a `finally` block so the connection is always released.
+  ///
   /// Throws [SACBalanceFetcherError] with [SACBalanceFetcherErrorKind.simulationFailed]
   /// on any RPC or contract error.
   static Future<SimulateTransactionResponse> _simulate({
     required Transaction transaction,
-    required OZSmartAccountKit kit,
+    required String rpcUrl,
   }) async {
-    final SimulateTransactionResponse simulation;
+    final server = SorobanServer(rpcUrl);
     try {
-      simulation = await kit.sorobanServer.simulateTransaction(
+      final simulation = await server.simulateTransaction(
         SimulateTransactionRequest(transaction),
       );
+
+      if (simulation.isErrorResponse) {
+        final reason = simulation.error?.message ?? 'unknown RPC error';
+        throw SACBalanceFetcherError(
+          kind: SACBalanceFetcherErrorKind.simulationFailed,
+          message: 'Simulation returned an error: $reason',
+        );
+      }
+
+      return simulation;
     } catch (e) {
+      if (e is SACBalanceFetcherError) rethrow;
       throw SACBalanceFetcherError(
         kind: SACBalanceFetcherErrorKind.simulationFailed,
         message: 'RPC request failed: $e',
       );
+    } finally {
+      server.close();
     }
-
-    if (simulation.isErrorResponse) {
-      final reason = simulation.error?.message ?? 'unknown RPC error';
-      throw SACBalanceFetcherError(
-        kind: SACBalanceFetcherErrorKind.simulationFailed,
-        message: 'Simulation returned an error: $reason',
-      );
-    }
-
-    return simulation;
   }
 
   // -------------------------------------------------------------------------

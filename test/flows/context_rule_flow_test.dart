@@ -304,7 +304,7 @@ void main() {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
       deps.manager.removeResult = successResult();
       final selectedSigners = [
-        SelectedSignerWallet(fixtureDelegatedAddress1),
+        OZSelectedSignerWallet(fixtureDelegatedAddress1),
       ];
 
       await deps.flow.removeContextRule(
@@ -357,7 +357,7 @@ void main() {
   group('ContextRuleFlow — last rule safety', () {
     test('isSinglePasskeyRemoval returns true for single passkey', () {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
-      final singlePasskey = [const SelectedSignerPasskey()];
+      final singlePasskey = [const OZSelectedSignerPasskey()];
 
       expect(deps.flow.isSinglePasskeyRemoval(singlePasskey), isTrue);
     });
@@ -365,8 +365,8 @@ void main() {
     test('isSinglePasskeyRemoval returns false for multiple signers', () {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
       final multi = [
-        const SelectedSignerPasskey(),
-        SelectedSignerWallet(fixtureDelegatedAddress1),
+        const OZSelectedSignerPasskey(),
+        OZSelectedSignerWallet(fixtureDelegatedAddress1),
       ];
 
       expect(deps.flow.isSinglePasskeyRemoval(multi), isFalse);
@@ -374,7 +374,7 @@ void main() {
 
     test('isSinglePasskeyRemoval returns false for wallet signer', () {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
-      final walletOnly = [SelectedSignerWallet(fixtureDelegatedAddress1)];
+      final walletOnly = [OZSelectedSignerWallet(fixtureDelegatedAddress1)];
 
       expect(deps.flow.isSinglePasskeyRemoval(walletOnly), isFalse);
     });
@@ -438,7 +438,7 @@ void main() {
       );
 
       expect(selected.length, 1);
-      expect(selected.first, isA<SelectedSignerPasskey>());
+      expect(selected.first, isA<OZSelectedSignerPasskey>());
     });
 
     test('buildSelectedSigners maps delegated signer correctly', () async {
@@ -448,8 +448,8 @@ void main() {
       );
 
       expect(selected.length, 1);
-      expect(selected.first, isA<SelectedSignerWallet>());
-      expect((selected.first as SelectedSignerWallet).address,
+      expect(selected.first, isA<OZSelectedSignerWallet>());
+      expect((selected.first as OZSelectedSignerWallet).address,
           fixtureDelegatedAddress1);
     });
 
@@ -461,8 +461,8 @@ void main() {
       ]);
 
       expect(selected.length, 2);
-      expect(selected[0], isA<SelectedSignerPasskey>());
-      expect(selected[1], isA<SelectedSignerWallet>());
+      expect(selected[0], isA<OZSelectedSignerPasskey>());
+      expect(selected[1], isA<OZSelectedSignerWallet>());
     });
   });
 
@@ -718,9 +718,9 @@ void main() {
         () async {
       final mgr = MockContextRuleFlowManager()
         ..editResults['updateName'] =
-            const TransactionResult(success: true, hash: 'h-name')
+            const OZTransactionResult(success: true, hash: 'h-name')
         ..editResults['updateValidUntil'] =
-            const TransactionResult(success: true, hash: 'h-exp');
+            const OZTransactionResult(success: true, hash: 'h-exp');
       final deps = ContextRuleFixtures.makeFlowWithDeps(manager: mgr);
 
       final diff = _emptyDiff(ruleId: 9).copyWith(
@@ -732,7 +732,7 @@ void main() {
 
       final result = await deps.flow.submitContextRuleEdits(
         diff: diff,
-        selectedSigners: const <SelectedSigner>[],
+        selectedSigners: const <OZSelectedSigner>[],
         onProgress: (_) {},
       );
 
@@ -751,15 +751,15 @@ void main() {
       'steps are skipped, partialDueToAuthGuard is false',
       () async {
         final mgr = MockContextRuleFlowManager()
-          ..editResults['updateName'] = const TransactionResult(
+          ..editResults['updateName'] = const OZTransactionResult(
             success: true,
             hash: 'h-name',
           )
-          ..editResults['removeSigner'] = const TransactionResult(
+          ..editResults['removeSigner'] = const OZTransactionResult(
             success: false,
             error: 'rejected on chain',
           )
-          ..editResults['updateValidUntil'] = const TransactionResult(
+          ..editResults['updateValidUntil'] = const OZTransactionResult(
             success: true,
             hash: 'h-exp-never',
           );
@@ -781,7 +781,7 @@ void main() {
 
         final result = await deps.flow.submitContextRuleEdits(
           diff: diff,
-          selectedSigners: const <SelectedSigner>[],
+          selectedSigners: const <OZSelectedSigner>[],
           onProgress: (_) {},
         );
 
@@ -807,12 +807,12 @@ void main() {
       () async {
         final thrown = Exception('boom from manager');
         final mgr = MockContextRuleFlowManager()
-          ..editResults['updateName'] = const TransactionResult(
+          ..editResults['updateName'] = const OZTransactionResult(
             success: true,
             hash: 'h-name',
           )
           ..editErrors['removeSigner'] = thrown
-          ..editResults['updateValidUntil'] = const TransactionResult(
+          ..editResults['updateValidUntil'] = const OZTransactionResult(
             success: true,
             hash: 'h-exp-never',
           );
@@ -834,7 +834,7 @@ void main() {
 
         final result = await deps.flow.submitContextRuleEdits(
           diff: diff,
-          selectedSigners: const <SelectedSigner>[],
+          selectedSigners: const <OZSelectedSigner>[],
           onProgress: (_) {},
         );
 
@@ -863,12 +863,12 @@ void main() {
         // iteration succeeds (remove + re-add). The second fails on its
         // remove. Each iteration produces two on-chain ops, totalling four.
         final mgr = _SequentialMockManager(
-          removePolicyResults: const <TransactionResult>[
-            TransactionResult(success: true, hash: 'h-rm-1'),
-            TransactionResult(success: false, error: 'second remove failed'),
+          removePolicyResults: const <OZTransactionResult>[
+            OZTransactionResult(success: true, hash: 'h-rm-1'),
+            OZTransactionResult(success: false, error: 'second remove failed'),
           ],
-          addPolicyResults: const <TransactionResult>[
-            TransactionResult(success: true, hash: 'h-add-1'),
+          addPolicyResults: const <OZTransactionResult>[
+            OZTransactionResult(success: true, hash: 'h-add-1'),
           ],
         );
         final flow = _makeFlowWithCustomManager(mgr);
@@ -891,7 +891,7 @@ void main() {
 
         final result = await flow.submitContextRuleEdits(
           diff: diff,
-          selectedSigners: const <SelectedSigner>[],
+          selectedSigners: const <OZSelectedSigner>[],
           onProgress: (_) {},
         );
 
@@ -917,7 +917,7 @@ void main() {
       'remove-signer pre-flight: onChainId == null short-circuits the step',
       () async {
         final mgr = MockContextRuleFlowManager()
-          ..editResults['updateValidUntil'] = const TransactionResult(
+          ..editResults['updateValidUntil'] = const OZTransactionResult(
             success: true,
             hash: 'h-exp-never',
           );
@@ -937,7 +937,7 @@ void main() {
 
         final result = await deps.flow.submitContextRuleEdits(
           diff: diff,
-          selectedSigners: const <SelectedSigner>[],
+          selectedSigners: const <OZSelectedSigner>[],
           onProgress: (_) {},
         );
 
@@ -960,7 +960,7 @@ void main() {
       'remove-policy pre-flight: onChainId == null short-circuits the step',
       () async {
         final mgr = MockContextRuleFlowManager()
-          ..editResults['updateValidUntil'] = const TransactionResult(
+          ..editResults['updateValidUntil'] = const OZTransactionResult(
             success: true,
             hash: 'h-exp-never',
           );
@@ -979,7 +979,7 @@ void main() {
 
         final result = await deps.flow.submitContextRuleEdits(
           diff: diff,
-          selectedSigners: const <SelectedSigner>[],
+          selectedSigners: const <OZSelectedSigner>[],
           onProgress: (_) {},
         );
 
@@ -998,7 +998,7 @@ void main() {
       'add-policy pre-flight: scVal == null short-circuits the step',
       () async {
         final mgr = MockContextRuleFlowManager()
-          ..editResults['updateValidUntil'] = const TransactionResult(
+          ..editResults['updateValidUntil'] = const OZTransactionResult(
             success: true,
             hash: 'h-exp-never',
           );
@@ -1018,7 +1018,7 @@ void main() {
 
         final result = await deps.flow.submitContextRuleEdits(
           diff: diff,
-          selectedSigners: const <SelectedSigner>[],
+          selectedSigners: const <OZSelectedSigner>[],
           onProgress: (_) {},
         );
 
@@ -1037,7 +1037,7 @@ void main() {
       'modified-threshold pre-flight: newThreshold == null short-circuits',
       () async {
         final mgr = MockContextRuleFlowManager()
-          ..editResults['updateValidUntil'] = const TransactionResult(
+          ..editResults['updateValidUntil'] = const OZTransactionResult(
             success: true,
             hash: 'h-exp-never',
           );
@@ -1063,7 +1063,7 @@ void main() {
 
         final result = await deps.flow.submitContextRuleEdits(
           diff: diff,
-          selectedSigners: const <SelectedSigner>[],
+          selectedSigners: const <OZSelectedSigner>[],
           onProgress: (_) {},
         );
 
@@ -1083,7 +1083,7 @@ void main() {
       'circuits both remove and re-add for the iteration',
       () async {
         final mgr = MockContextRuleFlowManager()
-          ..editResults['updateValidUntil'] = const TransactionResult(
+          ..editResults['updateValidUntil'] = const OZTransactionResult(
             success: true,
             hash: 'h-exp-never',
           );
@@ -1107,7 +1107,7 @@ void main() {
 
         final result = await deps.flow.submitContextRuleEdits(
           diff: diff,
-          selectedSigners: const <SelectedSigner>[],
+          selectedSigners: const <OZSelectedSigner>[],
           onProgress: (_) {},
         );
 
@@ -1134,7 +1134,7 @@ void main() {
         // and the failed step is the re-add half ("(re-add)"). Both txs
         // are still skipped.
         final mgr2 = MockContextRuleFlowManager()
-          ..editResults['updateValidUntil'] = const TransactionResult(
+          ..editResults['updateValidUntil'] = const OZTransactionResult(
             success: true,
             hash: 'h-exp-never-2',
           );
@@ -1153,7 +1153,7 @@ void main() {
 
         final result2 = await deps2.flow.submitContextRuleEdits(
           diff: diff2,
-          selectedSigners: const <SelectedSigner>[],
+          selectedSigners: const <OZSelectedSigner>[],
           onProgress: (_) {},
         );
 
@@ -1173,7 +1173,7 @@ void main() {
 }
 
 // ---------------------------------------------------------------------------
-// _SequentialMockManager — drives sequential per-call TransactionResult
+// _SequentialMockManager — drives sequential per-call OZTransactionResult
 // outcomes for removePolicy / addPolicy, used by the loop-iteration baseline
 // test which needs a different result on each invocation of the same
 // operation. Other methods throw [UnimplementedError] because the orchestrator
@@ -1186,8 +1186,8 @@ final class _SequentialMockManager implements ContextRuleFlowManagerType {
     required this.addPolicyResults,
   });
 
-  final List<TransactionResult> removePolicyResults;
-  final List<TransactionResult> addPolicyResults;
+  final List<OZTransactionResult> removePolicyResults;
+  final List<OZTransactionResult> addPolicyResults;
 
   int removePolicyCalls = 0;
   int addPolicyCalls = 0;
@@ -1198,89 +1198,89 @@ final class _SequentialMockManager implements ContextRuleFlowManagerType {
       );
 
   @override
-  Future<List<ParsedContextRule>> listContextRules() => _notUsed('listContextRules');
+  Future<List<OZParsedContextRule>> listContextRules() => _notUsed('listContextRules');
 
   @override
-  Future<TransactionResult> removeContextRule({
+  Future<OZTransactionResult> removeContextRule({
     required int id,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _notUsed('removeContextRule');
 
   @override
-  Future<TransactionResult> addContextRule({
-    required ContextRuleType contextType,
+  Future<OZTransactionResult> addContextRule({
+    required OZContextRuleType contextType,
     required String name,
     int? validUntil,
     required List<OZSmartAccountSigner> signers,
     Map<String, XdrSCVal> policies = const <String, XdrSCVal>{},
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _notUsed('addContextRule');
 
   @override
-  Future<TransactionResult> updateContextRuleName({
+  Future<OZTransactionResult> updateContextRuleName({
     required int ruleId,
     required String name,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _notUsed('updateContextRuleName');
 
   @override
-  Future<TransactionResult> removeSignerFromRule({
+  Future<OZTransactionResult> removeSignerFromRule({
     required int ruleId,
     required int signerId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _notUsed('removeSignerFromRule');
 
   @override
-  Future<TransactionResult> addDelegatedSignerToRule({
+  Future<OZTransactionResult> addDelegatedSignerToRule({
     required int ruleId,
     required String address,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _notUsed('addDelegatedSignerToRule');
 
   @override
-  Future<TransactionResult> addEd25519SignerToRule({
+  Future<OZTransactionResult> addEd25519SignerToRule({
     required int ruleId,
     required Uint8List publicKey,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _notUsed('addEd25519SignerToRule');
 
   @override
-  Future<TransactionResult> addPasskeySignerToRule({
+  Future<OZTransactionResult> addPasskeySignerToRule({
     required int ruleId,
     required Uint8List publicKey,
     required Uint8List credentialId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _notUsed('addPasskeySignerToRule');
 
   @override
-  Future<TransactionResult> updateContextRuleValidUntil({
+  Future<OZTransactionResult> updateContextRuleValidUntil({
     required int ruleId,
     int? validUntil,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _notUsed('updateContextRuleValidUntil');
 
   @override
-  Future<TransactionResult> setPolicyThreshold({
+  Future<OZTransactionResult> setPolicyThreshold({
     required int ruleId,
     required String policyAddress,
     required int newThreshold,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _notUsed('setPolicyThreshold');
 
   @override
-  Future<TransactionResult> removePolicyFromRule({
+  Future<OZTransactionResult> removePolicyFromRule({
     required int ruleId,
     required int policyId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) async {
     final i = removePolicyCalls++;
     if (i >= removePolicyResults.length) {
@@ -1294,11 +1294,11 @@ final class _SequentialMockManager implements ContextRuleFlowManagerType {
   }
 
   @override
-  Future<TransactionResult> addPolicyToRule({
+  Future<OZTransactionResult> addPolicyToRule({
     required int ruleId,
     required String policyAddress,
     required XdrSCVal installParams,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) async {
     final i = addPolicyCalls++;
     if (i >= addPolicyResults.length) {

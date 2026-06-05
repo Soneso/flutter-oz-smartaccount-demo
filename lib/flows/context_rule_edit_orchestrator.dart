@@ -154,7 +154,7 @@ extension _ContextRuleEditOrchestrator on ContextRuleFlow {
   /// place) and the helper returns `(completed: priorCompleted + 1,
   /// failure: null)`.
   ///
-  /// On `call` returning a `!success` [TransactionResult], the helper returns
+  /// On `call` returning a `!success` [OZTransactionResult], the helper returns
   /// `(completed: priorCompleted, failure: _editFailure(...))`.
   ///
   /// On `call` throwing, the helper returns
@@ -169,7 +169,7 @@ extension _ContextRuleEditOrchestrator on ContextRuleFlow {
     required int totalOps,
     required int priorCompleted,
     required List<String> hashes,
-    required Future<TransactionResult> Function() call,
+    required Future<OZTransactionResult> Function() call,
     ContextRuleEditResult? Function()? precondition,
   }) async {
     if (precondition != null) {
@@ -211,10 +211,10 @@ extension _ContextRuleEditOrchestrator on ContextRuleFlow {
   /// Dispatches an `add signer` operation to the correct typed SDK call
   /// based on the runtime type of [EditSignerEntry.signer] and, for
   /// external signers, the verifier address.
-  Future<TransactionResult> _dispatchAddSigner({
+  Future<OZTransactionResult> _dispatchAddSigner({
     required int ruleId,
     required EditSignerEntry entry,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
   }) async {
     final signer = entry.signer;
     if (signer is OZDelegatedSigner) {

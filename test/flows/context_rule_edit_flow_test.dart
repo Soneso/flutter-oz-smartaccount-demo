@@ -221,15 +221,15 @@ void main() {
         'add policy → expiry', () async {
       final mgr = MockContextRuleFlowManager()
         ..editResults['updateName'] =
-            TransactionResult(success: true, hash: 'h-name')
+            OZTransactionResult(success: true, hash: 'h-name')
         ..editResults['removeSigner'] =
-            TransactionResult(success: true, hash: 'h-rms')
+            OZTransactionResult(success: true, hash: 'h-rms')
         ..editResults['addDelegated'] =
-            TransactionResult(success: true, hash: 'h-add-d')
+            OZTransactionResult(success: true, hash: 'h-add-d')
         ..editResults['addPolicy'] =
-            TransactionResult(success: true, hash: 'h-add-p')
+            OZTransactionResult(success: true, hash: 'h-add-p')
         ..editResults['updateValidUntil'] =
-            TransactionResult(success: true, hash: 'h-exp');
+            OZTransactionResult(success: true, hash: 'h-exp');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -283,7 +283,7 @@ void main() {
 
       final result = await deps.flow.submitContextRuleEdits(
         diff: diffNoSigners,
-        selectedSigners: const <SelectedSigner>[],
+        selectedSigners: const <OZSelectedSigner>[],
         onProgress: messages.add,
       );
 
@@ -307,7 +307,7 @@ void main() {
         () async {
       final mgr = MockContextRuleFlowManager()
         ..editResults['addDelegated'] =
-            TransactionResult(success: true, hash: 'h-sig');
+            OZTransactionResult(success: true, hash: 'h-sig');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -347,7 +347,7 @@ void main() {
 
       final result = await deps.flow.submitContextRuleEdits(
         diff: diff,
-        selectedSigners: const <SelectedSigner>[],
+        selectedSigners: const <OZSelectedSigner>[],
         onProgress: (_) {},
       );
 
@@ -361,10 +361,10 @@ void main() {
   });
 
   group('ContextRuleFlow.submitContextRuleEdits — failure', () {
-    test('stops on first non-successful TransactionResult and surfaces step',
+    test('stops on first non-successful OZTransactionResult and surfaces step',
         () async {
       final mgr = MockContextRuleFlowManager()
-        ..editResults['updateName'] = TransactionResult(
+        ..editResults['updateName'] = OZTransactionResult(
           success: false,
           error: 'rejected',
         );
@@ -389,7 +389,7 @@ void main() {
 
       final result = await deps.flow.submitContextRuleEdits(
         diff: diff,
-        selectedSigners: const <SelectedSigner>[],
+        selectedSigners: const <OZSelectedSigner>[],
         onProgress: (_) {},
       );
 
@@ -425,7 +425,7 @@ void main() {
 
       final result = await deps.flow.submitContextRuleEdits(
         diff: diff,
-        selectedSigners: const <SelectedSigner>[],
+        selectedSigners: const <OZSelectedSigner>[],
         onProgress: (_) {},
       );
 
@@ -479,7 +479,7 @@ void main() {
         () async {
       final mgr = MockContextRuleFlowManager()
         ..editResults['addEd25519'] =
-            TransactionResult(success: true, hash: 'h-ed');
+            OZTransactionResult(success: true, hash: 'h-ed');
       final env = MockBuilderEnvironment(
         ed25519VerifierAddress:
             'CAW2Z46INPO5VIJEILMYSSEOLBVJIIII5GOE3TN5EUURSRM2FJCF7AJ6',
@@ -510,7 +510,7 @@ void main() {
 
       final result = await deps.flow.submitContextRuleEdits(
         diff: diff,
-        selectedSigners: const <SelectedSigner>[],
+        selectedSigners: const <OZSelectedSigner>[],
         onProgress: (_) {},
       );
 

@@ -28,7 +28,7 @@ import '../flows/transfer_test_support.dart';
 // Multi-signer test helpers
 // ---------------------------------------------------------------------------
 
-/// Builds a [MockContextRuleManager] that returns one [ParsedContextRule]
+/// Builds a [MockContextRuleManager] that returns one [OZParsedContextRule]
 /// containing one [OZDelegatedSigner] for [TransferFixtures.defaultRecipient].
 ///
 /// The passkey signer is omitted because [OZExternalSigner] requires a real
@@ -37,19 +37,19 @@ import '../flows/transfer_test_support.dart';
 /// rules with one delegated signer each to hit that branch.
 MockContextRuleManager _buildMultiSignerContextManager() {
   final manager = MockContextRuleManager();
-  manager.rules = <ParsedContextRule>[
-    ParsedContextRule(
+  manager.rules = <OZParsedContextRule>[
+    OZParsedContextRule(
       id: 1,
-      contextType: const ContextRuleTypeDefault(),
+      contextType: const OZContextRuleTypeDefault(),
       name: 'rule-1',
       signers: [OZDelegatedSigner(TransferFixtures.defaultRecipient)],
       signerIds: const [1],
       policies: const [],
       policyIds: const [],
     ),
-    ParsedContextRule(
+    OZParsedContextRule(
       id: 2,
-      contextType: const ContextRuleTypeDefault(),
+      contextType: const OZContextRuleTypeDefault(),
       name: 'rule-2',
       signers: [OZDelegatedSigner(TransferFixtures.nativeTokenContract)],
       signerIds: const [2],

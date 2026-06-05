@@ -25,94 +25,94 @@ import '../util/error_utils.dart';
 /// read / removal / create paths and the per-operation edit paths.
 abstract interface class ContextRuleFlowManagerType {
   /// Returns all active context rules for the connected account.
-  Future<List<ParsedContextRule>> listContextRules();
+  Future<List<OZParsedContextRule>> listContextRules();
 
   /// Removes the rule with [id], optionally with explicit [selectedSigners].
-  Future<TransactionResult> removeContextRule({
+  Future<OZTransactionResult> removeContextRule({
     required int id,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   });
 
   /// Submits a new context rule with the given signer/policy configuration.
-  Future<TransactionResult> addContextRule({
-    required ContextRuleType contextType,
+  Future<OZTransactionResult> addContextRule({
+    required OZContextRuleType contextType,
     required String name,
     int? validUntil,
     required List<OZSmartAccountSigner> signers,
     Map<String, XdrSCVal> policies,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   });
 
   // ---- Per-operation edit methods ----
 
   /// Updates the human-readable name of an existing rule.
-  Future<TransactionResult> updateContextRuleName({
+  Future<OZTransactionResult> updateContextRuleName({
     required int ruleId,
     required String name,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   });
 
   /// Removes a signer from a rule by its on-chain ID.
-  Future<TransactionResult> removeSignerFromRule({
+  Future<OZTransactionResult> removeSignerFromRule({
     required int ruleId,
     required int signerId,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   });
 
   /// Adds a delegated signer (G-address) to an existing rule.
-  Future<TransactionResult> addDelegatedSignerToRule({
+  Future<OZTransactionResult> addDelegatedSignerToRule({
     required int ruleId,
     required String address,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   });
 
   /// Adds an Ed25519 signer to an existing rule.
-  Future<TransactionResult> addEd25519SignerToRule({
+  Future<OZTransactionResult> addEd25519SignerToRule({
     required int ruleId,
     required Uint8List publicKey,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   });
 
   /// Adds a passkey (WebAuthn) signer to an existing rule using an
   /// already-registered passkey.
-  Future<TransactionResult> addPasskeySignerToRule({
+  Future<OZTransactionResult> addPasskeySignerToRule({
     required int ruleId,
     required Uint8List publicKey,
     required Uint8List credentialId,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   });
 
   /// Removes a policy from a rule by its on-chain ID.
-  Future<TransactionResult> removePolicyFromRule({
+  Future<OZTransactionResult> removePolicyFromRule({
     required int ruleId,
     required int policyId,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   });
 
   /// Adds a policy with the given install parameters to an existing rule.
-  Future<TransactionResult> addPolicyToRule({
+  Future<OZTransactionResult> addPolicyToRule({
     required int ruleId,
     required String policyAddress,
     required XdrSCVal installParams,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   });
 
   /// Updates the expiry (`valid_until` ledger) of an existing rule. Pass
   /// `null` for [validUntil] to clear the expiry.
-  Future<TransactionResult> updateContextRuleValidUntil({
+  Future<OZTransactionResult> updateContextRuleValidUntil({
     required int ruleId,
     int? validUntil,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   });
 
   /// Invokes `set_threshold` on a threshold policy contract on behalf of
   /// the smart account, applying the new threshold value in a single
   /// transaction. Used for threshold-only policy modifications.
-  Future<TransactionResult> setPolicyThreshold({
+  Future<OZTransactionResult> setPolicyThreshold({
     required int ruleId,
     required String policyAddress,
     required int newThreshold,
-    List<SelectedSigner> selectedSigners,
+    List<OZSelectedSigner> selectedSigners,
   });
 }
 
@@ -173,15 +173,20 @@ final class ContextRuleBuilderEnvironmentAdapter
 
   @override
   Future<int> getCurrentLedger() async {
-    final response = await _kit.sorobanServer.getLatestLedger();
-    final sequence = response.sequence;
-    if (sequence == null) {
-      throw const DemoError(
-        message: 'Could not read current ledger from the network.',
-        category: DemoErrorCategory.network,
-      );
+    final server = SorobanServer(config.rpcUrl);
+    try {
+      final response = await server.getLatestLedger();
+      final sequence = response.sequence;
+      if (sequence == null) {
+        throw const DemoError(
+          message: 'Could not read current ledger from the network.',
+          category: DemoErrorCategory.network,
+        );
+      }
+      return sequence;
+    } finally {
+      server.close();
     }
-    return sequence;
   }
 
   @override
@@ -189,13 +194,18 @@ final class ContextRuleBuilderEnvironmentAdapter
     required String contractAddress,
     required XdrSCVal storageKey,
   }) async {
-    final entry = await _kit.sorobanServer.getContractData(
-      contractAddress,
-      storageKey,
-      XdrContractDataDurability.PERSISTENT,
-    );
-    if (entry == null) return null;
-    return entry.ledgerEntryDataXdr.contractData?.val;
+    final server = SorobanServer(config.rpcUrl);
+    try {
+      final entry = await server.getContractData(
+        contractAddress,
+        storageKey,
+        XdrContractDataDurability.PERSISTENT,
+      );
+      if (entry == null) return null;
+      return entry.ledgerEntryDataXdr.contractData?.val;
+    } finally {
+      server.close();
+    }
   }
 }
 
@@ -218,13 +228,13 @@ final class ContextRuleManagerFlowAdapter
   OZMultiSignerManager get _multiSigner => _kit.multiSignerManager;
 
   @override
-  Future<List<ParsedContextRule>> listContextRules() =>
+  Future<List<OZParsedContextRule>> listContextRules() =>
       _ruleManager.listContextRules();
 
   @override
-  Future<TransactionResult> removeContextRule({
+  Future<OZTransactionResult> removeContextRule({
     required int id,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _ruleManager.removeContextRule(
         id: id,
@@ -232,13 +242,13 @@ final class ContextRuleManagerFlowAdapter
       );
 
   @override
-  Future<TransactionResult> addContextRule({
-    required ContextRuleType contextType,
+  Future<OZTransactionResult> addContextRule({
+    required OZContextRuleType contextType,
     required String name,
     int? validUntil,
     required List<OZSmartAccountSigner> signers,
     Map<String, XdrSCVal> policies = const <String, XdrSCVal>{},
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _ruleManager.addContextRule(
         contextType: contextType,
@@ -250,10 +260,10 @@ final class ContextRuleManagerFlowAdapter
       );
 
   @override
-  Future<TransactionResult> updateContextRuleName({
+  Future<OZTransactionResult> updateContextRuleName({
     required int ruleId,
     required String name,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _ruleManager.updateName(
         id: ruleId,
@@ -262,10 +272,10 @@ final class ContextRuleManagerFlowAdapter
       );
 
   @override
-  Future<TransactionResult> removeSignerFromRule({
+  Future<OZTransactionResult> removeSignerFromRule({
     required int ruleId,
     required int signerId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _signerManager.removeSigner(
         contextRuleId: ruleId,
@@ -274,10 +284,10 @@ final class ContextRuleManagerFlowAdapter
       );
 
   @override
-  Future<TransactionResult> addDelegatedSignerToRule({
+  Future<OZTransactionResult> addDelegatedSignerToRule({
     required int ruleId,
     required String address,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _signerManager.addDelegated(
         contextRuleId: ruleId,
@@ -286,10 +296,10 @@ final class ContextRuleManagerFlowAdapter
       );
 
   @override
-  Future<TransactionResult> addEd25519SignerToRule({
+  Future<OZTransactionResult> addEd25519SignerToRule({
     required int ruleId,
     required Uint8List publicKey,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _signerManager.addEd25519(
         contextRuleId: ruleId,
@@ -299,11 +309,11 @@ final class ContextRuleManagerFlowAdapter
       );
 
   @override
-  Future<TransactionResult> addPasskeySignerToRule({
+  Future<OZTransactionResult> addPasskeySignerToRule({
     required int ruleId,
     required Uint8List publicKey,
     required Uint8List credentialId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _signerManager.addPasskey(
         contextRuleId: ruleId,
@@ -313,10 +323,10 @@ final class ContextRuleManagerFlowAdapter
       );
 
   @override
-  Future<TransactionResult> removePolicyFromRule({
+  Future<OZTransactionResult> removePolicyFromRule({
     required int ruleId,
     required int policyId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _policyManager.removePolicy(
         contextRuleId: ruleId,
@@ -325,11 +335,11 @@ final class ContextRuleManagerFlowAdapter
       );
 
   @override
-  Future<TransactionResult> addPolicyToRule({
+  Future<OZTransactionResult> addPolicyToRule({
     required int ruleId,
     required String policyAddress,
     required XdrSCVal installParams,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _policyManager.addPolicy(
         contextRuleId: ruleId,
@@ -339,10 +349,10 @@ final class ContextRuleManagerFlowAdapter
       );
 
   @override
-  Future<TransactionResult> updateContextRuleValidUntil({
+  Future<OZTransactionResult> updateContextRuleValidUntil({
     required int ruleId,
     int? validUntil,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _ruleManager.updateValidUntil(
         id: ruleId,
@@ -351,11 +361,11 @@ final class ContextRuleManagerFlowAdapter
       );
 
   @override
-  Future<TransactionResult> setPolicyThreshold({
+  Future<OZTransactionResult> setPolicyThreshold({
     required int ruleId,
     required String policyAddress,
     required int newThreshold,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) async {
     // Fetch the on-chain ContextRule SCVal — the policy contract requires
     // it as the second argument of set_threshold for binding.

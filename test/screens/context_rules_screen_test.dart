@@ -405,102 +405,102 @@ final class _ConnectedDemoStateNotifier extends DemoStateNotifier {
 /// so tests can assert on the loading state.
 final class _StallingMockManager implements ContextRuleFlowManagerType {
   @override
-  Future<List<ParsedContextRule>> listContextRules() {
-    return Completer<List<ParsedContextRule>>().future;
+  Future<List<OZParsedContextRule>> listContextRules() {
+    return Completer<List<OZParsedContextRule>>().future;
   }
 
   @override
-  Future<TransactionResult> removeContextRule({
+  Future<OZTransactionResult> removeContextRule({
     required int id,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) {
-    return Completer<TransactionResult>().future;
+    return Completer<OZTransactionResult>().future;
   }
 
   @override
-  Future<TransactionResult> addContextRule({
-    required ContextRuleType contextType,
+  Future<OZTransactionResult> addContextRule({
+    required OZContextRuleType contextType,
     required String name,
     int? validUntil,
     required List<OZSmartAccountSigner> signers,
     Map<String, XdrSCVal> policies = const <String, XdrSCVal>{},
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) {
-    return Completer<TransactionResult>().future;
+    return Completer<OZTransactionResult>().future;
   }
 
   @override
-  Future<TransactionResult> updateContextRuleName({
+  Future<OZTransactionResult> updateContextRuleName({
     required int ruleId,
     required String name,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
-      Completer<TransactionResult>().future;
+      Completer<OZTransactionResult>().future;
 
   @override
-  Future<TransactionResult> removeSignerFromRule({
+  Future<OZTransactionResult> removeSignerFromRule({
     required int ruleId,
     required int signerId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
-      Completer<TransactionResult>().future;
+      Completer<OZTransactionResult>().future;
 
   @override
-  Future<TransactionResult> addDelegatedSignerToRule({
+  Future<OZTransactionResult> addDelegatedSignerToRule({
     required int ruleId,
     required String address,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
-      Completer<TransactionResult>().future;
+      Completer<OZTransactionResult>().future;
 
   @override
-  Future<TransactionResult> addEd25519SignerToRule({
+  Future<OZTransactionResult> addEd25519SignerToRule({
     required int ruleId,
     required Uint8List publicKey,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
-      Completer<TransactionResult>().future;
+      Completer<OZTransactionResult>().future;
 
   @override
-  Future<TransactionResult> addPasskeySignerToRule({
+  Future<OZTransactionResult> addPasskeySignerToRule({
     required int ruleId,
     required Uint8List publicKey,
     required Uint8List credentialId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
-      Completer<TransactionResult>().future;
+      Completer<OZTransactionResult>().future;
 
   @override
-  Future<TransactionResult> removePolicyFromRule({
+  Future<OZTransactionResult> removePolicyFromRule({
     required int ruleId,
     required int policyId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
-      Completer<TransactionResult>().future;
+      Completer<OZTransactionResult>().future;
 
   @override
-  Future<TransactionResult> addPolicyToRule({
+  Future<OZTransactionResult> addPolicyToRule({
     required int ruleId,
     required String policyAddress,
     required XdrSCVal installParams,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
-      Completer<TransactionResult>().future;
+      Completer<OZTransactionResult>().future;
 
   @override
-  Future<TransactionResult> updateContextRuleValidUntil({
+  Future<OZTransactionResult> updateContextRuleValidUntil({
     required int ruleId,
     int? validUntil,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
-      Completer<TransactionResult>().future;
+      Completer<OZTransactionResult>().future;
 
   @override
-  Future<TransactionResult> setPolicyThreshold({
+  Future<OZTransactionResult> setPolicyThreshold({
     required int ruleId,
     required String policyAddress,
     required int newThreshold,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
-      Completer<TransactionResult>().future;
+      Completer<OZTransactionResult>().future;
 }

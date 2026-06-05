@@ -1,7 +1,7 @@
 /// Shared test support for [ContextRuleFlow] tests.
 ///
 /// Provides mock implementations of [ContextRuleFlowManagerType], fixture
-/// builders for [ParsedContextRule], and helpers for assembling test
+/// builders for [OZParsedContextRule], and helpers for assembling test
 /// dependencies.
 library;
 
@@ -26,18 +26,18 @@ import 'transfer_test_support.dart' show FakeOZExternalSignerManager;
 /// Configurable mock for [ContextRuleFlowManagerType].
 final class MockContextRuleFlowManager
     implements ContextRuleFlowManagerType {
-  List<ParsedContextRule> rules = const <ParsedContextRule>[];
+  List<OZParsedContextRule> rules = const <OZParsedContextRule>[];
   Object? listError;
   Object? removeError;
-  TransactionResult? removeResult;
+  OZTransactionResult? removeResult;
 
   int listCallCount = 0;
   int removeCallCount = 0;
   int? lastRemovedId;
-  List<SelectedSigner>? lastSelectedSigners;
+  List<OZSelectedSigner>? lastSelectedSigners;
 
   @override
-  Future<List<ParsedContextRule>> listContextRules() async {
+  Future<List<OZParsedContextRule>> listContextRules() async {
     listCallCount++;
     final e = listError;
     if (e != null) throw e;
@@ -45,9 +45,9 @@ final class MockContextRuleFlowManager
   }
 
   @override
-  Future<TransactionResult> removeContextRule({
+  Future<OZTransactionResult> removeContextRule({
     required int id,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) async {
     removeCallCount++;
     lastRemovedId = id;
@@ -71,24 +71,24 @@ final class MockContextRuleFlowManager
 
   /// Configured to return as the addContextRule result. Required when
   /// addError is null.
-  TransactionResult? addResult;
+  OZTransactionResult? addResult;
 
   int addCallCount = 0;
-  ContextRuleType? lastAddedContextType;
+  OZContextRuleType? lastAddedContextType;
   String? lastAddedName;
   int? lastAddedValidUntil;
   List<OZSmartAccountSigner>? lastAddedSigners;
   Map<String, XdrSCVal>? lastAddedPolicies;
-  List<SelectedSigner>? lastAddedSelectedSigners;
+  List<OZSelectedSigner>? lastAddedSelectedSigners;
 
   @override
-  Future<TransactionResult> addContextRule({
-    required ContextRuleType contextType,
+  Future<OZTransactionResult> addContextRule({
+    required OZContextRuleType contextType,
     required String name,
     int? validUntil,
     required List<OZSmartAccountSigner> signers,
     Map<String, XdrSCVal> policies = const <String, XdrSCVal>{},
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) async {
     addCallCount++;
     lastAddedContextType = contextType;
@@ -112,7 +112,7 @@ final class MockContextRuleFlowManager
 
   // ---- Per-op edit hooks ---------------------------------------------------
 
-  /// Map from a textual operation name to either a [TransactionResult] or an
+  /// Map from a textual operation name to either a [OZTransactionResult] or an
   /// [Object] to throw.
   ///
   /// Operation names: `updateName`, `removeSigner`, `addDelegated`,
@@ -122,7 +122,7 @@ final class MockContextRuleFlowManager
   /// Tests configure either an [editResult] or an [editError] per
   /// operation; when neither is set, the per-op method throws a
   /// [StateError] so configuration gaps surface loudly.
-  final Map<String, TransactionResult> editResults = <String, TransactionResult>{};
+  final Map<String, OZTransactionResult> editResults = <String, OZTransactionResult>{};
   final Map<String, Object> editErrors = <String, Object>{};
 
   /// Per-operation call counters keyed by the same operation names as
@@ -134,7 +134,7 @@ final class MockContextRuleFlowManager
   /// for assertion convenience.
   final List<EditCallRecord> editCalls = <EditCallRecord>[];
 
-  Future<TransactionResult> _runEditOp(
+  Future<OZTransactionResult> _runEditOp(
     String op,
     Map<String, Object?> args,
   ) async {
@@ -151,10 +151,10 @@ final class MockContextRuleFlowManager
   }
 
   @override
-  Future<TransactionResult> updateContextRuleName({
+  Future<OZTransactionResult> updateContextRuleName({
     required int ruleId,
     required String name,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _runEditOp('updateName', <String, Object?>{
         'ruleId': ruleId,
@@ -163,10 +163,10 @@ final class MockContextRuleFlowManager
       });
 
   @override
-  Future<TransactionResult> removeSignerFromRule({
+  Future<OZTransactionResult> removeSignerFromRule({
     required int ruleId,
     required int signerId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _runEditOp('removeSigner', <String, Object?>{
         'ruleId': ruleId,
@@ -175,10 +175,10 @@ final class MockContextRuleFlowManager
       });
 
   @override
-  Future<TransactionResult> addDelegatedSignerToRule({
+  Future<OZTransactionResult> addDelegatedSignerToRule({
     required int ruleId,
     required String address,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _runEditOp('addDelegated', <String, Object?>{
         'ruleId': ruleId,
@@ -187,10 +187,10 @@ final class MockContextRuleFlowManager
       });
 
   @override
-  Future<TransactionResult> addEd25519SignerToRule({
+  Future<OZTransactionResult> addEd25519SignerToRule({
     required int ruleId,
     required Uint8List publicKey,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _runEditOp('addEd25519', <String, Object?>{
         'ruleId': ruleId,
@@ -199,11 +199,11 @@ final class MockContextRuleFlowManager
       });
 
   @override
-  Future<TransactionResult> addPasskeySignerToRule({
+  Future<OZTransactionResult> addPasskeySignerToRule({
     required int ruleId,
     required Uint8List publicKey,
     required Uint8List credentialId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _runEditOp('addPasskey', <String, Object?>{
         'ruleId': ruleId,
@@ -213,10 +213,10 @@ final class MockContextRuleFlowManager
       });
 
   @override
-  Future<TransactionResult> removePolicyFromRule({
+  Future<OZTransactionResult> removePolicyFromRule({
     required int ruleId,
     required int policyId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _runEditOp('removePolicy', <String, Object?>{
         'ruleId': ruleId,
@@ -225,11 +225,11 @@ final class MockContextRuleFlowManager
       });
 
   @override
-  Future<TransactionResult> addPolicyToRule({
+  Future<OZTransactionResult> addPolicyToRule({
     required int ruleId,
     required String policyAddress,
     required XdrSCVal installParams,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _runEditOp('addPolicy', <String, Object?>{
         'ruleId': ruleId,
@@ -239,10 +239,10 @@ final class MockContextRuleFlowManager
       });
 
   @override
-  Future<TransactionResult> updateContextRuleValidUntil({
+  Future<OZTransactionResult> updateContextRuleValidUntil({
     required int ruleId,
     int? validUntil,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _runEditOp('updateValidUntil', <String, Object?>{
         'ruleId': ruleId,
@@ -251,11 +251,11 @@ final class MockContextRuleFlowManager
       });
 
   @override
-  Future<TransactionResult> setPolicyThreshold({
+  Future<OZTransactionResult> setPolicyThreshold({
     required int ruleId,
     required String policyAddress,
     required int newThreshold,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _runEditOp('setPolicyThreshold', <String, Object?>{
         'ruleId': ruleId,
@@ -382,7 +382,7 @@ final class MockWebAuthnProvider implements WebAuthnProvider {
   @override
   Future<WebAuthnAuthenticationResult> authenticate({
     required Uint8List challenge,
-    List<AllowCredential>? allowCredentials,
+    List<WebAuthnAllowCredential>? allowCredentials,
   }) async {
     throw UnimplementedError(
       'MockWebAuthnProvider.authenticate is not used in builder tests.',
@@ -429,34 +429,34 @@ const String fixtureDelegatedAddress1 =
 const String fixtureDelegatedAddress2 =
     'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
 
-/// A successful [TransactionResult].
-TransactionResult successResult({String? hash}) => TransactionResult(
+/// A successful [OZTransactionResult].
+OZTransactionResult successResult({String? hash}) => OZTransactionResult(
       success: true,
       hash: hash ?? 'deadbeef' * 8,
     );
 
-/// A failed [TransactionResult].
-TransactionResult failureResult({String? errorMessage}) => TransactionResult(
+/// A failed [OZTransactionResult].
+OZTransactionResult failureResult({String? errorMessage}) => OZTransactionResult(
       success: false,
       error: errorMessage ?? 'Rule removal failed on-chain.',
     );
 
 // ---------------------------------------------------------------------------
-// ParsedContextRule fixture builders
+// OZParsedContextRule fixture builders
 // ---------------------------------------------------------------------------
 
-/// Builds a [ParsedContextRule] with defaults.
-ParsedContextRule makeRule({
+/// Builds a [OZParsedContextRule] with defaults.
+OZParsedContextRule makeRule({
   int id = 1,
-  ContextRuleType? contextType,
+  OZContextRuleType? contextType,
   String name = 'test-rule',
   List<OZSmartAccountSigner>? signers,
   List<String>? policies,
   int? validUntil,
 }) {
-  return ParsedContextRule(
+  return OZParsedContextRule(
     id: id,
-    contextType: contextType ?? const ContextRuleTypeDefault(),
+    contextType: contextType ?? const OZContextRuleTypeDefault(),
     name: name,
     signers: signers ?? [OZDelegatedSigner(fixtureDelegatedAddress1)],
     signerIds: [id],
@@ -467,14 +467,14 @@ ParsedContextRule makeRule({
 }
 
 /// Builds a rule with zero signers (policy-only).
-ParsedContextRule makePolicyOnlyRule({
+OZParsedContextRule makePolicyOnlyRule({
   int id = 10,
   String name = 'policy-only',
   List<String>? policies,
 }) {
-  return ParsedContextRule(
+  return OZParsedContextRule(
     id: id,
-    contextType: const ContextRuleTypeDefault(),
+    contextType: const OZContextRuleTypeDefault(),
     name: name,
     signers: const [],
     signerIds: const [],
@@ -484,13 +484,13 @@ ParsedContextRule makePolicyOnlyRule({
 }
 
 /// Builds a rule with zero policies (signer-only).
-ParsedContextRule makeSignerOnlyRule({
+OZParsedContextRule makeSignerOnlyRule({
   int id = 20,
   String name = 'signer-only',
 }) {
-  return ParsedContextRule(
+  return OZParsedContextRule(
     id: id,
-    contextType: const ContextRuleTypeDefault(),
+    contextType: const OZContextRuleTypeDefault(),
     name: name,
     signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
     signerIds: const [1],
@@ -500,14 +500,14 @@ ParsedContextRule makeSignerOnlyRule({
 }
 
 /// Builds a rule with an expiry ledger.
-ParsedContextRule makeRuleWithExpiry({
+OZParsedContextRule makeRuleWithExpiry({
   int id = 30,
   String name = 'expiring-rule',
   int validUntil = 99999,
 }) {
-  return ParsedContextRule(
+  return OZParsedContextRule(
     id: id,
-    contextType: const ContextRuleTypeDefault(),
+    contextType: const OZContextRuleTypeDefault(),
     name: name,
     signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
     signerIds: const [1],
@@ -518,15 +518,15 @@ ParsedContextRule makeRuleWithExpiry({
 }
 
 /// Builds a [CallContract] context rule.
-ParsedContextRule makeCallContractRule({
+OZParsedContextRule makeCallContractRule({
   int id = 40,
   String name = 'call-contract-rule',
   String? contractAddress,
 }) {
-  return ParsedContextRule(
+  return OZParsedContextRule(
     id: id,
     contextType:
-        ContextRuleTypeCallContract(contractAddress ?? fixtureContractId),
+        OZContextRuleTypeCallContract(contractAddress ?? fixtureContractId),
     name: name,
     signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
     signerIds: const [1],

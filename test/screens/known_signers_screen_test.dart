@@ -20,14 +20,14 @@ import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 import '../flows/account_signers_test_support.dart';
 import '../flows/transfer_test_support.dart' show MockNetworkError;
 
-ParsedContextRule _ruleWithSigners({
+OZParsedContextRule _ruleWithSigners({
   required int id,
   required String name,
   required List<OZSmartAccountSigner> signers,
 }) {
-  return ParsedContextRule(
+  return OZParsedContextRule(
     id: id,
-    contextType: const ContextRuleTypeDefault(),
+    contextType: const OZContextRuleTypeDefault(),
     name: name,
     signers: signers,
     signerIds: List<int>.generate(signers.length, (i) => i + 1),
@@ -137,7 +137,7 @@ void main() {
   group('KnownSignersScreen — empty signers', () {
     testWidgets('shows the empty card after a load completes', (tester) async {
       final deps = AccountSignersFixtures.makeFlowWithDeps();
-      deps.contextRuleManager.rules = const <ParsedContextRule>[];
+      deps.contextRuleManager.rules = const <OZParsedContextRule>[];
 
       await tester.pumpWidget(_wrap(deps.flow));
       await tester.pump();
@@ -154,7 +154,7 @@ void main() {
   group('KnownSignersScreen — populated list', () {
     testWidgets('shows the pluralised count header', (tester) async {
       final deps = AccountSignersFixtures.makeFlowWithDeps();
-      deps.contextRuleManager.rules = <ParsedContextRule>[
+      deps.contextRuleManager.rules = <OZParsedContextRule>[
         _ruleWithSigners(
           id: 1,
           name: 'r1',
@@ -176,7 +176,7 @@ void main() {
 
     testWidgets('singular count uses "1 signer" form', (tester) async {
       final deps = AccountSignersFixtures.makeFlowWithDeps();
-      deps.contextRuleManager.rules = <ParsedContextRule>[
+      deps.contextRuleManager.rules = <OZParsedContextRule>[
         _ruleWithSigners(
           id: 1,
           name: 'r1',
@@ -194,7 +194,7 @@ void main() {
     testWidgets('rule chip renders "#{id}" prefix and rule name',
         (tester) async {
       final deps = AccountSignersFixtures.makeFlowWithDeps();
-      deps.contextRuleManager.rules = <ParsedContextRule>[
+      deps.contextRuleManager.rules = <OZParsedContextRule>[
         _ruleWithSigners(
           id: 7,
           name: 'My Rule',
@@ -213,7 +213,7 @@ void main() {
     testWidgets('rule chip shows "Unnamed Rule" when the name is blank',
         (tester) async {
       final deps = AccountSignersFixtures.makeFlowWithDeps();
-      deps.contextRuleManager.rules = <ParsedContextRule>[
+      deps.contextRuleManager.rules = <OZParsedContextRule>[
         _ruleWithSigners(
           id: 9,
           name: '',
@@ -231,7 +231,7 @@ void main() {
     testWidgets('renders the G-Address type badge for delegated signers',
         (tester) async {
       final deps = AccountSignersFixtures.makeFlowWithDeps();
-      deps.contextRuleManager.rules = <ParsedContextRule>[
+      deps.contextRuleManager.rules = <OZParsedContextRule>[
         _ruleWithSigners(
           id: 1,
           name: 'r1',

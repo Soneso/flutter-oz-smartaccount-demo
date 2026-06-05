@@ -135,7 +135,7 @@ final class TransferResult {
 /// Allows unit tests to inject a mock without running real network operations.
 abstract interface class TransactionOperationsType {
   /// Transfers tokens; triggers a WebAuthn ceremony.
-  Future<TransactionResult> transfer({
+  Future<OZTransactionResult> transfer({
     required String tokenContract,
     required String recipient,
     required String amount,
@@ -150,7 +150,7 @@ final class TransactionOperationsAdapter implements TransactionOperationsType {
   final OZTransactionOperations _ops;
 
   @override
-  Future<TransactionResult> transfer({
+  Future<OZTransactionResult> transfer({
     required String tokenContract,
     required String recipient,
     required String amount,
@@ -171,11 +171,11 @@ final class TransactionOperationsAdapter implements TransactionOperationsType {
 /// [TransferFlow].
 abstract interface class MultiSignerManagerType {
   /// Transfers tokens signed by the explicit [selectedSigners] list.
-  Future<TransactionResult> multiSignerTransfer({
+  Future<OZTransactionResult> multiSignerTransfer({
     required String tokenContract,
     required String recipient,
     required String amount,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
   });
 }
 
@@ -187,11 +187,11 @@ final class MultiSignerManagerAdapter implements MultiSignerManagerType {
   final OZMultiSignerManager _manager;
 
   @override
-  Future<TransactionResult> multiSignerTransfer({
+  Future<OZTransactionResult> multiSignerTransfer({
     required String tokenContract,
     required String recipient,
     required String amount,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
   }) {
     return _manager.multiSignerTransfer(
       tokenContract: tokenContract,
@@ -210,7 +210,7 @@ final class MultiSignerManagerAdapter implements MultiSignerManagerType {
 /// [TransferFlow.loadAvailableSigners].
 abstract interface class ContextRuleManagerType {
   /// Returns all active parsed context rules for the connected contract.
-  Future<List<ParsedContextRule>> listContextRules();
+  Future<List<OZParsedContextRule>> listContextRules();
 }
 
 /// Default production adapter backed by [OZContextRuleManager].
@@ -221,7 +221,7 @@ final class ContextRuleManagerAdapter implements ContextRuleManagerType {
   final OZContextRuleManager _manager;
 
   @override
-  Future<List<ParsedContextRule>> listContextRules() =>
+  Future<List<OZParsedContextRule>> listContextRules() =>
       _manager.listContextRules();
 }
 
@@ -311,7 +311,7 @@ final class TransferFlow {
   ///
   /// Throws:
   /// - [WebAuthnCancelled] when the user dismisses the passkey prompt.
-  /// - Any SDK exception (e.g. [TransactionException]) for network or
+  /// - Any SDK exception (e.g. [SmartAccountTransactionException]) for network or
   ///   on-chain failures.
   ///
   /// Caller must check [_isTransferring] before calling; the guard prevents
@@ -383,7 +383,7 @@ final class TransferFlow {
     required String recipient,
     required String amount,
     required String tokenLabel,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
   }) async {
     if (_isTransferring) {
       throw StateError('A transfer is already in progress.');
@@ -549,14 +549,14 @@ final class TransferFlow {
   // -------------------------------------------------------------------------
 
   /// Returns true when [selectedSigners] contains only the connected passkey
-  /// (i.e. one [SelectedSignerPasskey] with no additional signers).
+  /// (i.e. one [OZSelectedSignerPasskey] with no additional signers).
   ///
   /// Used to route the confirm action in the signer-picker sheet: when true
   /// the fast [transfer] path is used instead of [multiSignerTransfer].
-  bool isSinglePasskeyTransfer(List<SelectedSigner> selectedSigners) {
+  bool isSinglePasskeyTransfer(List<OZSelectedSigner> selectedSigners) {
     if (selectedSigners.length != 1) return false;
     final first = selectedSigners.first;
-    if (first is! SelectedSignerPasskey) return false;
+    if (first is! OZSelectedSignerPasskey) return false;
     // When the signer has no credential ID bytes it represents the connected
     // passkey — use the fast single-signer path.
     return first.credentialIdBytes == null;
@@ -566,13 +566,13 @@ final class TransferFlow {
   // Public: buildSelectedSigners
   // -------------------------------------------------------------------------
 
-  /// Converts [SignerInfo] choices into [SelectedSigner] entries consumed by
+  /// Converts [SignerInfo] choices into [OZSelectedSigner] entries consumed by
   /// [multiSignerTransfer].
   ///
   /// Delegates to [SelectedSignerBuilder.fromInfos], threading the kit's
   /// storage adapter so passkey signers carry their stored authenticator
   /// transports (enabling cross-device authentication).
-  Future<List<SelectedSigner>> buildSelectedSigners(
+  Future<List<OZSelectedSigner>> buildSelectedSigners(
     List<SignerInfo> signers,
   ) =>
       SelectedSignerBuilder.fromInfos(signers, storage: _demoState.storage);
@@ -781,7 +781,7 @@ final class TransferFlow {
   ///
   /// Duplicate signers (same [uniqueKey] across rules) are deduplicated.
   List<SignerInfo> _extractSigners(
-    List<ParsedContextRule> rules, {
+    List<OZParsedContextRule> rules, {
     String? connectedCredentialId,
   }) {
     final seen = <String>{};

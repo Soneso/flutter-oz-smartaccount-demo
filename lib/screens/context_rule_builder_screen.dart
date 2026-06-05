@@ -282,20 +282,20 @@ class _ContextRuleBuilderScreenState
   }
 
   Future<void> _populateFromParsed(
-    ParsedContextRule parsed,
+    OZParsedContextRule parsed,
     ContextRuleFlow flow,
   ) async {
     _nameController.text = parsed.name;
     _originalName = parsed.name;
 
-    if (parsed.contextType is ContextRuleTypeCallContract) {
+    if (parsed.contextType is OZContextRuleTypeCallContract) {
       _contextType = _ContextTypeOption.callContract;
       _contractAddress =
-          (parsed.contextType as ContextRuleTypeCallContract).contractAddress;
-    } else if (parsed.contextType is ContextRuleTypeCreateContract) {
+          (parsed.contextType as OZContextRuleTypeCallContract).contractAddress;
+    } else if (parsed.contextType is OZContextRuleTypeCreateContract) {
       _contextType = _ContextTypeOption.createContract;
       final wasm =
-          (parsed.contextType as ContextRuleTypeCreateContract).wasmHash;
+          (parsed.contextType as OZContextRuleTypeCreateContract).wasmHash;
       _wasmHashController.text = bytesToHex(wasm);
     } else {
       _contextType = _ContextTypeOption.defaultRule;
@@ -644,7 +644,7 @@ class _ContextRuleBuilderScreenState
     return errors;
   }
 
-  ContextRuleType _buildContextType(ContextRuleFlow flow) {
+  OZContextRuleType _buildContextType(ContextRuleFlow flow) {
     switch (_contextType) {
       case _ContextTypeOption.defaultRule:
         return flow.buildDefaultContextType();
@@ -706,7 +706,7 @@ class _ContextRuleBuilderScreenState
       await _submitEditDirect(
         flow: flow,
         diff: diff,
-        selectedSigners: const <SelectedSigner>[],
+        selectedSigners: const <OZSelectedSigner>[],
       );
       return;
     }
@@ -722,7 +722,7 @@ class _ContextRuleBuilderScreenState
       return;
     }
 
-    await _submitDirect(flow: flow, selectedSigners: const <SelectedSigner>[]);
+    await _submitDirect(flow: flow, selectedSigners: const <OZSelectedSigner>[]);
   }
 
   Future<void> _openMultiSignerPicker({
@@ -786,7 +786,7 @@ class _ContextRuleBuilderScreenState
           if (flow.isSinglePasskeyRemoval(selected)) {
             await _submitDirect(
               flow: flow,
-              selectedSigners: const <SelectedSigner>[],
+              selectedSigners: const <OZSelectedSigner>[],
             );
           } else {
             await _submitDirect(flow: flow, selectedSigners: selected);
@@ -856,7 +856,7 @@ class _ContextRuleBuilderScreenState
             await _submitEditDirect(
               flow: flow,
               diff: diff,
-              selectedSigners: const <SelectedSigner>[],
+              selectedSigners: const <OZSelectedSigner>[],
             );
           } else {
             await _submitEditDirect(
@@ -879,7 +879,7 @@ class _ContextRuleBuilderScreenState
   Future<void> _submitEditDirect({
     required ContextRuleFlow flow,
     required ContextRuleEditDiff diff,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
   }) async {
     setState(() {
       _isSubmitting = true;
@@ -925,7 +925,7 @@ class _ContextRuleBuilderScreenState
 
   Future<void> _submitDirect({
     required ContextRuleFlow flow,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
   }) async {
     setState(() {
       _isSubmitting = true;

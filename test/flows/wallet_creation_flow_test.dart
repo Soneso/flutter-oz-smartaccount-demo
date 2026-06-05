@@ -387,7 +387,7 @@ void main() {
         '"already in progress"', () async {
       // MockSlowWalletOperations suspends until the completer is completed.
       // This avoids wall-clock timing dependencies that cause CI flakiness.
-      final completer = Completer<CreateWalletResult>();
+      final completer = Completer<OZCreateWalletResult>();
       final ops = MockSlowWalletOperations(completer: completer);
       final flow = WalletCreationFixtures.makeFlow(walletOps: ops);
 

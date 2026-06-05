@@ -24,24 +24,24 @@ final class MockWalletConnectionOperations
   OZConnectWalletResult? connectResult;
   Object? connectError;
 
-  AuthenticatePasskeyResult? authenticateResult;
+  OZAuthenticatePasskeyResult? authenticateResult;
   Object? authenticateError;
 
-  DeployPendingResult? deployResult;
+  OZDeployPendingResult? deployResult;
   Object? deployError;
 
   int connectCallCount = 0;
   int authenticateCallCount = 0;
   int deployCallCount = 0;
 
-  ConnectWalletOptions? lastConnectOptions;
+  OZConnectWalletOptions? lastConnectOptions;
   String? lastDeployCredentialId;
   bool? lastDeployAutoFund;
   String? lastDeployNativeTokenContract;
 
   @override
   Future<OZConnectWalletResult?> connectWallet({
-    required ConnectWalletOptions options,
+    required OZConnectWalletOptions options,
   }) async {
     connectCallCount++;
     lastConnectOptions = options;
@@ -51,7 +51,7 @@ final class MockWalletConnectionOperations
   }
 
   @override
-  Future<AuthenticatePasskeyResult> authenticatePasskey() async {
+  Future<OZAuthenticatePasskeyResult> authenticatePasskey() async {
     authenticateCallCount++;
     final e = authenticateError;
     if (e != null) throw e;
@@ -66,7 +66,7 @@ final class MockWalletConnectionOperations
   }
 
   @override
-  Future<DeployPendingResult> deployPendingCredential({
+  Future<OZDeployPendingResult> deployPendingCredential({
     required String credentialId,
     bool autoFund = false,
     String? nativeTokenContract,
@@ -94,7 +94,7 @@ final class MockWalletConnectionOperations
 
 /// Configurable mock for [CredentialOperationsType].
 final class MockCredentialOperations implements CredentialOperationsType {
-  List<StoredCredential> pendingCredentials = const [];
+  List<OZStoredCredential> pendingCredentials = const [];
   Object? pendingError;
 
   Object? deleteError;
@@ -110,7 +110,7 @@ final class MockCredentialOperations implements CredentialOperationsType {
   String? lastDeletedCredentialId;
 
   @override
-  Future<List<StoredCredential>> getPendingCredentials() async {
+  Future<List<OZStoredCredential>> getPendingCredentials() async {
     getPendingCallCount++;
     final e = pendingError;
     if (e != null) throw e;
@@ -182,11 +182,11 @@ final class WalletConnectionFixtures {
         candidates: candidates ?? [defaultContractId, altContractId],
       );
 
-  /// Returns an [AuthenticatePasskeyResult] with fixture data.
-  static AuthenticatePasskeyResult authenticateResult({
+  /// Returns an [OZAuthenticatePasskeyResult] with fixture data.
+  static OZAuthenticatePasskeyResult authenticateResult({
     String credentialId = defaultCredentialId,
   }) =>
-      AuthenticatePasskeyResult(
+      OZAuthenticatePasskeyResult(
         credentialId: credentialId,
         signature: OZWebAuthnSignature(
           authenticatorData: Uint8List(37),
@@ -196,23 +196,23 @@ final class WalletConnectionFixtures {
         publicKey: validPublicKey,
       );
 
-  /// Returns a [DeployPendingResult] with fixture data.
-  static DeployPendingResult deployPendingResult({
+  /// Returns a [OZDeployPendingResult] with fixture data.
+  static OZDeployPendingResult deployPendingResult({
     String contractId = defaultContractId,
   }) =>
-      DeployPendingResult(
+      OZDeployPendingResult(
         contractId: contractId,
         signedTransactionXdr: 'placeholder_xdr',
         transactionHash: 'abc123txhash',
       );
 
-  /// Returns a [StoredCredential] with fixture data.
-  static StoredCredential storedCredential({
+  /// Returns a [OZStoredCredential] with fixture data.
+  static OZStoredCredential storedCredential({
     String credentialId = defaultCredentialId,
     String? contractId = defaultContractId,
     String? nickname,
   }) =>
-      StoredCredential(
+      OZStoredCredential(
         credentialId: credentialId,
         contractId: contractId,
         publicKey: validPublicKey,

@@ -89,25 +89,25 @@ Future<void> main() async {
 // Platform dependency resolution
 // ---------------------------------------------------------------------------
 
-/// Returns the (WebAuthnProvider, StorageAdapter) pair for the current platform.
+/// Returns the (WebAuthnProvider, OZStorageAdapter) pair for the current platform.
 ///
-/// On Web: BrowserWebAuthnProvider + IndexedDBStorageAdapter.
+/// On Web: BrowserWebAuthnProvider + OZIndexedDBStorageAdapter.
 ///   BrowserWebAuthnProvider drives navigator.credentials in the browser.
-///   IndexedDBStorageAdapter persists credentials to IndexedDB (no sensitive
+///   OZIndexedDBStorageAdapter persists credentials to IndexedDB (no sensitive
 ///   signing material is stored — metadata only).
 ///
-/// On mobile (iOS, Android): PlatformWebAuthnProvider + PlatformStorageAdapter.
+/// On mobile (iOS, Android): PlatformWebAuthnProvider + OZPlatformStorageAdapter.
 ///   Both dispatch to the native SDK method-channel plugins:
 ///   - iOS: Keychain (kSecAttrAccessibleAfterFirstUnlock, no iCloud sync).
 ///   - Android: EncryptedSharedPreferences (AES-256-GCM, Keystore-backed).
-(WebAuthnProvider, StorageAdapter) _resolvePlatformDependencies() {
+(WebAuthnProvider, OZStorageAdapter) _resolvePlatformDependencies() {
   if (kIsWeb) {
     return (
       BrowserWebAuthnProvider(
         rpId: config.defaultRpId,
         rpName: config.rpName,
       ),
-      IndexedDBStorageAdapter(),
+      OZIndexedDBStorageAdapter(),
     );
   }
   return (
@@ -115,7 +115,7 @@ Future<void> main() async {
       rpId: config.defaultRpId,
       rpName: config.rpName,
     ),
-    PlatformStorageAdapter(),
+    OZPlatformStorageAdapter(),
   );
 }
 

@@ -41,7 +41,7 @@ final class SignerEntry {
 
   /// Every context rule that references [signer], in the order rules were
   /// returned by the SDK.
-  final List<ParsedContextRule> contextRules;
+  final List<OZParsedContextRule> contextRules;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ final class AccountSignersFlow {
     _isLoading = true;
 
     try {
-      final List<ParsedContextRule> rules;
+      final List<OZParsedContextRule> rules;
       try {
         rules = await _contextRuleManager.listContextRules();
       } catch (e) {
@@ -131,7 +131,7 @@ final class AccountSignersFlow {
           } else {
             accumulator[key] = _SignerAccumulator(
               signer: signer,
-              rules: <ParsedContextRule>[rule],
+              rules: <OZParsedContextRule>[rule],
             );
           }
         }
@@ -141,7 +141,7 @@ final class AccountSignersFlow {
           .map(
             (a) => SignerEntry(
               signer: a.signer,
-              contextRules: List<ParsedContextRule>.unmodifiable(a.rules),
+              contextRules: List<OZParsedContextRule>.unmodifiable(a.rules),
             ),
           )
           .toList(growable: false);
@@ -169,5 +169,5 @@ final class _SignerAccumulator {
   _SignerAccumulator({required this.signer, required this.rules});
 
   final OZSmartAccountSigner signer;
-  final List<ParsedContextRule> rules;
+  final List<OZParsedContextRule> rules;
 }

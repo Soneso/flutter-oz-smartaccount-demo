@@ -58,7 +58,12 @@ class _FakeConnector implements WalletConnector {
   WalletMetadata? get walletMetadata => null;
 
   @override
-  Future<String?> connect() async => address;
+  Future<String?> connect() async {
+    // Mirror FreighterWalletHandler.connect(): re-establishing the session
+    // restores connectedAddress so a reconnection is observable to callers.
+    _disconnected = false;
+    return address;
+  }
 
   @override
   Future<void> disconnect() async => _disconnected = true;
@@ -136,7 +141,7 @@ void main() {
         final preimageXdr = base64Encode(fixedPreimage);
         final result = await adapter.signAuthEntry(
           preimageXdr,
-          options: SignAuthEntryOptions(
+          options: OZSignAuthEntryOptions(
             networkPassphrase: 'Test SDF Network ; September 2015',
             address: walletKp.accountId,
           ),
@@ -147,18 +152,18 @@ void main() {
     );
 
     test(
-      'signAuthEntry throws SignerException for unknown address',
+      'signAuthEntry throws SmartAccountSignerException for unknown address',
       () async {
         final preimageXdr = base64Encode(fixedPreimage);
         expect(
           () => adapter.signAuthEntry(
             preimageXdr,
-            options: SignAuthEntryOptions(
+            options: OZSignAuthEntryOptions(
               networkPassphrase: 'Test SDF Network ; September 2015',
               address: KeyPair.random().accountId,
             ),
           ),
-          throwsA(isA<SignerException>()),
+          throwsA(isA<SmartAccountSignerException>()),
         );
       },
     );
@@ -176,8 +181,11 @@ void main() {
 
       expect(adapter.canSignFor(kp.accountId), isTrue);
       await adapter.disconnectByAddress(kp.accountId);
-      // After disconnect, the connector is cleared.
-      expect(adapter.walletConnector, isNull);
+      // The connector session is cleared (canSignFor is now false) but the
+      // reference is kept so a later reconnection through the shared singleton
+      // is still visible to the adapter.
+      expect(adapter.walletConnector, isNotNull);
+      expect(adapter.canSignFor(kp.accountId), isFalse);
     });
 
     test('is a no-op when address does not match connector', () async {
@@ -208,7 +216,8 @@ void main() {
       await expectLater(adapter.disconnect(), completes);
     });
 
-    test('disconnect clears the wallet connector', () async {
+    test('disconnect clears the session but keeps the connector reference',
+        () async {
       final kp = KeyPair.random();
       final connector = _FakeConnector(
         address: kp.accountId,
@@ -216,9 +225,31 @@ void main() {
       );
       final adapter = ExternalSignerManagerAdapter()
         ..walletConnector = connector;
-      expect(adapter.walletConnector, isNotNull);
+      expect(adapter.canSignFor(kp.accountId), isTrue);
       await adapter.disconnect();
-      expect(adapter.walletConnector, isNull);
+      // Reference kept (long-lived shared singleton) but the session is gone,
+      // so the adapter reports no signing source until a reconnection occurs.
+      expect(adapter.walletConnector, isNotNull);
+      expect(adapter.canSignFor(kp.accountId), isFalse);
+    });
+
+    test('canSignFor recovers after disconnect when the connector reconnects',
+        () async {
+      final kp = KeyPair.random();
+      final connector = _FakeConnector(
+        address: kp.accountId,
+        signatureBase64: _makeStructurallyValidSig(),
+      );
+      final adapter = ExternalSignerManagerAdapter()
+        ..walletConnector = connector;
+
+      await adapter.disconnect();
+      expect(adapter.canSignFor(kp.accountId), isFalse);
+
+      // Reconnecting through the same shared singleton must be visible to the
+      // adapter so canSignFor recovers.
+      await connector.connect();
+      expect(adapter.canSignFor(kp.accountId), isTrue);
     });
   });
 }

@@ -28,25 +28,25 @@ import '../config/demo_config.dart' show PolicyInfo;
 // ---------------------------------------------------------------------------
 
 /// Re-export of the SDK context-type hierarchy root so the builder screen
-/// can hold and pass around ContextRuleType instances returned from flow
+/// can hold and pass around OZContextRuleType instances returned from flow
 /// builder methods without importing `package:stellar_flutter_sdk`.
-typedef ContextRuleType = sdk.ContextRuleType;
+typedef OZContextRuleType = sdk.OZContextRuleType;
 
 /// Re-export of the `Default` context-type variant.
-typedef ContextRuleTypeDefault = sdk.ContextRuleTypeDefault;
+typedef OZContextRuleTypeDefault = sdk.OZContextRuleTypeDefault;
 
 /// Re-export of the `CallContract` context-type variant. Used in edit-mode
 /// to pre-populate the contract field from a loaded rule.
-typedef ContextRuleTypeCallContract = sdk.ContextRuleTypeCallContract;
+typedef OZContextRuleTypeCallContract = sdk.OZContextRuleTypeCallContract;
 
 /// Re-export of the `CreateContract` context-type variant. Used in
 /// edit-mode to pre-populate the WASM hash field from a loaded rule.
-typedef ContextRuleTypeCreateContract = sdk.ContextRuleTypeCreateContract;
+typedef OZContextRuleTypeCreateContract = sdk.OZContextRuleTypeCreateContract;
 
-/// Re-export of the [ParsedContextRule] shape returned by the SDK's
+/// Re-export of the [OZParsedContextRule] shape returned by the SDK's
 /// context-rule manager. Held on the builder screen during edit-mode to
 /// drive form pre-population.
-typedef ParsedContextRule = sdk.ParsedContextRule;
+typedef OZParsedContextRule = sdk.OZParsedContextRule;
 
 /// Re-export of the SDK signer hierarchy root so widgets / screens can hold
 /// staged signers without importing `package:stellar_flutter_sdk`.
@@ -61,13 +61,13 @@ typedef OZExternalSigner = sdk.OZExternalSigner;
 
 /// Re-export of the abstract selected-signer marker used by multi-signer
 /// pickers.
-typedef SelectedSigner = sdk.SelectedSigner;
+typedef OZSelectedSigner = sdk.OZSelectedSigner;
 
 /// Re-export of the passkey selected-signer variant.
-typedef SelectedSignerPasskey = sdk.SelectedSignerPasskey;
+typedef OZSelectedSignerPasskey = sdk.OZSelectedSignerPasskey;
 
 /// Re-export of the wallet (G-address) selected-signer variant.
-typedef SelectedSignerWallet = sdk.SelectedSignerWallet;
+typedef OZSelectedSignerWallet = sdk.OZSelectedSignerWallet;
 
 /// Re-export of the Soroban SCVal type used as the encoded policy
 /// install-parameter payload. Widgets pass this type through verbatim
@@ -82,7 +82,7 @@ typedef WebAuthnCancelled = sdk.WebAuthnCancelled;
 /// Re-export of the SDK credential storage record. Used by the wallet
 /// connection screen to type its pending-credential list without importing
 /// the full SDK surface.
-typedef StoredCredential = sdk.StoredCredential;
+typedef OZStoredCredential = sdk.OZStoredCredential;
 
 // ---------------------------------------------------------------------------
 // Builder-layer constants and helpers

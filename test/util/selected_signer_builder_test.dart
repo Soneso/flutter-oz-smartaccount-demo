@@ -55,9 +55,9 @@ void main() {
   group('SelectedSignerBuilder.fromInfos — passkey transports lookup', () {
     test('forwards stored transports for a passkey credential', () async {
       final info = _passkeySignerInfo();
-      final storage = InMemoryStorageAdapter();
+      final storage = OZInMemoryStorageAdapter();
       await storage.save(
-        StoredCredential(
+        OZStoredCredential(
           credentialId: info.credentialId!,
           publicKey: _publicKey(),
           transports: const ['internal', 'hybrid'],
@@ -68,15 +68,15 @@ void main() {
           await SelectedSignerBuilder.fromInfos([info], storage: storage);
 
       expect(signers, hasLength(1));
-      final passkey = signers.single as SelectedSignerPasskey;
+      final passkey = signers.single as OZSelectedSignerPasskey;
       expect(passkey.transports, equals(const ['internal', 'hybrid']));
     });
 
     test('transports is null when the credential stored none', () async {
       final info = _passkeySignerInfo();
-      final storage = InMemoryStorageAdapter();
+      final storage = OZInMemoryStorageAdapter();
       await storage.save(
-        StoredCredential(
+        OZStoredCredential(
           credentialId: info.credentialId!,
           publicKey: _publicKey(),
           // No transports persisted.
@@ -86,18 +86,18 @@ void main() {
       final signers =
           await SelectedSignerBuilder.fromInfos([info], storage: storage);
 
-      final passkey = signers.single as SelectedSignerPasskey;
+      final passkey = signers.single as OZSelectedSignerPasskey;
       expect(passkey.transports, isNull);
     });
 
     test('transports is null when the credential is not in storage', () async {
       final info = _passkeySignerInfo();
-      final storage = InMemoryStorageAdapter();
+      final storage = OZInMemoryStorageAdapter();
 
       final signers =
           await SelectedSignerBuilder.fromInfos([info], storage: storage);
 
-      final passkey = signers.single as SelectedSignerPasskey;
+      final passkey = signers.single as OZSelectedSignerPasskey;
       expect(passkey.transports, isNull);
     });
 
@@ -106,7 +106,7 @@ void main() {
 
       final signers = await SelectedSignerBuilder.fromInfos([info]);
 
-      final passkey = signers.single as SelectedSignerPasskey;
+      final passkey = signers.single as OZSelectedSignerPasskey;
       expect(passkey.transports, isNull);
     });
   });

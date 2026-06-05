@@ -13,7 +13,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../flows/context_rule_builder_types.dart'
-    show OZSmartAccountSigner, ParsedContextRule;
+    show OZSmartAccountSigner, OZParsedContextRule;
 import '../util/context_rule_format.dart';
 import '../util/format_utils.dart';
 import '../util/semantic_colors.dart';
@@ -24,7 +24,7 @@ import 'pill.dart';
 // ContextRuleCard
 // ---------------------------------------------------------------------------
 
-/// Expandable card for a single [ParsedContextRule].
+/// Expandable card for a single [OZParsedContextRule].
 ///
 /// [isExpanded] and [onToggleExpanded] let the parent control the expanded
 /// state so only one card is open at a time (if desired). Pass [onRemove] as
@@ -49,7 +49,7 @@ class ContextRuleCard extends StatelessWidget {
   });
 
   /// The rule to display.
-  final ParsedContextRule rule;
+  final OZParsedContextRule rule;
 
   /// Whether the card is currently expanded to show signer/policy details.
   final bool isExpanded;

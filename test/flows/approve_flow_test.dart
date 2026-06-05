@@ -121,9 +121,9 @@ void main() {
     test('forwards selectedSigners to the SDK unchanged', () async {
       final deps = ApproveFixtures.makeFlowWithDeps();
       deps.multiSignerContractCall.result = ApproveFixtures.successResult();
-      final signers = <SelectedSigner>[
-        const SelectedSignerPasskey(),
-        const SelectedSignerWallet(ApproveFixtures.defaultSpender),
+      final signers = <OZSelectedSigner>[
+        const OZSelectedSignerPasskey(),
+        const OZSelectedSignerWallet(ApproveFixtures.defaultSpender),
       ];
 
       final result = await deps.flow.multiSignerApproveAllowance(
@@ -147,9 +147,9 @@ void main() {
         spenderAddress: ApproveFixtures.defaultSpender,
         amount: '5.0',
         expirationLedgerOffset: 172800,
-        selectedSigners: const <SelectedSigner>[
-          SelectedSignerPasskey(),
-          SelectedSignerPasskey(),
+        selectedSigners: const <OZSelectedSigner>[
+          OZSelectedSignerPasskey(),
+          OZSelectedSignerPasskey(),
         ],
       );
 
@@ -174,7 +174,7 @@ void main() {
         spenderAddress: ApproveFixtures.defaultSpender,
         amount: '5.0',
         expirationLedgerOffset: 172800,
-        selectedSigners: const <SelectedSigner>[SelectedSignerPasskey()],
+        selectedSigners: const <OZSelectedSigner>[OZSelectedSignerPasskey()],
       );
 
       final log = deps.logEntries;
@@ -229,7 +229,7 @@ void main() {
         spenderAddress: ApproveFixtures.defaultSpender,
         amount: ApproveFixtures.defaultAmount,
         expirationLedgerOffset: 17280,
-        selectedSigners: const <SelectedSigner>[SelectedSignerPasskey()],
+        selectedSigners: const <OZSelectedSigner>[OZSelectedSignerPasskey()],
       );
 
       expect(result.error, 'Passkey authentication cancelled');
@@ -275,7 +275,7 @@ void main() {
         spenderAddress: ApproveFixtures.defaultSpender,
         amount: ApproveFixtures.defaultAmount,
         expirationLedgerOffset: 17280,
-        selectedSigners: const <SelectedSigner>[SelectedSignerPasskey()],
+        selectedSigners: const <OZSelectedSigner>[OZSelectedSignerPasskey()],
       );
 
       final log = deps.logEntries;
@@ -291,10 +291,10 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // Scenario 5 — failed TransactionResult
+  // Scenario 5 — failed OZTransactionResult
   // -------------------------------------------------------------------------
 
-  group('ApproveFlow — failed TransactionResult', () {
+  group('ApproveFlow — failed OZTransactionResult', () {
     test('result.success false → ApproveResult.error sanitised', () async {
       final deps = ApproveFixtures.makeFlowWithDeps();
       deps.contractCall.result = ApproveFixtures.failureResult();

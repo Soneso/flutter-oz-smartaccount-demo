@@ -11,7 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../flows/context_rule_builder_types.dart' show ParsedContextRule;
+import '../flows/context_rule_builder_types.dart' show OZParsedContextRule;
 
 // ---------------------------------------------------------------------------
 // RemoveContextRuleDialog
@@ -30,7 +30,7 @@ class RemoveContextRuleDialog extends StatelessWidget {
   });
 
   /// The rule the user wants to remove.
-  final ParsedContextRule rule;
+  final OZParsedContextRule rule;
 
   /// When false, the [Remove] button is replaced with a disabled "Last Rule"
   /// button so the user understands they cannot remove the final rule.
@@ -40,7 +40,7 @@ class RemoveContextRuleDialog extends StatelessWidget {
   /// cancel or dismiss.
   static Future<bool> show({
     required BuildContext context,
-    required ParsedContextRule rule,
+    required OZParsedContextRule rule,
     required bool canRemove,
   }) async {
     final result = await showDialog<bool>(

@@ -237,9 +237,9 @@ void main() {
       final deps = TransferFixtures.makeFlowWithDeps();
       deps.multiSignerManager.result = TransferFixtures.successResult();
 
-      final signers = <SelectedSigner>[
-        const SelectedSignerPasskey(),
-        const SelectedSignerWallet('GABC1234567890123456789012345678901234567890123456789012'),
+      final signers = <OZSelectedSigner>[
+        const OZSelectedSignerPasskey(),
+        const OZSelectedSignerWallet('GABC1234567890123456789012345678901234567890123456789012'),
       ];
 
       final result = await deps.flow.multiSignerTransfer(
@@ -264,8 +264,8 @@ void main() {
         recipient: TransferFixtures.defaultRecipient,
         amount: TransferFixtures.defaultAmount,
         tokenLabel: 'XLM',
-        selectedSigners: const <SelectedSigner>[
-          SelectedSignerPasskey(),
+        selectedSigners: const <OZSelectedSigner>[
+          OZSelectedSignerPasskey(),
         ],
       );
 
@@ -292,9 +292,9 @@ void main() {
           recipient: TransferFixtures.defaultRecipient,
           amount: TransferFixtures.defaultAmount,
           tokenLabel: 'XLM',
-          selectedSigners: const <SelectedSigner>[
-            SelectedSignerPasskey(),
-            SelectedSignerWallet('GABC1234567890123456789012345678901234567890123456789012'),
+          selectedSigners: const <OZSelectedSigner>[
+            OZSelectedSignerPasskey(),
+            OZSelectedSignerWallet('GABC1234567890123456789012345678901234567890123456789012'),
           ],
         ),
         throwsA(isA<WebAuthnCancelled>()),
@@ -611,7 +611,7 @@ void main() {
           recipient: TransferFixtures.defaultRecipient,
           amount: TransferFixtures.defaultAmount,
           tokenLabel: 'XLM',
-          selectedSigners: const <SelectedSigner>[SelectedSignerPasskey()],
+          selectedSigners: const <OZSelectedSigner>[OZSelectedSignerPasskey()],
         ),
         throwsA(isA<Exception>()),
       );
@@ -773,10 +773,10 @@ void main() {
   // -------------------------------------------------------------------------
 
   group('isSinglePasskeyTransfer', () {
-    test('returns true for exactly one SelectedSignerPasskey with no credentialIdBytes', () {
+    test('returns true for exactly one OZSelectedSignerPasskey with no credentialIdBytes', () {
       final deps = TransferFixtures.makeFlowWithDeps();
       final result = deps.flow.isSinglePasskeyTransfer(
-        const <SelectedSigner>[SelectedSignerPasskey()],
+        const <OZSelectedSigner>[OZSelectedSignerPasskey()],
       );
       expect(result, isTrue);
     });
@@ -784,9 +784,9 @@ void main() {
     test('returns false for two signers', () {
       final deps = TransferFixtures.makeFlowWithDeps();
       final result = deps.flow.isSinglePasskeyTransfer(
-        const <SelectedSigner>[
-          SelectedSignerPasskey(),
-          SelectedSignerWallet('GABC1234567890123456789012345678901234567890123456789012'),
+        const <OZSelectedSigner>[
+          OZSelectedSignerPasskey(),
+          OZSelectedSignerWallet('GABC1234567890123456789012345678901234567890123456789012'),
         ],
       );
       expect(result, isFalse);
@@ -794,15 +794,15 @@ void main() {
 
     test('returns false for empty list', () {
       final deps = TransferFixtures.makeFlowWithDeps();
-      final result = deps.flow.isSinglePasskeyTransfer(const <SelectedSigner>[]);
+      final result = deps.flow.isSinglePasskeyTransfer(const <OZSelectedSigner>[]);
       expect(result, isFalse);
     });
 
-    test('returns false for SelectedSignerWallet', () {
+    test('returns false for OZSelectedSignerWallet', () {
       final deps = TransferFixtures.makeFlowWithDeps();
       final result = deps.flow.isSinglePasskeyTransfer(
-        const <SelectedSigner>[
-          SelectedSignerWallet('GABC1234567890123456789012345678901234567890123456789012'),
+        const <OZSelectedSigner>[
+          OZSelectedSignerWallet('GABC1234567890123456789012345678901234567890123456789012'),
         ],
       );
       expect(result, isFalse);
@@ -814,7 +814,7 @@ void main() {
   // -------------------------------------------------------------------------
 
   group('buildSelectedSigners', () {
-    test('passkey SignerInfo becomes SelectedSignerPasskey', () async {
+    test('passkey SignerInfo becomes OZSelectedSignerPasskey', () async {
       final deps = TransferFixtures.makeFlowWithDeps();
       const info = SignerInfo(
         displayLabel: 'Passkey',
@@ -824,10 +824,10 @@ void main() {
       );
       final signers = await deps.flow.buildSelectedSigners([info]);
       expect(signers, hasLength(1));
-      expect(signers.first, isA<SelectedSignerPasskey>());
+      expect(signers.first, isA<OZSelectedSignerPasskey>());
     });
 
-    test('delegated SignerInfo becomes SelectedSignerWallet', () async {
+    test('delegated SignerInfo becomes OZSelectedSignerWallet', () async {
       final deps = TransferFixtures.makeFlowWithDeps();
       const address = 'GABC1234567890123456789012345678901234567890123456789012';
       const info = SignerInfo(
@@ -838,7 +838,7 @@ void main() {
       );
       final signers = await deps.flow.buildSelectedSigners([info]);
       expect(signers, hasLength(1));
-      final wallet = signers.first as SelectedSignerWallet;
+      final wallet = signers.first as OZSelectedSignerWallet;
       expect(wallet.address, equals(address));
     });
   });
@@ -858,7 +858,7 @@ void main() {
       // a second call returns a StateError immediately while the first is still
       // pending. A suspending mock keeps the first call from resolving until the
       // completer fires.
-      final completer = _Completer<TransactionResult>();
+      final completer = _Completer<OZTransactionResult>();
       deps.transactionOps.result = null;
 
       final slowOps = _SlowTransactionOperations(
@@ -976,11 +976,11 @@ final class _SlowTransactionOperations implements TransactionOperationsType {
     required this.result,
   });
 
-  final Completer<TransactionResult> completer;
-  final TransactionResult result;
+  final Completer<OZTransactionResult> completer;
+  final OZTransactionResult result;
 
   @override
-  Future<TransactionResult> transfer({
+  Future<OZTransactionResult> transfer({
     required String tokenContract,
     required String recipient,
     required String amount,

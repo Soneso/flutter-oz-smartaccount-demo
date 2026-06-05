@@ -42,7 +42,7 @@ void main() {
     test('happy path: single delegated signer, default, no expiry, no policies',
         () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = TransactionResult(success: true, hash: 'abc123');
+        ..addResult = OZTransactionResult(success: true, hash: 'abc123');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -50,7 +50,7 @@ void main() {
       );
 
       final result = await deps.flow.addContextRule(
-        contextType: const ContextRuleTypeDefault(),
+        contextType: const OZContextRuleTypeDefault(),
         name: 'DefaultRule',
         signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
         policies: const <FlowPolicyEntry>[],
@@ -76,7 +76,7 @@ void main() {
 
     test('forwards multi-signer selectedSigners list verbatim', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = TransactionResult(success: true, hash: 'deadbeef');
+        ..addResult = OZTransactionResult(success: true, hash: 'deadbeef');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -86,7 +86,7 @@ void main() {
       final scVal = buildSimpleThresholdScVal(threshold: 2);
 
       final result = await deps.flow.addContextRule(
-        contextType: const ContextRuleTypeDefault(),
+        contextType: const OZContextRuleTypeDefault(),
         name: 'MultiSig',
         signers: [
           OZDelegatedSigner(fixtureDelegatedAddress1),
@@ -99,9 +99,9 @@ void main() {
             scVal: scVal,
           ),
         ],
-        selectedSigners: const <SelectedSigner>[
-          SelectedSignerPasskey(),
-          SelectedSignerWallet(fixtureDelegatedAddress2),
+        selectedSigners: const <OZSelectedSigner>[
+          OZSelectedSignerPasskey(),
+          OZSelectedSignerWallet(fixtureDelegatedAddress2),
         ],
       );
 
@@ -118,7 +118,7 @@ void main() {
         'error verbatim under the "Failed to create context rule" prefix',
         () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = TransactionResult(
+        ..addResult = OZTransactionResult(
           success: false,
           error: 'on-chain rejected: bad XDR payload',
         );
@@ -129,7 +129,7 @@ void main() {
       );
 
       final result = await deps.flow.addContextRule(
-        contextType: const ContextRuleTypeDefault(),
+        contextType: const OZContextRuleTypeDefault(),
         name: 'rule',
         signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
         policies: const <FlowPolicyEntry>[],
@@ -157,7 +157,7 @@ void main() {
       );
 
       final result = await deps.flow.addContextRule(
-        contextType: const ContextRuleTypeDefault(),
+        contextType: const OZContextRuleTypeDefault(),
         name: 'rule',
         signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
         policies: const <FlowPolicyEntry>[],
@@ -175,7 +175,7 @@ void main() {
 
     test('skips policies whose SCVal is null', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = TransactionResult(success: true, hash: 'h');
+        ..addResult = OZTransactionResult(success: true, hash: 'h');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -183,7 +183,7 @@ void main() {
       );
 
       await deps.flow.addContextRule(
-        contextType: const ContextRuleTypeDefault(),
+        contextType: const OZContextRuleTypeDefault(),
         name: 'rule',
         signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
         policies: const [
@@ -200,7 +200,7 @@ void main() {
 
     test('re-entry guard: concurrent calls throw StateError', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = TransactionResult(success: true, hash: 'h');
+        ..addResult = OZTransactionResult(success: true, hash: 'h');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -211,14 +211,14 @@ void main() {
       // we await sequentially) — the second call before the first resolves
       // should throw. Use Future.wait to start both before either resolves.
       final f1 = deps.flow.addContextRule(
-        contextType: const ContextRuleTypeDefault(),
+        contextType: const OZContextRuleTypeDefault(),
         name: 'rule',
         signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
         policies: const <FlowPolicyEntry>[],
       );
       expect(
         () => deps.flow.addContextRule(
-          contextType: const ContextRuleTypeDefault(),
+          contextType: const OZContextRuleTypeDefault(),
           name: 'rule2',
           signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
           policies: const <FlowPolicyEntry>[],
@@ -517,7 +517,7 @@ void main() {
   group('ContextRuleFlow.addContextRule — with expiry', () {
     test('validUntil resolves to current ledger + supplied offset', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = TransactionResult(success: true, hash: 'expiryhash');
+        ..addResult = OZTransactionResult(success: true, hash: 'expiryhash');
       final env = MockBuilderEnvironment(currentLedger: 10000);
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -528,7 +528,7 @@ void main() {
       expect(resolved, 10720);
 
       final result = await deps.flow.addContextRule(
-        contextType: const ContextRuleTypeDefault(),
+        contextType: const OZContextRuleTypeDefault(),
         name: 'WithExpiry',
         validUntil: resolved,
         signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
@@ -655,7 +655,7 @@ void main() {
     test('on-chain "invalid input" error is surfaced verbatim with the '
         '"Failed to create context rule" prefix', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = TransactionResult(
+        ..addResult = OZTransactionResult(
           success: false,
           error: 'invocation failed: invalid input bytes 0xDEADBEEF',
         );
@@ -665,7 +665,7 @@ void main() {
       );
 
       final result = await deps.flow.addContextRule(
-        contextType: const ContextRuleTypeDefault(),
+        contextType: const OZContextRuleTypeDefault(),
         name: 'rule',
         signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
         policies: const <FlowPolicyEntry>[],
@@ -688,7 +688,7 @@ void main() {
     test('FlowPolicyEntry.scVal is forwarded into the manager.policies map '
         'unchanged', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = TransactionResult(success: true, hash: 'policyhash');
+        ..addResult = OZTransactionResult(success: true, hash: 'policyhash');
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
         environment: MockBuilderEnvironment(),
@@ -699,7 +699,7 @@ void main() {
           'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC';
 
       await deps.flow.addContextRule(
-        contextType: const ContextRuleTypeDefault(),
+        contextType: const OZContextRuleTypeDefault(),
         name: 'PolicyRule',
         signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
         policies: [
@@ -726,16 +726,16 @@ void main() {
     test('buildDefaultContextType returns a Default marker', () {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
       final result = deps.flow.buildDefaultContextType();
-      expect(result, isA<ContextRuleTypeDefault>());
+      expect(result, isA<OZContextRuleTypeDefault>());
     });
 
     test('buildCallContractContextType trims surrounding whitespace', () {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
       final result =
           deps.flow.buildCallContractContextType('   $fixtureContractId   ');
-      expect(result, isA<ContextRuleTypeCallContract>());
+      expect(result, isA<OZContextRuleTypeCallContract>());
       expect(
-        (result as ContextRuleTypeCallContract).contractAddress,
+        (result as OZContextRuleTypeCallContract).contractAddress,
         fixtureContractId,
       );
     });
@@ -745,9 +745,9 @@ void main() {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
       final hash = Uint8List.fromList(List<int>.generate(32, (i) => i));
       final result = deps.flow.buildCreateContractContextType(hash);
-      expect(result, isA<ContextRuleTypeCreateContract>());
+      expect(result, isA<OZContextRuleTypeCreateContract>());
       expect(
-        (result as ContextRuleTypeCreateContract).wasmHash,
+        (result as OZContextRuleTypeCreateContract).wasmHash,
         equals(hash),
       );
     });

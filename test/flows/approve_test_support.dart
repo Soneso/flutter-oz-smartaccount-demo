@@ -25,7 +25,7 @@ import 'context_rule_test_support.dart';
 /// Controls outcome via [result] and [error]. Records call arguments so
 /// tests can assert on the exact payload passed to the SDK.
 final class MockContractCall implements ContractCallType {
-  TransactionResult? result;
+  OZTransactionResult? result;
   Object? error;
 
   String? lastTarget;
@@ -34,7 +34,7 @@ final class MockContractCall implements ContractCallType {
   int callCount = 0;
 
   @override
-  Future<TransactionResult> contractCall({
+  Future<OZTransactionResult> contractCall({
     required String target,
     required String targetFn,
     required List<XdrSCVal> targetArgs,
@@ -61,21 +61,21 @@ final class MockContractCall implements ContractCallType {
 
 /// Configurable mock for [MultiSignerContractCallType].
 final class MockMultiSignerContractCall implements MultiSignerContractCallType {
-  TransactionResult? result;
+  OZTransactionResult? result;
   Object? error;
 
   String? lastTarget;
   String? lastTargetFn;
   List<XdrSCVal>? lastTargetArgs;
-  List<SelectedSigner>? lastSelectedSigners;
+  List<OZSelectedSigner>? lastSelectedSigners;
   int callCount = 0;
 
   @override
-  Future<TransactionResult> multiSignerContractCall({
+  Future<OZTransactionResult> multiSignerContractCall({
     required String target,
     required String targetFn,
     required List<XdrSCVal> targetArgs,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
   }) async {
     callCount++;
     lastTarget = target;
@@ -148,13 +148,13 @@ final class ApproveFixtures {
   static const String defaultTxHash =
       'abc123def456abc123def456abc123def456abc123def456abc123def456abcd';
 
-  /// A successful [TransactionResult].
-  static TransactionResult successResult({String? hash}) =>
-      TransactionResult(success: true, hash: hash ?? defaultTxHash);
+  /// A successful [OZTransactionResult].
+  static OZTransactionResult successResult({String? hash}) =>
+      OZTransactionResult(success: true, hash: hash ?? defaultTxHash);
 
-  /// A failed [TransactionResult].
-  static TransactionResult failureResult({String? errorMessage}) =>
-      TransactionResult(
+  /// A failed [OZTransactionResult].
+  static OZTransactionResult failureResult({String? errorMessage}) =>
+      OZTransactionResult(
         success: false,
         error: errorMessage ?? 'Approve failed on-chain.',
       );

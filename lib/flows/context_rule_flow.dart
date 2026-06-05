@@ -130,14 +130,14 @@ final class ContextRuleFlow {
   /// connected.
   ///
   /// Throws any SDK exception on network or on-chain failure.
-  Future<List<ParsedContextRule>> listContextRules() async {
+  Future<List<OZParsedContextRule>> listContextRules() async {
     if (!_demoState.currentState.isConnected) {
-      return const <ParsedContextRule>[];
+      return const <OZParsedContextRule>[];
     }
 
     _activityLog.info('Loading context rules...');
     final rules = await _contextRuleManager.listContextRules();
-    final sorted = List<ParsedContextRule>.from(rules)
+    final sorted = List<OZParsedContextRule>.from(rules)
       ..sort((a, b) => a.id.compareTo(b.id));
     _activityLog.success('${sorted.length} context rule(s) loaded');
     return sorted;
@@ -157,15 +157,15 @@ final class ContextRuleFlow {
   /// depth against a stale screen-level guard) and throws a
   /// [DemoError] tagged [DemoErrorCategory.validation].
   ///
-  /// On success, returns the [TransactionResult] from the SDK so the screen
+  /// On success, returns the [OZTransactionResult] from the SDK so the screen
   /// can display the hash. On failure, throws a [DemoError] whose
   /// [DemoError.message] is sanitised for UI display; the raw underlying
   /// error is retained in [DemoError.cause] for diagnostics only.
   ///
   /// Throws [StateError] when a removal is already in progress.
-  Future<TransactionResult> removeContextRule({
+  Future<OZTransactionResult> removeContextRule({
     required int ruleId,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
     int? currentRuleCount,
   }) async {
     if (currentRuleCount != null && currentRuleCount <= 1) {
@@ -239,10 +239,10 @@ final class ContextRuleFlow {
   /// Returns true when [selectedSigners] represents a single connected
   /// passkey, which routes the removal to the fast single-signer path
   /// (passkey only, no explicit signer list) versus the multi-signer path.
-  bool isSinglePasskeyRemoval(List<SelectedSigner> selectedSigners) {
+  bool isSinglePasskeyRemoval(List<OZSelectedSigner> selectedSigners) {
     if (selectedSigners.length != 1) return false;
     final first = selectedSigners.first;
-    if (first is! SelectedSignerPasskey) return false;
+    if (first is! OZSelectedSignerPasskey) return false;
     return first.credentialIdBytes == null;
   }
 
@@ -363,12 +363,12 @@ final class ContextRuleFlow {
   // Public: buildSelectedSigners
   // -------------------------------------------------------------------------
 
-  /// Converts [SignerInfo] choices into [SelectedSigner] entries.
+  /// Converts [SignerInfo] choices into [OZSelectedSigner] entries.
   ///
   /// Delegates to [SelectedSignerBuilder.fromInfos], threading the kit's
   /// storage adapter so passkey signers carry their stored authenticator
   /// transports (enabling cross-device authentication).
-  Future<List<SelectedSigner>> buildSelectedSigners(
+  Future<List<OZSelectedSigner>> buildSelectedSigners(
     List<SignerInfo> signers,
   ) =>
       SelectedSignerBuilder.fromInfos(signers, storage: _demoState.storage);
@@ -471,12 +471,12 @@ final class ContextRuleFlow {
   ///
   /// Throws [StateError] when another submission is already in flight.
   Future<ContextRuleResult> addContextRule({
-    required ContextRuleType contextType,
+    required OZContextRuleType contextType,
     required String name,
     int? validUntil,
     required List<OZSmartAccountSigner> signers,
     required List<FlowPolicyEntry> policies,
-    List<SelectedSigner> selectedSigners = const <SelectedSigner>[],
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) async {
     if (_isSubmittingRule) {
       throw StateError('A context-rule submission is already in progress.');
@@ -498,7 +498,7 @@ final class ContextRuleFlow {
         }
       }
 
-      final TransactionResult result;
+      final OZTransactionResult result;
       try {
         result = await _contextRuleManager.addContextRule(
           contextType: contextType,
@@ -633,7 +633,7 @@ final class ContextRuleFlow {
 
   /// Constructs an [OZDelegatedSigner] from a Stellar G-address.
   ///
-  /// Throws [ValidationException] when the address is not a valid
+  /// Throws [SmartAccountValidationException] when the address is not a valid
   /// G-address or C-address. Callers should validate the surface format
   /// (`G` + 56-char base32) before invoking so the user-visible error
   /// message remains friendly.
@@ -643,7 +643,7 @@ final class ContextRuleFlow {
 
   /// Constructs an Ed25519 [OZExternalSigner] from a 32-byte public key.
   ///
-  /// Throws [ValidationException] when [publicKey] is not exactly 32
+  /// Throws [SmartAccountValidationException] when [publicKey] is not exactly 32
   /// bytes. The verifier address is taken from the builder environment.
   OZSmartAccountSigner buildEd25519Signer(Uint8List publicKey) {
     final env = _requireEnvironment('buildEd25519Signer');
@@ -659,20 +659,20 @@ final class ContextRuleFlow {
 
   /// Builds the `Default` context-type marker. Matches operations that do
   /// not match any more-specific rule.
-  ContextRuleType buildDefaultContextType() => const ContextRuleTypeDefault();
+  OZContextRuleType buildDefaultContextType() => const OZContextRuleTypeDefault();
 
   /// Builds a `CallContract` context type targeting [contractAddress].
   ///
   /// The address is trimmed of surrounding whitespace before construction.
   /// Caller-side input validation should run before invoking this method.
-  ContextRuleType buildCallContractContextType(String contractAddress) {
-    return ContextRuleTypeCallContract(contractAddress.trim());
+  OZContextRuleType buildCallContractContextType(String contractAddress) {
+    return OZContextRuleTypeCallContract(contractAddress.trim());
   }
 
   /// Builds a `CreateContract` context type targeting deployments that use
   /// [wasmHash] as the WASM source hash.
-  ContextRuleType buildCreateContractContextType(Uint8List wasmHash) {
-    return ContextRuleTypeCreateContract(wasmHash);
+  OZContextRuleType buildCreateContractContextType(Uint8List wasmHash) {
+    return OZContextRuleTypeCreateContract(wasmHash);
   }
 
   // -------------------------------------------------------------------------
@@ -754,7 +754,7 @@ final class ContextRuleFlow {
   /// Fetches all on-chain rules and returns the entry whose ID matches.
   /// Throws [DemoError] (category [DemoErrorCategory.validation]) when no
   /// rule with that ID exists.
-  Future<ParsedContextRule> loadParsedContextRule(int ruleId) async {
+  Future<OZParsedContextRule> loadParsedContextRule(int ruleId) async {
     final rules = await _contextRuleManager.listContextRules();
     for (final rule in rules) {
       if (rule.id == ruleId) return rule;
@@ -881,7 +881,7 @@ final class ContextRuleFlow {
   /// flight.
   Future<ContextRuleEditResult> submitContextRuleEdits({
     required ContextRuleEditDiff diff,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
     required void Function(String) onProgress,
   }) async {
     if (_isSubmittingEdits) {
@@ -898,7 +898,7 @@ final class ContextRuleFlow {
 
     Future<ContextRuleEditResult?> step({
       required String stepName,
-      required Future<TransactionResult> Function() call,
+      required Future<OZTransactionResult> Function() call,
       ContextRuleEditResult? Function()? precondition,
     }) async {
       progress();
@@ -1164,7 +1164,7 @@ final class ContextRuleFlow {
 
   /// Extracts deduplicated [SignerInfo] entries from the given rule list.
   List<SignerInfo> _extractSigners(
-    List<ParsedContextRule> rules, {
+    List<OZParsedContextRule> rules, {
     String? connectedCredentialId,
   }) {
     final seen = <String>{};

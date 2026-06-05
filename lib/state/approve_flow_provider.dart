@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../config/demo_config.dart' as config;
 import '../flows/approve_flow.dart';
 import 'activity_log_state.dart';
 import 'context_rule_flow_provider.dart';
@@ -32,6 +33,6 @@ final approveFlowProvider = Provider<ApproveFlow?>((ref) {
     multiSignerContractCall:
         MultiSignerContractCallAdapter(kit.multiSignerManager),
     contextRuleFlow: contextRuleFlow,
-    allowanceFetcher: AllowanceFetcherAdapter(kit),
+    allowanceFetcher: const AllowanceFetcherAdapter(rpcUrl: config.rpcUrl),
   );
 });

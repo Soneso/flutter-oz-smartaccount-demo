@@ -8,7 +8,7 @@
 ///   1. Keypair signers can be added and queried.
 ///   2. Wallet signers are routed through the adapter.
 ///   3. The SDK's [OZExternalSignerManager] delegates correctly to both.
-///   4. Missing signers surface as [SignerException.notFound].
+///   4. Missing signers surface as [SmartAccountSignerException.notFound].
 ///   5. The adapter rejects a wrong-payload wallet response before it reaches
 ///      the SDK — both the structural recheck (length, non-zero) and the
 ///      cryptographic recheck (Ed25519 verify against the registered
@@ -16,7 +16,7 @@
 ///      valid 64-byte Ed25519 signature over a DIFFERENT payload is caught
 ///      by the cryptographic recheck before the signature reaches the SDK.
 ///
-/// This file must stay in sync with the ExternalWalletAdapter contract
+/// This file must stay in sync with the OZExternalWalletAdapter contract
 /// defined in `oz_storage_adapter.dart`.
 library;
 
@@ -165,13 +165,13 @@ void main() {
       },
     );
 
-    test('signAuthEntry for missing address throws SignerException', () async {
+    test('signAuthEntry for missing address throws SmartAccountSignerException', () async {
       expect(
         () => manager.signAuthEntry(
           KeyPair.random().accountId,
           base64Encode(Uint8List(32)),
         ),
-        throwsA(isA<SignerException>()),
+        throwsA(isA<SmartAccountSignerException>()),
       );
     });
   });
@@ -269,7 +269,7 @@ void main() {
   group('smokeTestWrongPayloadRejected — adapter rejection', () {
     test(
       'wallet connector returning wrong-length signature is rejected '
-      'by adapter structural recheck with TransactionException',
+      'by adapter structural recheck with SmartAccountTransactionException',
       () async {
         // A 63-byte signature — shorter than the 64 bytes required for Ed25519.
         // This simulates a misbehaving wallet returning a truncated or otherwise
@@ -293,14 +293,14 @@ void main() {
             walletKeypair.accountId,
             base64Encode(Uint8List(32)),
           ),
-          throwsA(isA<TransactionException>()),
+          throwsA(isA<SmartAccountTransactionException>()),
         );
       },
     );
 
     test(
       'wallet connector returning all-zero 64-byte signature is rejected '
-      'by adapter structural recheck with TransactionException',
+      'by adapter structural recheck with SmartAccountTransactionException',
       () async {
         // An all-zero 64-byte signature is structurally correct in length but
         // is not a valid Ed25519 signature for any honest signer. The adapter's
@@ -324,7 +324,7 @@ void main() {
             walletKeypair.accountId,
             base64Encode(Uint8List(32)),
           ),
-          throwsA(isA<TransactionException>()),
+          throwsA(isA<SmartAccountTransactionException>()),
         );
       },
     );
@@ -332,7 +332,7 @@ void main() {
     test(
       'wallet connector returning a real Ed25519 signature over the WRONG '
       'payload is rejected by adapter cryptographic recheck with '
-      'TransactionException',
+      'SmartAccountTransactionException',
       () async {
         // Setup: the registered wallet G-address has its own keypair.
         // The mock connector signs an ATTACKER-CHOSEN payload (not the
@@ -370,7 +370,7 @@ void main() {
             walletKeypair.accountId,
             realPreimageXdr,
           ),
-          throwsA(isA<TransactionException>()),
+          throwsA(isA<SmartAccountTransactionException>()),
         );
       },
     );
@@ -396,11 +396,11 @@ void main() {
     });
 
     test(
-      'addFromSecret with invalid seed throws SignerException',
+      'addFromSecret with invalid seed throws SmartAccountSignerException',
       () async {
         expect(
           () => manager.addFromSecret('NOTAVALIDSEED'),
-          throwsA(isA<SignerException>()),
+          throwsA(isA<SmartAccountSignerException>()),
         );
       },
     );

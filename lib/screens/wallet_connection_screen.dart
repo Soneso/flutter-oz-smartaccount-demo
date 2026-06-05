@@ -15,7 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../flows/context_rule_builder_types.dart'
-    show StoredCredential, WebAuthnCancelled;
+    show OZStoredCredential, WebAuthnCancelled;
 import '../flows/wallet_connection_flow.dart';
 import '../navigation/routes.dart';
 import '../state/activity_log_state.dart';
@@ -92,7 +92,7 @@ class _WalletConnectionScreenState
 
   // ---- Pending credentials ----
 
-  List<StoredCredential> _pendingCredentials = const [];
+  List<OZStoredCredential> _pendingCredentials = const [];
 
   /// Per-credential deployment error keyed by credentialId.
   final Map<String, String> _pendingErrors = {};

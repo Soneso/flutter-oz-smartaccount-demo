@@ -31,9 +31,9 @@ import 'policy_type.dart';
 ///
 /// On-chain schema: a single-entry SCVal map with a Symbol key.
 ///
-/// Throws [ValidationException.invalidInput] when [threshold] < 1.
+/// Throws [SmartAccountValidationException.invalidInput] when [threshold] < 1.
 XdrSCVal buildSimpleThresholdScVal({required int threshold}) {
-  // Delegate validation to the SDK builder, which throws [ValidationException]
+  // Delegate validation to the SDK builder, which throws [SmartAccountValidationException]
   // with a consistent error message when threshold < 1.
   OZSmartAccountBuilders.createThresholdParams(threshold);
 
@@ -57,20 +57,20 @@ XdrSCVal buildSimpleThresholdScVal({required int threshold}) {
 /// The current deployed policy contract enforces a per-ledger global spending
 /// limit — there is no per-token field in the on-chain map.
 ///
-/// Throws [ValidationException.invalidInput] when [periodLedgers] < 1.
-/// Throws [ValidationException.invalidAmount] when [limit] is not positive.
+/// Throws [SmartAccountValidationException.invalidInput] when [periodLedgers] < 1.
+/// Throws [SmartAccountValidationException.invalidAmount] when [limit] is not positive.
 XdrSCVal buildSpendingLimitScVal({
   required int limit,
   required int periodLedgers,
 }) {
   if (limit <= 0) {
-    throw ValidationException.invalidAmount(
+    throw SmartAccountValidationException.invalidAmount(
       limit.toString(),
       reason: 'must be greater than zero',
     );
   }
   if (periodLedgers < 1) {
-    throw ValidationException.invalidInput(
+    throw SmartAccountValidationException.invalidInput(
       'periodLedgers',
       'Period must be at least 1 ledger, got: $periodLedgers',
     );
@@ -107,7 +107,7 @@ XdrSCVal buildSpendingLimitScVal({
 /// by the on-chain contract for deterministic hashing). The outer map keys
 /// are fixed-order symbol strings.
 ///
-/// Throws [ValidationException.invalidInput] when:
+/// Throws [SmartAccountValidationException.invalidInput] when:
 /// - [threshold] < 1
 /// - any [weight] < 1
 /// - [weights] is empty
@@ -117,13 +117,13 @@ XdrSCVal buildWeightedThresholdScVal({
   required int threshold,
 }) {
   if (threshold < 1) {
-    throw ValidationException.invalidInput(
+    throw SmartAccountValidationException.invalidInput(
       PolicyType.threshold,
       'Threshold must be at least 1, got: $threshold',
     );
   }
   if (weights.isEmpty) {
-    throw ValidationException.invalidInput(
+    throw SmartAccountValidationException.invalidInput(
       'weights',
       'At least one signer weight must be provided',
     );
@@ -132,7 +132,7 @@ XdrSCVal buildWeightedThresholdScVal({
   var totalWeight = 0;
   for (final entry in weights) {
     if (entry.weight < 1) {
-      throw ValidationException.invalidInput(
+      throw SmartAccountValidationException.invalidInput(
         'weights',
         'All weights must be positive integers, got: ${entry.weight}',
       );
@@ -141,7 +141,7 @@ XdrSCVal buildWeightedThresholdScVal({
   }
 
   if (totalWeight < threshold) {
-    throw ValidationException.invalidInput(
+    throw SmartAccountValidationException.invalidInput(
       'weights',
       'Sum of weights ($totalWeight) must be >= threshold ($threshold)',
     );

@@ -25,7 +25,7 @@ abstract interface class WalletOperationsType {
   /// This is a subset of [OZWalletOperations.createWallet]. The [forceMethod]
   /// parameter is intentionally omitted; the flow always relies on the kit's
   /// default submission method.
-  Future<CreateWalletResult> createWallet({
+  Future<OZCreateWalletResult> createWallet({
     required String userName,
     required bool autoSubmit,
     required bool autoFund,
@@ -46,7 +46,7 @@ final class WalletOperationsAdapter implements WalletOperationsType {
   final OZWalletOperations _inner;
 
   @override
-  Future<CreateWalletResult> createWallet({
+  Future<OZCreateWalletResult> createWallet({
     required String userName,
     required bool autoSubmit,
     required bool autoFund,

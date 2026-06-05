@@ -46,13 +46,13 @@ class _NoOpMainScreenFlow extends MainScreenFlow {
   WalletOperationsAdapter? buildWalletOperations() => null;
 }
 
-/// [WalletOperationsType] that returns a fixed [CreateWalletResult].
+/// [WalletOperationsType] that returns a fixed [OZCreateWalletResult].
 final class _StubWalletOps implements WalletOperationsType {
   _StubWalletOps(this._result);
-  final CreateWalletResult _result;
+  final OZCreateWalletResult _result;
 
   @override
-  Future<CreateWalletResult> createWallet({
+  Future<OZCreateWalletResult> createWallet({
     required String userName,
     required bool autoSubmit,
     required bool autoFund,
@@ -65,10 +65,10 @@ final class _StubWalletOps implements WalletOperationsType {
 // Fixture helpers
 // ---------------------------------------------------------------------------
 
-CreateWalletResult _makeSdkResult() {
+OZCreateWalletResult _makeSdkResult() {
   final key = Uint8List(65);
   key[0] = 0x04;
-  return CreateWalletResult(
+  return OZCreateWalletResult(
     credentialId: 'dGVzdC1jcmVkZW50aWFsLWlkLWZpeHR1cmU',
     contractId: 'CABC1234567890123456789012345678901234567890123456789012',
     publicKey: key,

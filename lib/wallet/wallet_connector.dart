@@ -7,9 +7,9 @@
 /// - Mobile (iOS, Android): [ReownWalletHandler] via the Reown Sign client.
 /// - Web: [FreighterWalletHandler] via the Freighter browser extension JS API.
 ///
-/// Decision — why this interface is distinct from the SDK's [ExternalWalletAdapter]:
+/// Decision — why this interface is distinct from the SDK's [OZExternalWalletAdapter]:
 ///
-/// The SDK's [ExternalWalletAdapter] is the *inbound* contract that
+/// The SDK's [OZExternalWalletAdapter] is the *inbound* contract that
 /// [OZExternalSignerManager] calls into; it handles multi-signer routing and
 /// persistence. [WalletConnector] is the *outbound* transport layer — it owns
 /// the live wallet session and translates Reown / Freighter protocol details

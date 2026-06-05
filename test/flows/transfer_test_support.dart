@@ -24,7 +24,7 @@ import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 /// Controls outcome via [result] and [error]. Records call arguments so tests
 /// can assert on them.
 final class MockTransactionOperations implements TransactionOperationsType {
-  TransactionResult? result;
+  OZTransactionResult? result;
   Object? error;
 
   String? lastTokenContract;
@@ -33,7 +33,7 @@ final class MockTransactionOperations implements TransactionOperationsType {
   int callCount = 0;
 
   @override
-  Future<TransactionResult> transfer({
+  Future<OZTransactionResult> transfer({
     required String tokenContract,
     required String recipient,
     required String amount,
@@ -62,21 +62,21 @@ final class MockTransactionOperations implements TransactionOperationsType {
 ///
 /// Controls outcome via [result] and [error]. Records call arguments.
 final class MockMultiSignerManager implements MultiSignerManagerType {
-  TransactionResult? result;
+  OZTransactionResult? result;
   Object? error;
 
   String? lastTokenContract;
   String? lastRecipient;
   String? lastAmount;
-  List<SelectedSigner>? lastSelectedSigners;
+  List<OZSelectedSigner>? lastSelectedSigners;
   int callCount = 0;
 
   @override
-  Future<TransactionResult> multiSignerTransfer({
+  Future<OZTransactionResult> multiSignerTransfer({
     required String tokenContract,
     required String recipient,
     required String amount,
-    required List<SelectedSigner> selectedSigners,
+    required List<OZSelectedSigner> selectedSigners,
   }) async {
     callCount++;
     lastTokenContract = tokenContract;
@@ -103,12 +103,12 @@ final class MockMultiSignerManager implements MultiSignerManagerType {
 ///
 /// Controls rules via [rules] and error via [error].
 final class MockContextRuleManager implements ContextRuleManagerType {
-  List<ParsedContextRule> rules = const <ParsedContextRule>[];
+  List<OZParsedContextRule> rules = const <OZParsedContextRule>[];
   Object? error;
   int callCount = 0;
 
   @override
-  Future<List<ParsedContextRule>> listContextRules() async {
+  Future<List<OZParsedContextRule>> listContextRules() async {
     callCount++;
     final e = error;
     if (e != null) throw e;
@@ -250,15 +250,15 @@ final class TransferFixtures {
   static const String demoTokenContract =
       'CDEMO12345678901234567890123456789012345678901234567890123456';
 
-  /// A successful [TransactionResult].
-  static TransactionResult successResult({String? hash}) => TransactionResult(
+  /// A successful [OZTransactionResult].
+  static OZTransactionResult successResult({String? hash}) => OZTransactionResult(
         success: true,
         hash: hash ?? defaultTxHash,
       );
 
-  /// A failed [TransactionResult].
-  static TransactionResult failureResult({String? errorMessage}) =>
-      TransactionResult(
+  /// A failed [OZTransactionResult].
+  static OZTransactionResult failureResult({String? errorMessage}) =>
+      OZTransactionResult(
         success: false,
         error: errorMessage ?? 'Transfer failed on-chain.',
       );

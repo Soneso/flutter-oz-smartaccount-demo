@@ -26,7 +26,7 @@ import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 /// All test control is through [result] and [error]. Records the parameters
 /// it was called with so tests can assert on them.
 final class MockWalletOperations implements WalletOperationsType {
-  CreateWalletResult? result;
+  OZCreateWalletResult? result;
   Object? error;
 
   String? lastUserName;
@@ -36,7 +36,7 @@ final class MockWalletOperations implements WalletOperationsType {
   int callCount = 0;
 
   @override
-  Future<CreateWalletResult> createWallet({
+  Future<OZCreateWalletResult> createWallet({
     required String userName,
     required bool autoSubmit,
     required bool autoFund,
@@ -79,12 +79,12 @@ final class MockSlowWalletOperations implements WalletOperationsType {
   MockSlowWalletOperations({required this.completer});
 
   /// The completer that controls when [createWallet] returns.
-  final Completer<CreateWalletResult> completer;
+  final Completer<OZCreateWalletResult> completer;
 
   Object? error;
 
   @override
-  Future<CreateWalletResult> createWallet({
+  Future<OZCreateWalletResult> createWallet({
     required String userName,
     required bool autoSubmit,
     required bool autoFund,
@@ -173,13 +173,13 @@ final class WalletCreationFixtures {
     return key;
   }
 
-  /// Returns a [CreateWalletResult] with a valid secp256r1 public key.
-  static CreateWalletResult validSdkResult({
+  /// Returns a [OZCreateWalletResult] with a valid secp256r1 public key.
+  static OZCreateWalletResult validSdkResult({
     String contractId = defaultContractId,
     String credentialId = defaultCredentialId,
     bool deployed = true,
   }) {
-    return CreateWalletResult(
+    return OZCreateWalletResult(
       credentialId: credentialId,
       contractId: contractId,
       publicKey: validPublicKey,
@@ -188,9 +188,9 @@ final class WalletCreationFixtures {
     );
   }
 
-  /// Returns a [CreateWalletResult] whose 32-byte key fails the secp256r1 check.
-  static CreateWalletResult invalidKeyResult() {
-    return CreateWalletResult(
+  /// Returns a [OZCreateWalletResult] whose 32-byte key fails the secp256r1 check.
+  static OZCreateWalletResult invalidKeyResult() {
+    return OZCreateWalletResult(
       credentialId: defaultCredentialId,
       contractId: defaultContractId,
       publicKey: Uint8List(32),
@@ -198,11 +198,11 @@ final class WalletCreationFixtures {
     );
   }
 
-  /// Returns a [CreateWalletResult] with a 65-byte key starting with 0x02.
-  static CreateWalletResult wrongPrefixKeyResult() {
+  /// Returns a [OZCreateWalletResult] with a 65-byte key starting with 0x02.
+  static OZCreateWalletResult wrongPrefixKeyResult() {
     final badKey = Uint8List(65);
     badKey[0] = 0x02;
-    return CreateWalletResult(
+    return OZCreateWalletResult(
       credentialId: defaultCredentialId,
       contractId: defaultContractId,
       publicKey: badKey,

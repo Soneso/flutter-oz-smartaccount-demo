@@ -21,19 +21,19 @@ import 'transfer_test_support.dart' show MockNetworkError;
 // Local rule fixture helper
 // ---------------------------------------------------------------------------
 
-/// Builds a [ParsedContextRule] for the signer-dedup tests.
+/// Builds a [OZParsedContextRule] for the signer-dedup tests.
 ///
 /// Lets each test specify signers, name, and context type without depending
 /// on the broader builder fixture set used elsewhere in the suite.
-ParsedContextRule makeRule({
+OZParsedContextRule makeRule({
   required int id,
   required String name,
   required List<OZSmartAccountSigner> signers,
-  ContextRuleType? contextType,
+  OZContextRuleType? contextType,
 }) {
-  return ParsedContextRule(
+  return OZParsedContextRule(
     id: id,
-    contextType: contextType ?? const ContextRuleTypeDefault(),
+    contextType: contextType ?? const OZContextRuleTypeDefault(),
     name: name,
     signers: signers,
     signerIds: List<int>.generate(signers.length, (i) => i + 1),
@@ -52,7 +52,7 @@ void main() {
       '3 signer occurrences across 2 rules dedupe to 2 unique entries',
       () async {
         final deps = AccountSignersFixtures.makeFlowWithDeps();
-        deps.contextRuleManager.rules = <ParsedContextRule>[
+        deps.contextRuleManager.rules = <OZParsedContextRule>[
           makeRule(
             id: 1,
             name: 'rule-1',
@@ -89,7 +89,7 @@ void main() {
 
     test('preserves insertion order across rules', () async {
       final deps = AccountSignersFixtures.makeFlowWithDeps();
-      deps.contextRuleManager.rules = <ParsedContextRule>[
+      deps.contextRuleManager.rules = <OZParsedContextRule>[
         makeRule(
           id: 1,
           name: 'r1',
@@ -122,7 +122,7 @@ void main() {
 
     test('logs the unique / total counts at info level', () async {
       final deps = AccountSignersFixtures.makeFlowWithDeps();
-      deps.contextRuleManager.rules = <ParsedContextRule>[
+      deps.contextRuleManager.rules = <OZParsedContextRule>[
         makeRule(
           id: 1,
           name: 'r1',
@@ -161,7 +161,7 @@ void main() {
   group('AccountSignersFlow.loadAccountSigners — empty rules', () {
     test('returns empty list and logs zero / zero', () async {
       final deps = AccountSignersFixtures.makeFlowWithDeps();
-      deps.contextRuleManager.rules = const <ParsedContextRule>[];
+      deps.contextRuleManager.rules = const <OZParsedContextRule>[];
 
       final entries = await deps.flow.loadAccountSigners();
 
@@ -235,7 +235,7 @@ void main() {
       final delegated =
           OZDelegatedSigner(AccountSignersFixtures.delegatedAddress1);
 
-      deps.contextRuleManager.rules = <ParsedContextRule>[
+      deps.contextRuleManager.rules = <OZParsedContextRule>[
         makeRule(id: 1, name: 'mixed', signers: [ed25519, delegated]),
       ];
 

@@ -150,7 +150,7 @@ void main() {
             '86b49fe03f7df0ad1c2a28bd8361b923ab57096e09f397f92f0c00ae3bd06d28',
         webauthnVerifierAddress:
             'CB26VN37RCVNTHJZDEPK6IRO2MMTS3Z2IEO5JD5BINY2OOJ5KKJG7NKY',
-        storage: InMemoryStorageAdapter(),
+        storage: OZInMemoryStorageAdapter(),
       );
       final kit = OZSmartAccountKit.create(config: kitConfig);
       demoState.kit = kit;

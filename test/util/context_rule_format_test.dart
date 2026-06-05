@@ -15,7 +15,7 @@ void main() {
   group('formatContextType', () {
     test('Default returns "Default (Any Operation)"', () {
       expect(
-        formatContextType(const ContextRuleTypeDefault()),
+        formatContextType(const OZContextRuleTypeDefault()),
         'Default (Any Operation)',
       );
     });
@@ -23,7 +23,7 @@ void main() {
     test('CallContract returns "Call Contract: <truncated address>"', () {
       const addr = 'CAAQEAYEAUDAOCAJBIFQYDIOB4IBCEQTCQKRMFYYDENBWHA5DYPSBFLM';
       final result =
-          formatContextType(ContextRuleTypeCallContract(addr));
+          formatContextType(OZContextRuleTypeCallContract(addr));
 
       // Uses the 4-char `truncateAddress` form so the label fits chip and
       // pill layouts without horizontal overflow.
@@ -33,7 +33,7 @@ void main() {
     test('CreateContract returns "Create Contract: <8 hex chars>..."', () {
       final wasm = Uint8List(32)..fillRange(0, 32, 0xAB);
       final result =
-          formatContextType(ContextRuleTypeCreateContract(wasm));
+          formatContextType(OZContextRuleTypeCreateContract(wasm));
 
       expect(result, startsWith('Create Contract:'));
       expect(result, contains('abababab'));

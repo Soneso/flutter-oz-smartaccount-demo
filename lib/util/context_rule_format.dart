@@ -1,6 +1,6 @@
 /// Formatting utilities for context-rule display labels.
 ///
-/// Converts SDK types ([ContextRuleType], [OZSmartAccountSigner]) into the
+/// Converts SDK types ([OZContextRuleType], [OZSmartAccountSigner]) into the
 /// short, user-visible strings shown in the Context Rules screen. None of
 /// these functions perform network I/O or SDK calls.
 library;
@@ -14,19 +14,19 @@ import 'signer_type_label.dart';
 // Context-type labels
 // ---------------------------------------------------------------------------
 
-/// Returns the user-visible label for a [ContextRuleType].
+/// Returns the user-visible label for a [OZContextRuleType].
 ///
 /// - Default              → "Default (Any Operation)"
 /// - CallContract(addr)   → "Call Contract: ${truncated address}"
 /// - CreateContract(hash) → "Create Contract: ${first 8 hex chars}..."
-String formatContextType(ContextRuleType contextType) {
-  if (contextType is ContextRuleTypeDefault) {
+String formatContextType(OZContextRuleType contextType) {
+  if (contextType is OZContextRuleTypeDefault) {
     return 'Default (Any Operation)';
   }
-  if (contextType is ContextRuleTypeCallContract) {
+  if (contextType is OZContextRuleTypeCallContract) {
     return 'Call Contract: ${truncateAddress(contextType.contractAddress)}';
   }
-  if (contextType is ContextRuleTypeCreateContract) {
+  if (contextType is OZContextRuleTypeCreateContract) {
     final hexFull = bytesToHex(contextType.wasmHash);
     final preview = hexFull.length > 8 ? hexFull.substring(0, 8) : hexFull;
     return 'Create Contract: $preview...';

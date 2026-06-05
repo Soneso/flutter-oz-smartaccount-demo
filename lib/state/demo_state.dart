@@ -99,7 +99,7 @@ class DemoStateNotifier extends Notifier<WalletConnectionState> {
   WebAuthnProvider? webAuthnProvider;
 
   /// Platform-specific storage adapter. Must be set before the kit is created.
-  StorageAdapter? storage;
+  OZStorageAdapter? storage;
 
   /// Platform-specific wallet connector singleton.
   ///

@@ -6,7 +6,7 @@
 /// - [refreshBalances] covers guard conditions: disconnected state exits early,
 ///   nil kit exits early. Live network is NOT required.
 /// - [disconnect] verifies all state is cleared and a log entry is added.
-/// - [describeKitEvent] maps each [SmartAccountEvent] type to the expected
+/// - [describeKitEvent] maps each [OZSmartAccountEvent] type to the expected
 ///   [LogLevel] and message pattern.
 /// - Screens-never-call-SDK guard reads every file in [lib/screens/] and
 ///   asserts none contain SDK type or accessor patterns, anchored via an
@@ -65,7 +65,7 @@ Directory _projectRoot() {
   );
 }
 
-/// Builds a minimal [OZSmartAccountKit] using [InMemoryStorageAdapter].
+/// Builds a minimal [OZSmartAccountKit] using [OZInMemoryStorageAdapter].
 /// No network or Keychain access required.
 OZSmartAccountKit buildMinimalKit() {
   final kitConfig = OZSmartAccountConfig(
@@ -75,7 +75,7 @@ OZSmartAccountKit buildMinimalKit() {
         '86b49fe03f7df0ad1c2a28bd8361b923ab57096e09f397f92f0c00ae3bd06d28',
     webauthnVerifierAddress:
         'CB26VN37RCVNTHJZDEPK6IRO2MMTS3Z2IEO5JD5BINY2OOJ5KKJG7NKY',
-    storage: InMemoryStorageAdapter(),
+    storage: OZInMemoryStorageAdapter(),
   );
   return OZSmartAccountKit.create(config: kitConfig);
 }
@@ -93,7 +93,7 @@ void main() {
     test('sets bootstrapError when WebAuthn provider is nil', () async {
       final (container, demoState, activityLog) = makeTestSetup();
       // Storage present, WebAuthn provider absent.
-      demoState.storage = InMemoryStorageAdapter();
+      demoState.storage = OZInMemoryStorageAdapter();
 
       final flow = MainScreenFlow(
         demoState: demoState,
@@ -136,7 +136,7 @@ void main() {
 
     test('is idempotent when kit is already initialised', () async {
       final (container, demoState, activityLog) = makeTestSetup();
-      demoState.storage = InMemoryStorageAdapter();
+      demoState.storage = OZInMemoryStorageAdapter();
 
       // Pre-populate the kit so the guard fires immediately.
       final existingKit = buildMinimalKit();
@@ -298,12 +298,12 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // describeKitEvent — mapping tests for each SmartAccountEvent subtype
+  // describeKitEvent — mapping tests for each OZSmartAccountEvent subtype
   // -------------------------------------------------------------------------
 
   group('MainScreenFlow.describeKitEvent', () {
     test('WalletConnected → success level, contains address and cred', () {
-      const event = SmartAccountEventWalletConnected(
+      const event = OZSmartAccountEventWalletConnected(
         contractId: 'CDUMMYCONTRACTADDRESS123456789012345678901234567890ABCDEF',
         credentialId: 'abcdef1234567890abcdef1234567890',
       );
@@ -314,7 +314,7 @@ void main() {
     });
 
     test('WalletDisconnected → info level', () {
-      const event = SmartAccountEventWalletDisconnected(
+      const event = OZSmartAccountEventWalletDisconnected(
         contractId: 'CDUMMYCONTRACTADDRESS123456789012345678901234567890ABCDEF',
       );
       final (level, message) = MainScreenFlow.describeKitEvent(event);
@@ -323,18 +323,18 @@ void main() {
     });
 
     test('CredentialCreated → success level', () {
-      final credential = StoredCredential(
+      final credential = OZStoredCredential(
         credentialId: 'abcdef1234567890abcdef1234567890',
         publicKey: Uint8List(65),
       );
-      final event = SmartAccountEventCredentialCreated(credential: credential);
+      final event = OZSmartAccountEventCredentialCreated(credential: credential);
       final (level, message) = MainScreenFlow.describeKitEvent(event);
       expect(level, LogLevel.success);
       expect(message, contains('Credential registered'));
     });
 
     test('CredentialDeleted → info level', () {
-      const event = SmartAccountEventCredentialDeleted(
+      const event = OZSmartAccountEventCredentialDeleted(
         credentialId: 'abcdef1234567890abcdef1234567890',
       );
       final (level, message) = MainScreenFlow.describeKitEvent(event);
@@ -343,7 +343,7 @@ void main() {
     });
 
     test('SessionExpired → error level with reconnect hint', () {
-      const event = SmartAccountEventSessionExpired(
+      const event = OZSmartAccountEventSessionExpired(
         contractId: 'CDUMMYCONTRACTADDRESS123456789012345678901234567890ABCDEF',
         credentialId: 'abcdef1234567890abcdef1234567890',
       );
@@ -354,7 +354,7 @@ void main() {
     });
 
     test('TransactionSigned with credentialId → info level', () {
-      const event = SmartAccountEventTransactionSigned(
+      const event = OZSmartAccountEventTransactionSigned(
         contractId: 'CDUMMYCONTRACTADDRESS123456789012345678901234567890ABCDEF',
         credentialId: 'abcdef1234567890abcdef1234567890',
       );
@@ -364,7 +364,7 @@ void main() {
     });
 
     test('TransactionSigned without credentialId → "external" in message', () {
-      const event = SmartAccountEventTransactionSigned(
+      const event = OZSmartAccountEventTransactionSigned(
         contractId: 'CDUMMYCONTRACTADDRESS123456789012345678901234567890ABCDEF',
         credentialId: null,
       );
@@ -374,7 +374,7 @@ void main() {
     });
 
     test('TransactionSubmitted success → success level', () {
-      const event = SmartAccountEventTransactionSubmitted(
+      const event = OZSmartAccountEventTransactionSubmitted(
         hash: 'abc123def456abc123def456abc123de',
         success: true,
       );
@@ -384,7 +384,7 @@ void main() {
     });
 
     test('TransactionSubmitted failure → error level', () {
-      const event = SmartAccountEventTransactionSubmitted(
+      const event = OZSmartAccountEventTransactionSubmitted(
         hash: 'abc123def456abc123def456abc123de',
         success: false,
       );
@@ -394,7 +394,7 @@ void main() {
     });
 
     test('CredentialSyncFailed → error level', () {
-      final event = SmartAccountEventCredentialSyncFailed(
+      final event = OZSmartAccountEventCredentialSyncFailed(
         credentialId: 'abcdef1234567890abcdef1234567890',
         error: Exception('RPC timeout'),
       );
@@ -405,7 +405,7 @@ void main() {
 
     test('long credential IDs are truncated with ellipsis', () {
       const longCredId = 'abcdef1234567890ABCDEF1234567890extraextralong';
-      const event = SmartAccountEventWalletConnected(
+      const event = OZSmartAccountEventWalletConnected(
         contractId: 'CDUMMYCONTRACTADDRESS123456789012345678901234567890ABCDEF',
         credentialId: longCredId,
       );
