@@ -33,9 +33,12 @@ import 'policy_type.dart';
 ///
 /// Throws [SmartAccountValidationException.invalidInput] when [threshold] < 1.
 XdrSCVal buildSimpleThresholdScVal({required int threshold}) {
-  // Delegate validation to the SDK builder, which throws [SmartAccountValidationException]
-  // with a consistent error message when threshold < 1.
-  OZSmartAccountBuilders.createThresholdParams(threshold);
+  if (threshold < 1) {
+    throw SmartAccountValidationException.invalidInput(
+      'threshold',
+      'Threshold must be at least 1, got: $threshold',
+    );
+  }
 
   final entries = <XdrSCMapEntry>[
     XdrSCMapEntry(
