@@ -80,7 +80,7 @@ final class MockContextRuleFlowManager
   String? lastAddedName;
   int? lastAddedValidUntil;
   List<OZSmartAccountSigner>? lastAddedSigners;
-  Map<String, XdrSCVal>? lastAddedPolicies;
+  Map<String, OZPolicyInstallParams>? lastAddedPolicies;
   List<OZSelectedSigner>? lastAddedSelectedSigners;
 
   @override
@@ -89,7 +89,8 @@ final class MockContextRuleFlowManager
     required String name,
     int? validUntil,
     required List<OZSmartAccountSigner> signers,
-    Map<String, XdrSCVal> policies = const <String, XdrSCVal>{},
+    Map<String, OZPolicyInstallParams> policies =
+        const <String, OZPolicyInstallParams>{},
     List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) async {
     addCallCount++;

@@ -772,11 +772,11 @@ void main() {
       );
 
       expect(mgr.lastAddedPolicies?.length, 1);
-      final encoded = mgr.lastAddedPolicies?[policyAddress];
-      expect(encoded, isNotNull);
-      // The flow encodes the typed params to the on-chain
+      final params = mgr.lastAddedPolicies?[policyAddress];
+      expect(params, isA<OZSimpleThresholdPolicyParams>());
+      // The typed params encode to the on-chain
       // `{ symbol("threshold"): u32(3) }` map.
-      final entries = encoded!.map;
+      final entries = params!.toScVal().map;
       expect(entries, isNotNull);
       expect(entries!.length, 1);
       expect(entries.first.key.sym, 'threshold');

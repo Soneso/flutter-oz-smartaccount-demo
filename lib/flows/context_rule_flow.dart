@@ -406,16 +406,15 @@ final class ContextRuleFlow with MultiSignerRegistrar {
     try {
       _activityLog.info('Submitting new context rule...');
 
-      // Encode the staged policy list into the {address: scVal} map shape
-      // the manager expects. The toScVal() call here is the single SCVal
-      // conversion point for the create path. Entries with null install
-      // params are unreachable in the builder (every add-form configures
-      // params up front), but we skip them defensively.
-      final policiesMap = <String, XdrSCVal>{};
+      // Build the {address: install-params} map the manager accepts.
+      // Entries with null install params are unreachable in the builder
+      // (every add-form configures params up front), but we skip them
+      // defensively.
+      final policiesMap = <String, OZPolicyInstallParams>{};
       for (final entry in policies) {
         final params = entry.installParams;
         if (params != null) {
-          policiesMap[entry.address] = params.toScVal();
+          policiesMap[entry.address] = params;
         }
       }
 

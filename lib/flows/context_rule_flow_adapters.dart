@@ -40,7 +40,7 @@ abstract interface class ContextRuleFlowManagerType {
     required String name,
     int? validUntil,
     required List<OZSmartAccountSigner> signers,
-    Map<String, XdrSCVal> policies,
+    Map<String, OZPolicyInstallParams> policies,
     List<OZSelectedSigner> selectedSigners,
   });
 
@@ -284,7 +284,8 @@ final class ContextRuleManagerFlowAdapter
     required String name,
     int? validUntil,
     required List<OZSmartAccountSigner> signers,
-    Map<String, XdrSCVal> policies = const <String, XdrSCVal>{},
+    Map<String, OZPolicyInstallParams> policies =
+        const <String, OZPolicyInstallParams>{},
     List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       _ruleManager.addContextRule(
