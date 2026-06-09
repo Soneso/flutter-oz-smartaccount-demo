@@ -8,6 +8,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_account_demo/flows/context_rule_builder_types.dart';
 import 'package:smart_account_demo/flows/context_rule_edit_types.dart';
@@ -41,30 +42,32 @@ Future<void> _pump(
   });
 
   await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: SignerManagementSection(
-            signers: signers,
-            fieldError: fieldError,
-            isSubmitting: isSubmitting,
-            maxSigners: maxSigners,
-            ed25519VerifierAddress: ed25519VerifierAddress,
-            buildDelegatedSigner:
-                buildDelegatedSigner ?? OZDelegatedSigner.new,
-            buildEd25519Signer: buildEd25519Signer ??
-                (publicKey) => OZExternalSigner.ed25519(
-                      verifierAddress: ed25519VerifierAddress ??
-                          'CAW2Z46INPO5VIJEILMYSSEOLBVJIIII5GOE3TN5EUURSRM2FJCF7AJ6',
-                      publicKey: publicKey,
-                    ),
-            onAddSigner: onAddSigner ?? (_) => null,
-            onRemoveSigner: onRemoveSigner ?? (_) {},
-            loadPasskeySigners:
-                loadPasskeySigners ?? () async => const <OZExternalSigner>[],
-            registerPasskeySigner: registerPasskeySigner ??
-                (name) async => throw UnimplementedError(),
+    ProviderScope(
+      child: MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: SignerManagementSection(
+              signers: signers,
+              fieldError: fieldError,
+              isSubmitting: isSubmitting,
+              maxSigners: maxSigners,
+              ed25519VerifierAddress: ed25519VerifierAddress,
+              buildDelegatedSigner:
+                  buildDelegatedSigner ?? OZDelegatedSigner.new,
+              buildEd25519Signer: buildEd25519Signer ??
+                  (publicKey) => OZExternalSigner.ed25519(
+                        verifierAddress: ed25519VerifierAddress ??
+                            'CAW2Z46INPO5VIJEILMYSSEOLBVJIIII5GOE3TN5EUURSRM2FJCF7AJ6',
+                        publicKey: publicKey,
+                      ),
+              onAddSigner: onAddSigner ?? (_) => null,
+              onRemoveSigner: onRemoveSigner ?? (_) {},
+              loadPasskeySigners:
+                  loadPasskeySigners ?? () async => const <OZExternalSigner>[],
+              registerPasskeySigner: registerPasskeySigner ??
+                  (name) async => throw UnimplementedError(),
+            ),
           ),
         ),
       ),
@@ -340,7 +343,7 @@ void main() {
       final originalSigner = OZDelegatedSigner(fixtureDelegatedAddress1);
       final addedSigner = OZDelegatedSigner(fixtureDelegatedAddress2);
 
-      await tester.pumpWidget(MaterialApp(
+      await tester.pumpWidget(ProviderScope(child: MaterialApp(
         home: Scaffold(
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -382,7 +385,7 @@ void main() {
             ),
           ),
         ),
-      ));
+      )));
       await tester.pump();
 
       // Exactly one (on-chain) badge should appear because only one entry
@@ -411,7 +414,7 @@ void main() {
           OZSmartAccountBuilders.getCredentialIdStringFromSigner(passkey);
       expect(connectedCredentialId, isNotNull);
 
-      await tester.pumpWidget(MaterialApp(
+      await tester.pumpWidget(ProviderScope(child: MaterialApp(
         home: Scaffold(
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -444,7 +447,7 @@ void main() {
             ),
           ),
         ),
-      ));
+      )));
       await tester.pump();
 
       // The "You" label is rendered in place of the remove icon when the
@@ -470,7 +473,7 @@ void main() {
         credentialId: credentialBytes,
       );
 
-      await tester.pumpWidget(MaterialApp(
+      await tester.pumpWidget(ProviderScope(child: MaterialApp(
         home: Scaffold(
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -503,7 +506,7 @@ void main() {
             ),
           ),
         ),
-      ));
+      )));
       await tester.pump();
 
       expect(find.text('You'), findsNothing);
