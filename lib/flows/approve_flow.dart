@@ -33,7 +33,6 @@ import '../util/format_utils.dart'
         formatStroopsBigIntAsXlm,
         nativeTokenDecimals,
         addressToScVal,
-        scValI128ToBigIntOrNull,
         truncateAddress;
 import 'context_rule_flow.dart' show ContextRuleFlow;
 import 'ed25519_signer_identity.dart';
@@ -618,7 +617,7 @@ final class AllowanceFetcherAdapter implements AllowanceFetcherType {
       final scVal = results.first.resultValue;
       if (scVal == null) return null;
 
-      return _extractI128AsBigInt(scVal);
+      return scVal.toBigInt();
     } catch (_) {
       return null;
     } finally {
@@ -656,9 +655,4 @@ final class AllowanceFetcherAdapter implements AllowanceFetcherType {
         .addMemo(Memo.none())
         .build();
   }
-
-  /// Decodes an i128 [XdrSCVal] as a signed 128-bit [BigInt].
-  ///
-  /// Returns null when [scVal] is not an i128.
-  BigInt? _extractI128AsBigInt(XdrSCVal scVal) => scValI128ToBigIntOrNull(scVal);
 }

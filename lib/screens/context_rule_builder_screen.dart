@@ -772,9 +772,7 @@ class _ContextRuleBuilderScreenState
         return flow.buildCallContractContextType(_contractAddress.trim());
       case _ContextTypeOption.createContract:
         final hex = _wasmHashController.text.trim().toLowerCase();
-        return flow.buildCreateContractContextType(
-          Uint8List.fromList(hexToBytes(hex)),
-        );
+        return flow.buildCreateContractContextType(hexToBytes(hex));
     }
   }
 

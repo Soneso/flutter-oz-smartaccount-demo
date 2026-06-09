@@ -10,13 +10,12 @@
 ///   adminKeyPair = Ed25519(adminSeed)
 ///
 /// Contract salt derivation:
-///   salt = SHA-256([DemoConfig.demoTokenSaltSeed])
+///   salt = SHA-256(UTF-8([DemoConfig.demoTokenSaltSeed]))
 ///
-/// Contract address derivation follows the Soroban ContractID preimage protocol:
-///   1. networkId = SHA-256(networkPassphrase)
-///   2. preimage  = ContractID { networkId, FromAddress { admin, salt } }
-///   3. tokenContractId = SHA-256(XDR-encode(preimage))
-///   4. C-address = StrKey.encodeContractId(tokenContractId)
+/// Contract address derivation is delegated to
+/// [SmartAccountUtils.deriveContractAddress], which hashes the seed bytes into
+/// the deployment salt and applies the Soroban ContractID preimage protocol to
+/// produce the deterministic C-address.
 ///
 /// This is a testnet-only service. [ensureTokenAndMint] hard-fails at
 /// construction time if [networkPassphrase] is not the Stellar testnet
@@ -179,7 +178,6 @@ class DemoTokenService {
     final salt = _deriveTokenSalt();
     final tokenContractId = _deriveTokenContractAddress(
       deployerPublicKey: adminId,
-      salt: salt,
     );
 
     final server = SorobanServer(_rpcUrl);
@@ -243,10 +241,8 @@ class DemoTokenService {
   /// same output on every platform.
   static String deriveContractAddress() {
     final kp = _deriveAdminKeyPair();
-    final salt = _deriveTokenSalt();
     return _deriveTokenContractAddress(
       deployerPublicKey: kp.accountId,
-      salt: salt,
     );
   }
 
@@ -265,68 +261,38 @@ class DemoTokenService {
     return KeyPair.fromSecretSeedList(seedBytes);
   }
 
-  /// Derives the 32-byte deployment salt from [config.demoTokenSaltSeed].
+  /// Returns the UTF-8 bytes of [config.demoTokenSaltSeed].
   ///
-  /// SHA-256 of the seed string produces a fixed 32-byte salt. Because the
-  /// Soroban ContractID derivation uses the same salt, the resulting contract
-  /// address is always identical regardless of when or where deployment runs.
-  static Uint8List _deriveTokenSalt() {
-    return Util.hash(Uint8List.fromList(utf8.encode(config.demoTokenSaltSeed)));
+  /// These bytes act as the credential-ID input to the SDK contract-address
+  /// derivation, which hashes them into the 32-byte Soroban deployment salt.
+  /// Using the same seed bytes on every run keeps the deployed contract
+  /// address identical regardless of when or where deployment runs.
+  static Uint8List _tokenSaltSeedBytes() {
+    return Uint8List.fromList(utf8.encode(config.demoTokenSaltSeed));
   }
 
-  /// Derives the Soroban contract C-address for [deployerPublicKey] + [salt].
+  /// Derives the 32-byte deployment salt from [config.demoTokenSaltSeed].
   ///
-  /// Follows the Soroban ContractID preimage protocol:
-  ///   networkId  = SHA-256(networkPassphrase)
-  ///   preimage   = ContractID { networkId, FromAddress { deployer, salt } }
-  ///   contractId = SHA-256(XDR-encode(preimage))
-  ///   C-address  = StrKey.encodeContractId(contractId)
+  /// The salt is `SHA-256(seedBytes)`, matching the salt the SDK derivation
+  /// applies to the same seed bytes. The deploy host function carries this
+  /// salt so the on-chain contract address matches the locally derived one.
+  static Uint8List _deriveTokenSalt() {
+    return SmartAccountUtils.getContractSalt(_tokenSaltSeedBytes());
+  }
+
+  /// Derives the Soroban contract C-address for [deployerPublicKey].
   ///
-  /// This is the same derivation used by the Soroban host and by the SDK's
-  /// [SmartAccountUtils.deriveContractAddress] (which computes the salt from a
-  /// credential ID). Here we pass the raw salt directly.
+  /// Delegates to [SmartAccountUtils.deriveContractAddress], which hashes the
+  /// seed bytes into the deployment salt and applies the Soroban ContractID
+  /// preimage protocol to produce the deterministic C-address.
   static String _deriveTokenContractAddress({
     required String deployerPublicKey,
-    required Uint8List salt,
   }) {
-    // Step 1: network ID = SHA-256(networkPassphrase).
-    final networkIdBytes = Util.hash(
-      Uint8List.fromList(utf8.encode(config.networkPassphrase)),
+    return SmartAccountUtils.deriveContractAddress(
+      credentialId: _tokenSaltSeedBytes(),
+      deployerPublicKey: deployerPublicKey,
+      networkPassphrase: config.networkPassphrase,
     );
-
-    // Step 2: deployer SCAddress.
-    final deployerAddress = XdrSCAddress.forAccountId(deployerPublicKey);
-
-    // Step 3: ContractIDPreimage::FromAddress { deployer, salt }.
-    final fromAddress = XdrContractIDPreimageFromAddress(
-      deployerAddress,
-      XdrUint256(salt),
-    );
-    final contractIdPreimage = XdrContractIDPreimage(
-      XdrContractIDPreimageType.CONTRACT_ID_PREIMAGE_FROM_ADDRESS,
-    );
-    contractIdPreimage.fromAddress = fromAddress;
-
-    // Step 4: HashIDPreimage::ContractID.
-    final hashIdPreimageContractId = XdrHashIDPreimageContractID(
-      XdrHash(networkIdBytes),
-      contractIdPreimage,
-    );
-    final preimage = XdrHashIDPreimage(
-      XdrEnvelopeType.ENVELOPE_TYPE_CONTRACT_ID,
-    );
-    preimage.contractID = hashIdPreimageContractId;
-
-    // Step 5: XDR-encode the preimage.
-    final stream = XdrDataOutputStream();
-    XdrHashIDPreimage.encode(stream, preimage);
-    final encodedPreimage = Uint8List.fromList(stream.bytes);
-
-    // Step 6: SHA-256 the encoded preimage.
-    final contractIdBytes = Util.hash(encodedPreimage);
-
-    // Step 7: encode as C-address.
-    return StrKey.encodeContractId(contractIdBytes);
   }
 
   // ---------------------------------------------------------------------------
@@ -509,7 +475,6 @@ class DemoTokenService {
     // transaction result in a convenient form.
     return _deriveTokenContractAddress(
       deployerPublicKey: adminId,
-      salt: salt,
     );
   }
 

@@ -104,40 +104,38 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // formatStroopsAsXlm
+  // formatStroopsBigIntAsXlm
   // ---------------------------------------------------------------------------
 
-  group('formatStroopsAsXlm', () {
-    test('zero returns 0.0', () {
-      expect(formatStroopsAsXlm(0), '0.0');
+  group('formatStroopsBigIntAsXlm', () {
+    test('zero renders as 0', () {
+      expect(formatStroopsBigIntAsXlm(BigInt.zero), equals('0'));
     });
 
-    test('1 XLM in stroops returns 1.0', () {
-      expect(formatStroopsAsXlm(10000000), '1.0');
+    test('1 XLM in stroops renders as 1', () {
+      expect(formatStroopsBigIntAsXlm(BigInt.from(10000000)), equals('1'));
     });
 
-    test('fractional XLM', () {
-      expect(formatStroopsAsXlm(500000), '0.05');
-    });
-
-    test('negative amount', () {
-      expect(formatStroopsAsXlm(-10000000), '-1.0');
-    });
-
-    test('int.minValue does not overflow', () {
-      expect(
-        formatStroopsAsXlm(-9223372036854775808),
-        equals('-922337203685.4775808'),
-      );
+    test('fractional XLM keeps significant digits', () {
+      expect(formatStroopsBigIntAsXlm(BigInt.from(500000)), equals('0.05'));
     });
 
     test('trailing zeros are trimmed', () {
-      // 1.5 XLM = 15000000 stroops → '1.5', not '1.5000000'
-      expect(formatStroopsAsXlm(15000000), equals('1.5'));
+      expect(formatStroopsBigIntAsXlm(BigInt.from(105000000)), equals('10.5'));
     });
 
-    test('all-zero fractional part displays as whole number', () {
-      expect(formatStroopsAsXlm(20000000), equals('2.0'));
+    test('whole amount renders without a fractional part', () {
+      expect(formatStroopsBigIntAsXlm(BigInt.from(20000000)), equals('2'));
+    });
+
+    test('negative amount keeps the sign', () {
+      expect(formatStroopsBigIntAsXlm(BigInt.from(-12300000)), equals('-1.23'));
+    });
+
+    test('large amount beyond 64-bit range renders losslessly', () {
+      // 100 XLM expressed in stroops as a value larger than 2^53.
+      final stroops = BigInt.from(1000000000000);
+      expect(formatStroopsBigIntAsXlm(stroops), equals('100000'));
     });
   });
 
@@ -158,8 +156,8 @@ void main() {
       expect(hexToBytes(''), isEmpty);
     });
 
-    test('odd-length hex throws ArgumentError', () {
-      expect(() => hexToBytes('abc'), throwsArgumentError);
+    test('odd-length hex throws FormatException', () {
+      expect(() => hexToBytes('abc'), throwsA(isA<FormatException>()));
     });
 
     test('invalid character throws FormatException', () {

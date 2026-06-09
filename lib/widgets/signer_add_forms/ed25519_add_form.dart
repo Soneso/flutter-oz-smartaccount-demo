@@ -89,7 +89,7 @@ class _Ed25519AddFormState extends State<Ed25519AddForm> {
 
     final StagedSigner staged;
     try {
-      final bytes = Uint8List.fromList(hexToBytes(raw));
+      final bytes = hexToBytes(raw);
       staged = StagedSigner(
         type: StagedSignerType.ed25519,
         identifier: 'key:${raw.substring(0, 8)}...',

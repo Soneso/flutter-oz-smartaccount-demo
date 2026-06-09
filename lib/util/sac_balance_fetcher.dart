@@ -217,9 +217,9 @@ abstract final class SACBalanceFetcher {
 
   /// Decodes an i128 [XdrSCVal] into a [BigInt] losslessly.
   ///
-  /// Reconstructs the 128-bit signed value as `(hi << 64) | lo`, preserving
-  /// the full i128 range on every supported platform. The result is a true
-  /// [BigInt] — no fixed-width narrowing or sentinel substitution.
+  /// Preserves the full signed i128 range on every supported platform. The
+  /// result is a true [BigInt] — no fixed-width narrowing or sentinel
+  /// substitution.
   ///
   /// Throws [SACBalanceFetcherError] when [scVal] is not an i128.
   static BigInt extractI128AsBigInt(XdrSCVal scVal) {

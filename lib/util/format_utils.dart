@@ -4,18 +4,11 @@ library;
 import 'dart:typed_data';
 
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart'
-    show Address, StrKey, Util, XdrSCVal, isHexString;
-
-/// Number of stroops in one XLM (Stellar's 7-decimal native unit).
-const int stroopsPerXlm = 10000000;
+    show StrKey, Util, XdrSCVal, isHexString;
 
 /// Decimal scale of the native XLM token (7). Used to convert native-token
 /// amounts to base units without an on-chain `decimals()` round trip.
 const int nativeTokenDecimals = 7;
-
-/// [BigInt] form of [stroopsPerXlm] for divisor use in the high-precision
-/// I128 stroop formatter.
-final BigInt _stroopsPerXlmBigInt = BigInt.from(stroopsPerXlm);
 
 // ---------------------------------------------------------------------------
 // Input validation
@@ -34,13 +27,10 @@ bool isValidContractAddress(String input) {
 
 /// Returns true if [input] is a non-blank, valid Stellar account address.
 ///
-/// An account address (G-address) starts with 'G' and is 56 characters long.
+/// Delegates to [StrKey.isValidStellarAccountId] which performs full StrKey
+/// base32 decoding and CRC-16 checksum verification of the G-address.
 bool isValidAccountAddress(String input) {
-  if (input.isEmpty) return false;
-  if (input[0] != 'G') return false;
-  if (input.length != 56) return false;
-  final base32Chars = RegExp(r'^[A-Z2-7]+$');
-  return base32Chars.hasMatch(input);
+  return input.isNotEmpty && StrKey.isValidStellarAccountId(input);
 }
 
 /// Returns true if [input] is composed exclusively of lowercase hexadecimal
@@ -110,31 +100,6 @@ String truncateAddress(String address, {int chars = 4}) {
 // Amount formatting
 // ---------------------------------------------------------------------------
 
-/// Formats a stroops amount as an XLM display string.
-///
-/// Uses integer arithmetic to avoid floating-point precision issues.
-/// 1 XLM = [stroopsPerXlm] stroops (7 decimal places).
-///
-/// Handles [int.minValue] as an edge case to avoid negation overflow.
-/// Examples: 1 XLM in stroops → "1.0", 500 000 stroops → "0.05".
-String formatStroopsAsXlm(int stroops) {
-  if (stroops == -9223372036854775808) {
-    // int.minValue cannot be negated without overflow.
-    return '-922337203685.4775808';
-  }
-  final negative = stroops < 0;
-  final absStroops = negative ? -stroops : stroops;
-  final wholePart = absStroops ~/ stroopsPerXlm;
-  final fractionalPart = absStroops % stroopsPerXlm;
-  final fractionalStr = fractionalPart
-      .toString()
-      .padLeft(7, '0')
-      .replaceAll(RegExp(r'0+$'), '');
-  final fractional = fractionalStr.isEmpty ? '0' : fractionalStr;
-  final prefix = negative ? '-' : '';
-  return '$prefix$wholePart.$fractional';
-}
-
 /// Converts a base-units [BigInt] amount to a decimal display string at the
 /// given [decimals] scale.
 ///
@@ -158,29 +123,15 @@ String formatBaseUnitsAsDecimal(BigInt baseUnits, {required int decimals}) {
   return '$prefix$whole.$fractional';
 }
 
-/// [BigInt] overload of [formatStroopsAsXlm].
+/// Formats a stroops [BigInt] amount as an XLM display string at the native
+/// 7-decimal scale.
 ///
-/// Used by paths that read an I128 stroop amount from an SCVal and must
-/// preserve the full 128-bit range without truncating to [int]. Trailing
-/// zeros in the fractional component are stripped; when the amount has no
-/// fractional remainder the integer portion is returned by itself (e.g.
-/// `"100"` rather than `"100.0"`).
+/// Reads an I128 stroop amount from an SCVal while preserving the full
+/// 128-bit range. Trailing zeros in the fractional component are stripped;
+/// when the amount has no fractional remainder the integer portion is
+/// returned by itself (e.g. `"100"` rather than `"100.0"`).
 String formatStroopsBigIntAsXlm(BigInt stroops) {
-  // 1 XLM = 10_000_000 stroops; held as a [BigInt] to avoid lifting the
-  // input into a fixed-width integer.
-  final divisor = _stroopsPerXlmBigInt;
-  final negative = stroops.sign < 0;
-  final absStroops = negative ? -stroops : stroops;
-  final whole = absStroops ~/ divisor;
-  final remainder = absStroops % divisor;
-  final prefix = negative ? '-' : '';
-  if (remainder == BigInt.zero) return '$prefix$whole';
-  final fractional = remainder
-      .toString()
-      .padLeft(7, '0')
-      .replaceAll(RegExp(r'0+$'), '');
-  if (fractional.isEmpty) return '$prefix$whole';
-  return '$prefix$whole.$fractional';
+  return Util.stroopsToDecimalString(stroops);
 }
 
 // ---------------------------------------------------------------------------
@@ -238,53 +189,39 @@ String redactId(String id) {
 // Address helpers
 // ---------------------------------------------------------------------------
 
-/// Encodes a Stellar G- or C-address as an [Address] [XdrSCVal].
+/// Encodes a Stellar address StrKey as an address [XdrSCVal].
 ///
-/// C-addresses (56-character, starting with 'C') are encoded as
-/// [Address.forContractId]; all other values are encoded as
-/// [Address.forAccountId]. No validation beyond the [StrKey] contract-id
-/// check is performed — the caller is responsible for supplying a valid
-/// Stellar address.
+/// Delegates to [XdrSCVal.forAddressStrKey], which detects the StrKey type
+/// (G-account, C-contract, muxed, claimable balance, or liquidity pool) and
+/// throws on an unrecognised StrKey. The caller is responsible for supplying
+/// a valid Stellar address.
 XdrSCVal addressToScVal(String address) {
-  if (StrKey.isValidContractId(address)) {
-    return XdrSCVal.forAddress(Address.forContractId(address).toXdr());
-  }
-  return XdrSCVal.forAddress(Address.forAccountId(address).toXdr());
+  return XdrSCVal.forAddressStrKey(address);
 }
 
 // ---------------------------------------------------------------------------
 // SCVal helpers
 // ---------------------------------------------------------------------------
 
-/// Decodes an i128 [XdrSCVal] into a [BigInt] using (hi << 64) | lo.
+/// Decodes an i128 [XdrSCVal] into a signed [BigInt].
 ///
-/// Returns null when [value] is not an i128. Both hi/lo accessors return
-/// [BigInt], so the full 128-bit signed range is preserved losslessly.
+/// Returns null when [value] is not a 128-bit or 256-bit integer SCVal. The
+/// decode is two's-complement sign-aware, so negative i128 values round-trip
+/// correctly across the full 128-bit signed range.
 BigInt? scValI128ToBigIntOrNull(XdrSCVal value) {
-  final i128 = value.i128;
-  if (i128 == null) return null;
-  final lo = i128.lo.uint64;
-  final hi = i128.hi.int64;
-  return (hi << 64) | lo;
+  return value.toBigInt();
 }
 
 // ---------------------------------------------------------------------------
 // Hex encoding
 // ---------------------------------------------------------------------------
 
-/// Converts a hex string to a [List<int>] (byte list).
+/// Converts a hex string to a [Uint8List] of bytes.
 ///
 /// [hex] must have even length and contain only valid hex characters.
-/// Throws [ArgumentError] on odd-length or invalid input.
-List<int> hexToBytes(String hex) {
-  if (hex.length % 2 != 0) {
-    throw ArgumentError('Hex string must have even length: $hex');
-  }
-  final result = <int>[];
-  for (var i = 0; i < hex.length; i += 2) {
-    result.add(int.parse(hex.substring(i, i + 2), radix: 16));
-  }
-  return result;
+/// Throws [FormatException] on odd-length or invalid input.
+Uint8List hexToBytes(String hex) {
+  return Util.hexToBytes(hex);
 }
 
 /// Converts a [List<int>] to a lowercase hex string.
