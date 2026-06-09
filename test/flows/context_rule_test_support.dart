@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_account_demo/flows/context_rule_edit_types.dart'
     show PolicyWeightedEntry;
 import 'package:smart_account_demo/flows/context_rule_flow.dart';
-import 'package:smart_account_demo/flows/transfer_flow.dart'
+import 'package:smart_account_demo/flows/signer_info.dart'
     show SignerInfo, SignerKind;
 import 'package:smart_account_demo/state/activity_log_state.dart';
 import 'package:smart_account_demo/state/demo_state.dart';

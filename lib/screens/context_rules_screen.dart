@@ -29,7 +29,7 @@ import '../flows/context_rule_builder_types.dart'
     show OZParsedContextRule, OZSelectedSigner;
 
 import '../flows/context_rule_flow.dart';
-import '../flows/transfer_flow.dart' show Ed25519SignerIdentity, SignerInfo;
+import '../flows/signer_info.dart' show Ed25519SignerIdentity, SignerInfo;
 import '../navigation/routes.dart';
 import '../state/context_rule_flow_provider.dart';
 import '../state/demo_state.dart';

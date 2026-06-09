@@ -7,12 +7,13 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import '../../config/demo_config.dart' show PolicyInfo;
 import '../../flows/context_rule_builder_types.dart';
-import '../../util/format_utils.dart';
+import '../field_error_text.dart';
+import '../full_width_submit_button.dart';
+import 'policy_add_form_shared.dart';
 
 /// Stateful form that gathers a simple threshold (1..15) and submits it
 /// as a [StagedPolicy] for [PolicyInfo.type] equal to
@@ -81,16 +82,14 @@ class _ThresholdAddFormState extends State<ThresholdAddForm> {
       installParams: OZSimpleThresholdPolicyParams(threshold: t),
     );
 
-    final addError = widget.onAddPolicy(staged);
-    if (addError != null) {
-      setState(() => _error = addError);
-      return;
-    }
-    SemanticsService.announce(
-      'Added ${widget.policy.name} policy',
-      Directionality.of(context),
+    handlePolicyAddEpilogue(
+      context: context,
+      staged: staged,
+      policyName: widget.policy.name,
+      onAddPolicy: widget.onAddPolicy,
+      onSetError: (e) => setState(() => _error = e),
+      onAddSucceeded: widget.onAddSucceeded,
     );
-    widget.onAddSucceeded();
   }
 
   @override
@@ -126,64 +125,16 @@ class _ThresholdAddFormState extends State<ThresholdAddForm> {
           ),
           enabled: !widget.isSubmitting,
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 6),
-          Semantics(
-            liveRegion: true,
-            child: Text(
-              _error!,
-              style: textTheme.bodySmall?.copyWith(color: colorScheme.error),
-            ),
-          ),
-        ],
+        FieldErrorText(error: _error, topGap: 6),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed:
-                widget.isSubmitting || _controller.text.trim().isEmpty
-                    ? null
-                    : _onAdd,
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            child: const Text('Add Threshold Policy'),
-          ),
+        FullWidthSubmitButton(
+          label: 'Add Threshold Policy',
+          enabled:
+              !widget.isSubmitting && _controller.text.trim().isNotEmpty,
+          onPressed: _onAdd,
         ),
       ],
     );
   }
 }
 
-/// Single-line "Contract: ABCD...EFGH" row shown above each policy add
-/// form. Extracted so all three forms can share the same rendering
-/// without re-declaring the helper in each file.
-class PolicyContractRow extends StatelessWidget {
-  /// Constructs the contract-address row.
-  const PolicyContractRow({
-    required this.address,
-    required this.colorScheme,
-    required this.textTheme,
-    super.key,
-  });
-
-  /// Policy contract C-address shown truncated.
-  final String address;
-
-  /// Theme colour scheme passed in by the caller.
-  final ColorScheme colorScheme;
-
-  /// Theme text theme passed in by the caller.
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      'Contract: ${truncateAddress(address, chars: 8)}',
-      style: textTheme.bodySmall?.copyWith(
-        fontFamily: 'monospace',
-        color: colorScheme.onSurfaceVariant,
-      ),
-    );
-  }
-}

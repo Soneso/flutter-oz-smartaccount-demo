@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
-import '../flows/transfer_flow.dart' show SignerInfo, SignerKind;
+import '../flows/signer_info.dart' show SignerInfo, SignerKind;
 
 /// Converts a list of [SignerInfo] choices into [OZSelectedSigner] entries.
 ///

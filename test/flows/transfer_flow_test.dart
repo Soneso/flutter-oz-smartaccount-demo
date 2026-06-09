@@ -713,9 +713,12 @@ void main() {
       expect(error, equals('Must be greater than zero'));
     });
 
-    test('validateAmount returns "Must be greater than zero" for "-1"', () {
+    test('validateAmount returns "Must be a valid number" for "-1"', () {
+      // A leading "-" is rejected at the pattern stage (stellarDecimalAmountPattern
+      // rejects leading signs), so the error is "Must be a valid number" rather
+      // than "Must be greater than zero".
       final error = TransferFlow.validateAmount('-1');
-      expect(error, equals('Must be greater than zero'));
+      expect(error, equals('Must be a valid number'));
     });
 
     test('validateAmount returns null for valid positive decimal', () {

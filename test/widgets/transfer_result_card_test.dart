@@ -64,6 +64,15 @@ void main() {
       expect(find.text('Copy'), findsOneWidget);
     });
 
+    testWidgets('shows the transaction hash truncated, not in full',
+        (tester) async {
+      await tester.pumpWidget(_wrap());
+      // The row displays the truncated form (first 4 + last 4); the full
+      // hash is copied on tap but never rendered.
+      expect(find.text('abc1...abcd'), findsOneWidget);
+      expect(find.text(_defaultResult.transactionHash), findsNothing);
+    });
+
     testWidgets('shows "Amount Sent" label', (tester) async {
       await tester.pumpWidget(_wrap());
       expect(find.text('Amount Sent'), findsOneWidget);

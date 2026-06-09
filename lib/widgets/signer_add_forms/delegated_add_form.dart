@@ -17,6 +17,7 @@ import '../../util/error_utils.dart';
 import '../../util/format_utils.dart';
 import '../../wallet/wallet_connector.dart';
 import '../field_error_text.dart';
+import '../full_width_submit_button.dart';
 
 /// Stateful form that gathers a G-address from the user and submits it as
 /// a [StagedSigner] of [StagedSignerType.delegated].
@@ -192,19 +193,12 @@ class _DelegatedAddFormState extends ConsumerState<DelegatedAddForm> {
           ),
         ],
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: widget.isSubmitting ||
-                    _isImportingFromWallet ||
-                    _controller.text.trim().isEmpty
-                ? null
-                : _onAdd,
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            child: const Text('Add Delegated Signer'),
-          ),
+        FullWidthSubmitButton(
+          label: 'Add Delegated Signer',
+          enabled: !widget.isSubmitting &&
+              !_isImportingFromWallet &&
+              _controller.text.trim().isNotEmpty,
+          onPressed: _onAdd,
         ),
       ],
     );

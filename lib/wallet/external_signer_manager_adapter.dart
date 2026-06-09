@@ -23,7 +23,6 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart' as crypto;
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
 import 'wallet_connector.dart';
@@ -162,9 +161,7 @@ class ExternalSignerManagerAdapter extends OZExternalWalletAdapter {
     }
 
     // Compute SHA-256(preimage) — the Ed25519 payload the wallet must sign.
-    final expectedPayload = Uint8List.fromList(
-      crypto.sha256.convert(preimageBytes).bytes,
-    );
+    final expectedPayload = Util.hash(preimageBytes);
 
     // Route to wallet connector when it is connected for this address.
     final connector = walletConnector;

@@ -28,7 +28,7 @@ import '../config/demo_config.dart' as config;
 import '../config/demo_config.dart' show PolicyInfo;
 import '../flows/context_rule_builder_types.dart';
 import '../flows/context_rule_flow.dart';
-import '../flows/transfer_flow.dart' show Ed25519SignerIdentity, SignerInfo;
+import '../flows/signer_info.dart' show Ed25519SignerIdentity, SignerInfo;
 import '../navigation/routes.dart';
 import '../state/activity_log_state.dart';
 import '../state/context_rule_flow_provider.dart';
@@ -862,64 +862,19 @@ class _ContextRuleBuilderScreenState
           'rule. For Stellar account signers, enter the secret key to '
           'enable signing.',
       onConfirm: (selectedSigners, delegatedKeyPairs, ed25519Secrets) {
-        unawaited(_onPickerConfirm(
+        unawaited(_onPickerConfirmWith(
           flow: flow,
           selectedSigners: selectedSigners,
           delegatedKeyPairs: delegatedKeyPairs,
           ed25519Secrets: ed25519Secrets,
+          submitTarget: (selected) => _submitDirect(
+            flow: flow,
+            selectedSigners: selected,
+          ),
+          classifyError: flow.classifyAddRuleError,
         ));
       },
     );
-  }
-
-  /// Picker-confirm handler.
-  ///
-  /// Invariant: this method must always run in the order
-  /// `register delegated keys → register Ed25519 keys → submit rule →
-  /// clear delegated keys`. [ContextRuleFlow.withMultiSignerRegistration]
-  /// owns that order: it registers both key sets inside a guarded region and
-  /// guarantees [ContextRuleFlow.clearDelegatedKeypairs] always runs (even when
-  /// registration or submission throws or the screen unmounts mid-flight), so
-  /// key material never persists across screens.
-  Future<void> _onPickerConfirm({
-    required ContextRuleFlow flow,
-    required List<SignerInfo> selectedSigners,
-    required Map<String, String> delegatedKeyPairs,
-    required Map<Ed25519SignerIdentity, Uint8List> ed25519Secrets,
-  }) async {
-    // Block the form before any awaitable runs so the primary CTA
-    // and form fields all read as disabled while the keypair
-    // registration is in-flight.
-    if (mounted) {
-      setState(() {
-        _isSubmitting = true;
-      });
-    }
-
-    try {
-      await flow.withMultiSignerRegistration(
-        delegatedKeyPairs: delegatedKeyPairs,
-        ed25519Secrets: ed25519Secrets,
-        body: () async {
-          if (!mounted) return;
-          final selected = await flow.buildSelectedSigners(selectedSigners);
-          if (flow.isSinglePasskeyRemoval(selected)) {
-            await _submitDirect(
-              flow: flow,
-              selectedSigners: const <OZSelectedSigner>[],
-            );
-          } else {
-            await _submitDirect(flow: flow, selectedSigners: selected);
-          }
-        },
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isSubmitting = false;
-        _resultError = flow.classifyAddRuleError(e);
-      });
-    }
   }
 
   Future<void> _openMultiSignerPickerForEdit({
@@ -941,24 +896,46 @@ class _ContextRuleBuilderScreenState
           'rule. For Stellar account signers, enter the secret key to '
           'enable signing.',
       onConfirm: (selectedSigners, delegatedKeyPairs, ed25519Secrets) {
-        unawaited(_onEditPickerConfirm(
+        unawaited(_onPickerConfirmWith(
           flow: flow,
-          diff: diff,
           selectedSigners: selectedSigners,
           delegatedKeyPairs: delegatedKeyPairs,
           ed25519Secrets: ed25519Secrets,
+          submitTarget: (selected) => _submitEditDirect(
+            flow: flow,
+            diff: diff,
+            selectedSigners: selected,
+          ),
+          classifyError: flow.classifyEditError,
         ));
       },
     );
   }
 
-  Future<void> _onEditPickerConfirm({
+  /// Shared picker-confirm handler.
+  ///
+  /// Invariant: always runs in the order
+  /// `register delegated keys → register Ed25519 keys → submit →
+  /// clear delegated keys`. [ContextRuleFlow.withMultiSignerRegistration]
+  /// owns that order: it registers both key sets inside a guarded region and
+  /// guarantees [ContextRuleFlow.clearDelegatedKeypairs] always runs (even when
+  /// registration or submission throws or the screen unmounts mid-flight), so
+  /// key material never persists across screens.
+  ///
+  /// [submitTarget] is invoked with the resolved [OZSelectedSigner] list.
+  /// [classifyError] maps any thrown error to a user-facing message for display
+  /// in the result-error slot.
+  Future<void> _onPickerConfirmWith({
     required ContextRuleFlow flow,
-    required ContextRuleEditDiff diff,
     required List<SignerInfo> selectedSigners,
     required Map<String, String> delegatedKeyPairs,
     required Map<Ed25519SignerIdentity, Uint8List> ed25519Secrets,
+    required Future<void> Function(List<OZSelectedSigner>) submitTarget,
+    required String Function(Object) classifyError,
   }) async {
+    // Block the form before any awaitable runs so the primary CTA
+    // and form fields all read as disabled while the keypair
+    // registration is in-flight.
     if (mounted) {
       setState(() {
         _isSubmitting = true;
@@ -972,26 +949,18 @@ class _ContextRuleBuilderScreenState
         body: () async {
           if (!mounted) return;
           final selected = await flow.buildSelectedSigners(selectedSigners);
-          if (flow.isSinglePasskeyRemoval(selected)) {
-            await _submitEditDirect(
-              flow: flow,
-              diff: diff,
-              selectedSigners: const <OZSelectedSigner>[],
-            );
-          } else {
-            await _submitEditDirect(
-              flow: flow,
-              diff: diff,
-              selectedSigners: selected,
-            );
-          }
+          await submitTarget(
+            flow.isSinglePasskeyRemoval(selected)
+                ? const <OZSelectedSigner>[]
+                : selected,
+          );
         },
       );
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;
-        _resultError = flow.classifyEditError(e);
+        _resultError = classifyError(e);
       });
     }
   }

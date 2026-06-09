@@ -23,6 +23,7 @@ import '../util/semantic_colors.dart';
 import '../util/signer_colors.dart';
 import 'field_error_text.dart';
 import 'signer_identity_chip.dart';
+import 'weight_input_row.dart';
 
 // ---------------------------------------------------------------------------
 // EditPolicyParamsForm
@@ -382,7 +383,8 @@ class _EditPolicyParamsFormState extends State<EditPolicyParamsForm> {
 /// A single row in the weighted-threshold Per-Signer Weights display.
 ///
 /// Renders the signer badge and display value via [SignerIdentityChip]
-/// alongside a read-only weight field.
+/// alongside a read-only weight field. Delegates the row layout to
+/// [WeightInputRow].
 class _WeightedSignerRow extends StatelessWidget {
   const _WeightedSignerRow({
     required this.entry,
@@ -397,36 +399,16 @@ class _WeightedSignerRow extends StatelessWidget {
     final info = entry.displayInfo;
     final chipColor = signerTypeColorForDisplayLabel(info.typeLabel);
 
-    return Row(
-      children: [
-        Expanded(
-          child: SignerIdentityChip(
-            typeLabel: info.typeLabel,
-            displayValue: info.displayValue,
-            chipColor: chipColor,
-            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 100,
-          child: Semantics(
-            label: 'Weight for ${info.typeLabel} signer ${info.displayValue}',
-            textField: true,
-            child: TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              enabled: false,
-              decoration: const InputDecoration(
-                labelText: 'Weight',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-          ),
-        ),
-      ],
+    return WeightInputRow(
+      identity: SignerIdentityChip(
+        typeLabel: info.typeLabel,
+        displayValue: info.displayValue,
+        chipColor: chipColor,
+        padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+      ),
+      controller: controller,
+      enabled: false,
+      semanticIdentity: '${info.typeLabel} signer ${info.displayValue}',
     );
   }
 }

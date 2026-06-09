@@ -6,6 +6,7 @@ library;
 
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
+import '../state/activity_log_state.dart';
 import '../wallet/wallet_connector.dart';
 
 // ---------------------------------------------------------------------------
@@ -76,6 +77,56 @@ bool _isNetworkError(Object e) {
       msg.contains('host lookup') ||
       msg.contains('network') ||
       msg.contains('unreachable');
+}
+
+/// Maps a raw exception to a user-facing error message for any action that
+/// produces a single activity-log entry.
+///
+/// Resolution order:
+/// - [WebAuthnCancelled] → info log + `'Passkey authentication cancelled'`.
+/// - [StateError]        → error log + in-progress message using [noun].
+/// - [DemoError] (validation) → error log + verbatim [DemoError.message]
+///   without a prefix (validation messages are self-explanatory).
+/// - Other [DemoError]   → error log + `'$prefix: ${error.message}'`.
+/// - All other errors    → error log + [classifyError] fallback prefixed by
+///   [prefix].
+///
+/// [prefix] is the error-label used in log entries and the error prefix
+/// (e.g. `'Transfer failed'`, `'Removal failed'`, `'Transaction failed'`).
+///
+/// [noun] is used only in the `StateError` in-progress message. It should
+/// include its own article (e.g. `'A transfer'`, `'A removal'`,
+/// `'An edit submission'`). When null it defaults to [prefix].
+///
+/// [log] receives an info-level entry for cancellations and an error-level
+/// entry for all other non-cancellation cases.
+String classifyActionError(
+  Object error,
+  ActivityLogNotifier log, {
+  required String prefix,
+  String? noun,
+}) {
+  if (error is WebAuthnCancelled) {
+    log.info('Passkey authentication cancelled');
+    return 'Passkey authentication cancelled';
+  }
+  if (error is StateError) {
+    final n = noun ?? prefix;
+    log.error('$n is already in progress');
+    return '$n is already in progress. Please wait.';
+  }
+  if (error is DemoError) {
+    log.error('$prefix: ${error.message}');
+    if (error.category == DemoErrorCategory.validation) {
+      // Validation messages are user-friendly; render them without the
+      // prefix to avoid sounding like a hard failure.
+      return error.message;
+    }
+    return '$prefix: ${error.message}';
+  }
+  final classified = classifyError(error);
+  log.error('$prefix: ${classified.message}');
+  return '$prefix: ${classified.message}';
 }
 
 /// Converts any exception into a [DemoError] with an actionable message.

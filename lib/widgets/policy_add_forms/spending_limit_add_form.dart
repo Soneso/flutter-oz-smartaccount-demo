@@ -7,13 +7,14 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import '../../config/demo_config.dart' show PolicyInfo;
 import '../../flows/context_rule_builder_types.dart';
 import '../../flows/context_rule_flow.dart' show ledgersPerDay;
-import 'threshold_add_form.dart' show PolicyContractRow;
+import '../field_error_text.dart';
+import '../full_width_submit_button.dart';
+import 'policy_add_form_shared.dart' show PolicyContractRow, handlePolicyAddEpilogue;
 
 /// Stateful form that gathers a per-period spending limit (amount in
 /// XLM-like decimal, period in whole days) and submits it as a
@@ -130,16 +131,14 @@ class _SpendingLimitAddFormState extends State<SpendingLimitAddForm> {
         periodLedgers: periodLedgers,
       ),
     );
-    final addError = widget.onAddPolicy(staged);
-    if (addError != null) {
-      setState(() => _amountError = addError);
-      return;
-    }
-    SemanticsService.announce(
-      'Added ${widget.policy.name} policy',
-      Directionality.of(context),
+    handlePolicyAddEpilogue(
+      context: context,
+      staged: staged,
+      policyName: widget.policy.name,
+      onAddPolicy: widget.onAddPolicy,
+      onSetError: (e) => setState(() => _amountError = e),
+      onAddSucceeded: widget.onAddSucceeded,
     );
-    widget.onAddSucceeded();
   }
 
   @override
@@ -204,41 +203,19 @@ class _SpendingLimitAddFormState extends State<SpendingLimitAddForm> {
           ),
           enabled: !widget.isSubmitting,
         ),
-        if (_amountError != null || _periodError != null) ...[
-          const SizedBox(height: 6),
-          Semantics(
-            liveRegion: true,
-            child: Text(
-              _amountError ?? _periodError ?? '',
-              style: textTheme.bodySmall?.copyWith(color: colorScheme.error),
-            ),
-          ),
-        ],
-        if (widget.decimalsError != null) ...[
-          const SizedBox(height: 6),
-          Semantics(
-            liveRegion: true,
-            child: Text(
-              widget.decimalsError!,
-              style: textTheme.bodySmall?.copyWith(color: colorScheme.error),
-            ),
-          ),
-        ],
+        FieldErrorText(
+          error: _amountError ?? _periodError,
+          topGap: 6,
+        ),
+        FieldErrorText(error: widget.decimalsError, topGap: 6),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: widget.isSubmitting ||
-                    widget.decimalsError != null ||
-                    _amountController.text.trim().isEmpty ||
-                    _periodController.text.trim().isEmpty
-                ? null
-                : _onAdd,
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            child: const Text('Add Spending Limit Policy'),
-          ),
+        FullWidthSubmitButton(
+          label: 'Add Spending Limit Policy',
+          enabled: !widget.isSubmitting &&
+              widget.decimalsError == null &&
+              _amountController.text.trim().isNotEmpty &&
+              _periodController.text.trim().isNotEmpty,
+          onPressed: _onAdd,
         ),
       ],
     );

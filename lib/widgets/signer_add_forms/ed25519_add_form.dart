@@ -14,6 +14,8 @@ import '../../flows/context_rule_builder_types.dart';
 import '../../util/error_utils.dart';
 import '../../util/format_utils.dart';
 import '../../util/signer_type_label.dart';
+import '../field_error_text.dart';
+import '../full_width_submit_button.dart';
 
 /// Stateful form that gathers a 32-byte Ed25519 public key from the user
 /// and submits it as a [StagedSigner] of [StagedSignerType.ed25519].
@@ -137,16 +139,7 @@ class _Ed25519AddFormState extends State<Ed25519AddForm> {
             FilteringTextInputFormatter.deny(RegExp(r'\s')),
           ],
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 6),
-          Semantics(
-            liveRegion: true,
-            child: Text(
-              _error!,
-              style: textTheme.bodySmall?.copyWith(color: colorScheme.error),
-            ),
-          ),
-        ],
+        FieldErrorText(error: _error, topGap: 6),
         const SizedBox(height: 6),
         Text(
           verifier != null
@@ -157,18 +150,11 @@ class _Ed25519AddFormState extends State<Ed25519AddForm> {
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed:
-                widget.isSubmitting || _controller.text.trim().isEmpty
-                    ? null
-                    : _onAdd,
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            child: const Text('Add Ed25519 Signer'),
-          ),
+        FullWidthSubmitButton(
+          label: 'Add Ed25519 Signer',
+          enabled:
+              !widget.isSubmitting && _controller.text.trim().isNotEmpty,
+          onPressed: _onAdd,
         ),
       ],
     );

@@ -38,14 +38,15 @@ import '../util/format_utils.dart';
 import '../util/keypair_registration.dart';
 import '../util/policy_params_decoder.dart';
 import '../util/policy_type.dart';
-import '../util/selected_signer_builder.dart';
+import '../util/selected_signer_builder.dart' show SelectedSignerBuilder;
 import 'context_rule_builder_types.dart'
     show ContextRuleResult, FlowPolicyEntry;
 import 'context_rule_edit_types.dart';
 import 'context_rule_edit_types.dart' as edit_types;
 import 'context_rule_flow_adapters.dart';
-import 'transfer_flow.dart'
-    show Ed25519SignerIdentity, SignerInfo, SignerKind, TransferFlow;
+import 'multi_signer_registrar.dart';
+import 'signer_info.dart' show Ed25519SignerIdentity, extractSignerInfos, SignerInfo;
+import 'transfer_flow.dart' show TransferFlow;
 
 export 'context_rule_edit_types.dart';
 export 'context_rule_flow_adapters.dart';
@@ -90,7 +91,7 @@ final class LoadAvailableSignersResult {
 ///
 /// Thread safety:
 /// [_isRemoving] guards against concurrent in-flight removal calls.
-final class ContextRuleFlow {
+final class ContextRuleFlow with MultiSignerRegistrar {
   /// Constructs a flow with injected dependencies.
   ///
   /// [environment] is required for builder-screen flow methods that need to
@@ -114,6 +115,11 @@ final class ContextRuleFlow {
   final ContextRuleFlowManagerType _contextRuleManager;
   final ContextRuleBuilderEnvironmentType? _environment;
   final Random _secureRandom;
+
+  // ---- MultiSignerRegistrar ----
+
+  @override
+  DemoStateNotifier get registrarDemoState => _demoState;
 
   // ---- Re-entrancy guard ----
 
@@ -248,42 +254,7 @@ final class ContextRuleFlow {
   }
 
   // -------------------------------------------------------------------------
-  // Public: registerDelegatedKeypairs
-  // -------------------------------------------------------------------------
-
-  /// Registers delegated signer keypairs as in-memory keypairs on the
-  /// kit-owned external signer manager.
-  ///
-  /// Calls [OZExternalSignerManager.addFromSecret] for each entry with a
-  /// non-empty seed. No-ops silently when the kit is not initialised.
-  ///
-  /// If any [addFromSecret] call fails, every signer registered on the manager
-  /// is removed via [OZExternalSignerManager.removeAll] before rethrowing so
-  /// the manager is never left in a partial state.
-  ///
-  /// Throws the original exception after cleanup — callers must not proceed
-  /// after an error is thrown.
-  Future<void> registerDelegatedKeypairs(
-    Map<String, String> delegatedKeyPairs,
-  ) async {
-    final manager = _demoState.externalSigners;
-    if (manager == null) return;
-
-    try {
-      for (final entry in delegatedKeyPairs.entries) {
-        final seed = entry.value;
-        if (seed.isNotEmpty) {
-          await manager.addFromSecret(seed);
-        }
-      }
-    } catch (e) {
-      await manager.removeAll();
-      rethrow;
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Public: registerEd25519Keypairs
+  // Public: registerEd25519Keypairs (in-process custody path)
   // -------------------------------------------------------------------------
 
   /// Registers Ed25519 signer keypairs into the kit-owned manager's in-process
@@ -303,47 +274,20 @@ final class ContextRuleFlow {
     );
   }
 
-  /// Removes every signer the flow registered on the kit-owned manager.
-  ///
-  /// Calls [OZExternalSignerManager.removeAll], which clears all in-memory
-  /// keypair and Ed25519 signers, disconnects every external wallet
-  /// connection, and clears the persisted wallet connections from storage.
-  /// No-ops silently when the kit is not initialised.
-  Future<void> clearDelegatedKeypairs() async {
-    await _demoState.externalSigners?.removeAll();
-  }
-
-  /// Runs [body] and guarantees [clearDelegatedKeypairs] is called even if
-  /// [body] throws. Failures from [clearDelegatedKeypairs] are swallowed so
-  /// the cleanup never masks an in-flight error from [body].
-  ///
-  /// Call this AFTER `await registerDelegatedKeypairs(...)` has completed
-  /// successfully. The wrapper does not register anything itself; that
-  /// stays at the call site so the call site can classify register-time
-  /// failures with its own context before invoking the body.
-  Future<R> withCleanupOfDelegatedKeypairs<R>(
-    Future<R> Function() body,
-  ) async {
-    try {
-      return await body();
-    } finally {
-      try {
-        await clearDelegatedKeypairs();
-      } catch (_) {
-        // Swallow cleanup failures — they must never mask body errors.
-      }
-    }
-  }
+  // -------------------------------------------------------------------------
+  // Public: withMultiSignerRegistration
+  // -------------------------------------------------------------------------
 
   /// Registers all multi-signer signing material, runs [body], then clears
   /// the registered material in a `finally`.
   ///
   /// Registers the delegated G-address keypairs via [registerDelegatedKeypairs]
-  /// and the Ed25519 secrets via [registerEd25519Keypairs] (the in-process
-  /// custody path), then runs [body] and returns its value. Both registrations
-  /// run inside the guarded region so a failure during Ed25519 registration
-  /// still clears the delegated keypairs that were registered first; nothing
-  /// leaks on success, failure, or cancellation.
+  /// (from [MultiSignerRegistrar]) and the Ed25519 secrets via
+  /// [registerEd25519Keypairs] (the in-process custody path), then runs [body]
+  /// and returns its value. Both registrations run inside the guarded region so
+  /// a failure during Ed25519 registration still clears the delegated keypairs
+  /// that were registered first; nothing leaks on success, failure, or
+  /// cancellation.
   ///
   /// Registration failures propagate to the caller after cleanup so the call
   /// site can classify them with its own context. [body] is invoked only when
@@ -353,11 +297,12 @@ final class ContextRuleFlow {
     required Map<Ed25519SignerIdentity, Uint8List> ed25519Secrets,
     required Future<R> Function() body,
   }) {
-    return withCleanupOfDelegatedKeypairs(() async {
-      await registerDelegatedKeypairs(delegatedKeyPairs);
-      await registerEd25519Keypairs(ed25519Secrets);
-      return body();
-    });
+    return runWithMultiSignerRegistration(
+      delegatedKeyPairs: delegatedKeyPairs,
+      ed25519Secrets: ed25519Secrets,
+      registerEd25519: registerEd25519Keypairs,
+      body: body,
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -419,40 +364,14 @@ final class ContextRuleFlow {
 
   /// Maps a raw exception to a user-facing error message.
   ///
-  /// [WebAuthnCancelled]       → "Passkey authentication cancelled" (logs info).
-  /// [StateError]              → in-progress guard message.
-  /// [DemoError] (validation)  → surface its message verbatim; for the
-  ///                             last-rule case this reads as
-  ///                             "Cannot remove the last context rule on
-  ///                             this account. Add another rule first."
-  /// All other [DemoError]s    → surface the sanitised message verbatim
-  ///                             with the standard "Removal failed:" prefix
-  ///                             so the entry distinguishes itself in the
-  ///                             activity log.
-  /// All other errors          → sanitised via [classifyError].
+  /// Delegates to [classifyActionError] with the `'Removal failed'` verb.
   String classifyRemovalError(Object error) {
-    if (error is WebAuthnCancelled) {
-      _activityLog.info('Passkey authentication cancelled');
-      return 'Passkey authentication cancelled';
-    }
-    if (error is StateError) {
-      _activityLog.error('Removal already in progress');
-      return 'A removal is already in progress. Please wait.';
-    }
-    if (error is DemoError) {
-      _activityLog.error('Removal failed: ${error.message}');
-      if (error.category == DemoErrorCategory.validation) {
-        // Validation messages are already user-friendly; for the last-rule
-        // guard the message is short and self-explanatory, so we render it
-        // without the "Removal failed:" prefix to avoid sounding like a
-        // hard failure.
-        return error.message;
-      }
-      return 'Removal failed: ${error.message}';
-    }
-    final classified = classifyError(error);
-    _activityLog.error('Removal failed: ${classified.message}');
-    return 'Removal failed: ${classified.message}';
+    return classifyActionError(
+      error,
+      _activityLog,
+      prefix: 'Removal failed',
+      noun: 'A removal',
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -746,34 +665,14 @@ final class ContextRuleFlow {
   /// Maps a raw exception from the add-rule pipeline to a user-facing
   /// message and emits the matching activity-log entry.
   ///
-  /// [WebAuthnCancelled]       → "Passkey authentication cancelled" (info).
-  /// [StateError]              → in-progress guard message.
-  /// [DemoError] (validation)  → surface its message verbatim.
-  /// All other [DemoError]s    → "Transaction failed:" prefix + message.
-  /// All other errors          → sanitised via [classifyError] with a
-  ///                             "Transaction failed:" prefix.
+  /// Delegates to [classifyActionError] with the `'Transaction failed'` verb.
   String classifyAddRuleError(Object error) {
-    if (error is WebAuthnCancelled) {
-      _activityLog.info('Passkey authentication cancelled');
-      return 'Passkey authentication cancelled';
-    }
-    if (error is StateError) {
-      _activityLog.error('Submission already in progress');
-      return 'A submission is already in progress. Please wait.';
-    }
-    if (error is DemoError) {
-      _activityLog.error('Transaction failed: ${error.message}');
-      if (error.category == DemoErrorCategory.validation) {
-        // Validation messages are already user-friendly; render them
-        // without the "Transaction failed:" prefix to avoid sounding
-        // like a hard failure to the user.
-        return error.message;
-      }
-      return 'Transaction failed: ${error.message}';
-    }
-    final classified = classifyError(error);
-    _activityLog.error('Transaction failed: ${classified.message}');
-    return 'Transaction failed: ${classified.message}';
+    return classifyActionError(
+      error,
+      _activityLog,
+      prefix: 'Transaction failed',
+      noun: 'A submission',
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -1161,31 +1060,14 @@ final class ContextRuleFlow {
   /// Maps a thrown error from the edit-submission path to a user-facing
   /// message, mirroring the conventions of [classifyAddRuleError].
   ///
-  /// [WebAuthnCancelled]       → "Passkey authentication cancelled" (info).
-  /// [StateError]              → in-progress guard message.
-  /// [DemoError] (validation)  → surface its message verbatim.
-  /// All other [DemoError]s    → "Edit failed:" prefix + message.
-  /// All other errors          → sanitised via [classifyError] with the
-  ///                             "Edit failed:" prefix.
+  /// Delegates to [classifyActionError] with the `'Edit failed'` verb.
   String classifyEditError(Object error) {
-    if (error is WebAuthnCancelled) {
-      _activityLog.info('Passkey authentication cancelled');
-      return 'Passkey authentication cancelled';
-    }
-    if (error is StateError) {
-      _activityLog.error('Edit already in progress');
-      return 'An edit submission is already in progress. Please wait.';
-    }
-    if (error is DemoError) {
-      _activityLog.error('Edit failed: ${error.message}');
-      if (error.category == DemoErrorCategory.validation) {
-        return error.message;
-      }
-      return 'Edit failed: ${error.message}';
-    }
-    final classified = classifyError(error);
-    _activityLog.error('Edit failed: ${classified.message}');
-    return 'Edit failed: ${classified.message}';
+    return classifyActionError(
+      error,
+      _activityLog,
+      prefix: 'Edit failed',
+      noun: 'An edit submission',
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -1214,60 +1096,11 @@ final class ContextRuleFlow {
     return bytes;
   }
 
-  /// Extracts deduplicated [SignerInfo] entries from the given rule list.
   List<SignerInfo> _extractSigners(
     List<OZParsedContextRule> rules, {
     String? connectedCredentialId,
   }) {
-    final seen = <String>{};
-    final signers = <SignerInfo>[];
-
-    for (final rule in rules) {
-      for (final signer in rule.signers) {
-        final key = signer.uniqueKey;
-        if (!seen.add(key)) continue;
-
-        if (signer is OZExternalSigner) {
-          final credentialId =
-              OZSmartAccountBuilders.getCredentialIdStringFromSigner(signer);
-          if (credentialId != null) {
-            final isConnected = connectedCredentialId != null &&
-                credentialId == connectedCredentialId;
-            signers.add(SignerInfo(
-              displayLabel: truncateCredentialId(credentialId),
-              address: '',
-              kind: SignerKind.passkey,
-              isConnectedCredential: isConnected,
-              credentialId: credentialId,
-              rawSigner: signer,
-            ));
-          } else {
-            // Ed25519 signers are identified by their public key, not the
-            // verifier contract address. Show a short hex preview of keyData.
-            final keyHex = bytesToHex(signer.keyData);
-            final keyPreview = keyHex.length > 8 ? keyHex.substring(0, 8) : keyHex;
-            signers.add(SignerInfo(
-              displayLabel: 'key:$keyPreview...',
-              address: signer.verifierAddress,
-              kind: SignerKind.ed25519,
-              isConnectedCredential: false,
-              rawSigner: signer,
-            ));
-          }
-        } else if (signer is OZDelegatedSigner) {
-          final address = signer.address;
-          signers.add(SignerInfo(
-            displayLabel: truncateAddress(address),
-            address: address,
-            kind: SignerKind.delegated,
-            isConnectedCredential: false,
-            rawSigner: signer,
-          ));
-        }
-      }
-    }
-
-    return signers;
+    return extractSignerInfos(rules, connectedCredentialId: connectedCredentialId);
   }
 }
 

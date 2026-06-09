@@ -23,7 +23,7 @@ import 'package:smart_account_demo/flows/context_rule_edit_types.dart'
         PolicyInstallSpecSpendingLimit,
         PolicyWeightedEntry;
 import 'package:smart_account_demo/flows/context_rule_flow.dart';
-import 'package:smart_account_demo/flows/transfer_flow.dart' show SignerKind;
+import 'package:smart_account_demo/flows/signer_info.dart' show SignerKind;
 import 'package:smart_account_demo/state/activity_log_state.dart';
 import 'package:smart_account_demo/state/demo_state.dart';
 import 'package:smart_account_demo/util/error_utils.dart'

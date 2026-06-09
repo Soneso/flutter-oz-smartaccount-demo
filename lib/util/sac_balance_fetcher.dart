@@ -16,6 +16,7 @@ library;
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
 import '../token/demo_token_service.dart';
+import 'format_utils.dart' show scValI128ToBigIntOrNull;
 
 // ---------------------------------------------------------------------------
 // Error types
@@ -216,22 +217,20 @@ abstract final class SACBalanceFetcher {
 
   /// Decodes an i128 [XdrSCVal] into a [BigInt] losslessly.
   ///
-  /// Reconstructs the 128-bit signed value as `(hi << 64) + lo`, preserving
+  /// Reconstructs the 128-bit signed value as `(hi << 64) | lo`, preserving
   /// the full i128 range on every supported platform. The result is a true
   /// [BigInt] — no fixed-width narrowing or sentinel substitution.
   ///
   /// Throws [SACBalanceFetcherError] when [scVal] is not an i128.
   static BigInt extractI128AsBigInt(XdrSCVal scVal) {
-    final i128 = scVal.i128;
-    if (i128 == null) {
+    final result = scValI128ToBigIntOrNull(scVal);
+    if (result == null) {
       throw SACBalanceFetcherError(
         kind: SACBalanceFetcherErrorKind.unexpectedReturnType,
         message:
             'Expected i128 SCVal, got discriminant ${scVal.discriminant.value}',
       );
     }
-    final hi = i128.hi.int64;
-    final lo = i128.lo.uint64;
-    return (hi << 64) + lo;
+    return result;
   }
 }

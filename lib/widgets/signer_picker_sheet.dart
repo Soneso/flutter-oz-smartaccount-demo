@@ -18,7 +18,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import '../flows/transfer_flow.dart' show Ed25519SignerIdentity, SignerInfo, SignerKind;
+import '../flows/signer_info.dart' show Ed25519SignerIdentity, SignerInfo, SignerKind;
 import '../util/selected_signer_builder.dart' show SelectedSignerBuilder;
 import '../util/semantic_colors.dart';
 import '../util/signer_type_label.dart';
@@ -27,6 +27,7 @@ import 'button_label.dart';
 import 'inline_error_banner.dart';
 import 'loading_label.dart';
 import 'pill.dart';
+import 'sheet_header.dart';
 
 // ---------------------------------------------------------------------------
 // defaultWalletConnectLabel
@@ -590,34 +591,10 @@ class _SignerPickerSheetState extends State<SignerPickerSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header row with title + close icon
-            Row(
-              children: [
-                Expanded(
-                  child: Semantics(
-                    header: true,
-                    child: Text(
-                      widget.title,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  tooltip: 'Close',
-                  onPressed: _onCancelPressed,
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              widget.description,
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+            SheetHeader(
+              title: widget.title,
+              description: widget.description,
+              onClose: _onCancelPressed,
             ),
             const SizedBox(height: 16),
 

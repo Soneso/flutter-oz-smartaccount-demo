@@ -229,11 +229,5 @@ String _signerScValFallbackKey(XdrSCVal scVal) {
 }
 
 /// Converts an I128 [XdrSCVal] to a [BigInt]. Returns null when [value] is
-/// not an I128. Both hi/lo accessors already return [BigInt].
-BigInt? scValToI128BigInt(XdrSCVal value) {
-  final i128 = value.i128;
-  if (i128 == null) return null;
-  final lo = i128.lo.uint64;
-  final hi = i128.hi.int64;
-  return (hi << 64) | lo;
-}
+/// not an I128.
+BigInt? scValToI128BigInt(XdrSCVal value) => scValI128ToBigIntOrNull(value);

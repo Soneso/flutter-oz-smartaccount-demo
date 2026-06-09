@@ -7,10 +7,9 @@ library;
 import 'package:flutter/material.dart';
 
 import '../flows/transfer_flow.dart';
-import '../theme/app_theme.dart' show snackBarDefaultDuration;
 import '../theme/spacing.dart';
-import '../util/clipboard.dart';
 import '../util/format_utils.dart';
+import 'copyable_hash_row.dart';
 
 // ---------------------------------------------------------------------------
 // TransferResultCard
@@ -91,45 +90,11 @@ class TransferResultCard extends StatelessWidget {
                   textTheme,
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Semantics(
-                        label:
-                            'Transaction Hash: ${redactId(result.transactionHash)}',
-                        excludeSemantics: true,
-                        child: Text(
-                          truncateAddress(result.transactionHash),
-                          style: textTheme.bodySmall?.copyWith(
-                            fontFamily: 'monospace',
-                            color: colorScheme.onPrimaryContainer,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () => _copyHash(context),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        side: BorderSide(
-                          color: colorScheme.onPrimaryContainer.withAlpha(80),
-                        ),
-                        foregroundColor: colorScheme.onPrimaryContainer,
-                      ),
-                      child: const Text(
-                        'Copy',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
+                CopyableHashRow(
+                  hash: result.transactionHash,
+                  displayText: truncateAddress(result.transactionHash),
+                  color: colorScheme.onPrimaryContainer,
+                  semanticValue: redactId(result.transactionHash),
                 ),
                 const SizedBox(height: 12),
 
@@ -238,14 +203,4 @@ class TransferResultCard extends StatelessWidget {
     );
   }
 
-  Future<void> _copyHash(BuildContext context) async {
-    await copyTxHash(result.transactionHash);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Transaction hash copied'),
-        duration: snackBarDefaultDuration,
-      ),
-    );
-  }
 }

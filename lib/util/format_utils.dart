@@ -1,8 +1,10 @@
 /// Formatting utilities: addresses, amounts, signers, and hex encoding.
 library;
 
+import 'dart:typed_data';
+
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart'
-    show StrKey;
+    show Address, StrKey, Util, XdrSCVal, isHexString;
 
 /// Number of stroops in one XLM (Stellar's 7-decimal native unit).
 const int stroopsPerXlm = 10000000;
@@ -47,18 +49,46 @@ bool isValidAccountAddress(String input) {
 /// Callers should lowercase the input first if they wish to accept
 /// upper-case hex; this helper deliberately matches only the lowercase
 /// alphabet so it can be paired with `text.trim().toLowerCase()`.
+/// Delegates to the SDK `isHexString` but adds the lowercase-only contract.
 bool isValidHex(String input) {
   if (input.isEmpty) return false;
-  return _lowerHexPattern.hasMatch(input);
+  return isHexString(input) && input == input.toLowerCase();
 }
-
-final RegExp _lowerHexPattern = RegExp(r'^[0-9a-f]+$');
 
 /// Compiled regex matching a non-negative decimal amount with up to seven
 /// fractional digits (Stellar's stroop precision). Rejects scientific
 /// notation, leading signs, and any input containing more than seven
 /// digits after the decimal point.
 final RegExp stellarDecimalAmountPattern = RegExp(r'^\d+(\.\d{1,7})?$');
+
+// ---------------------------------------------------------------------------
+// Address validation
+// ---------------------------------------------------------------------------
+
+/// Validates [value] as a Stellar G-address or C-address.
+///
+/// Returns null when:
+/// - [value] is empty (field is not yet filled — forms should not flag on
+///   initial render).
+/// - [value] is a valid Stellar G-address ([StrKey.isValidStellarAccountId])
+///   or C-address ([StrKey.isValidContractId]).
+///
+/// Returns the validation error string when [value] is a non-empty,
+/// non-address string.
+///
+/// When [selfAddress] is provided, returns a self-transfer error when
+/// [value] equals [selfAddress].
+String? validateStellarAddress(String value, {String? selfAddress}) {
+  if (value.isEmpty) return null;
+  if (!StrKey.isValidStellarAccountId(value) &&
+      !StrKey.isValidContractId(value)) {
+    return 'Must be a valid Stellar account (G...) or contract (C...) address';
+  }
+  if (selfAddress != null && value == selfAddress) {
+    return 'Cannot transfer to your own account';
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Address truncation
@@ -205,6 +235,40 @@ String redactId(String id) {
 }
 
 // ---------------------------------------------------------------------------
+// Address helpers
+// ---------------------------------------------------------------------------
+
+/// Encodes a Stellar G- or C-address as an [Address] [XdrSCVal].
+///
+/// C-addresses (56-character, starting with 'C') are encoded as
+/// [Address.forContractId]; all other values are encoded as
+/// [Address.forAccountId]. No validation beyond the [StrKey] contract-id
+/// check is performed — the caller is responsible for supplying a valid
+/// Stellar address.
+XdrSCVal addressToScVal(String address) {
+  if (StrKey.isValidContractId(address)) {
+    return XdrSCVal.forAddress(Address.forContractId(address).toXdr());
+  }
+  return XdrSCVal.forAddress(Address.forAccountId(address).toXdr());
+}
+
+// ---------------------------------------------------------------------------
+// SCVal helpers
+// ---------------------------------------------------------------------------
+
+/// Decodes an i128 [XdrSCVal] into a [BigInt] using (hi << 64) | lo.
+///
+/// Returns null when [value] is not an i128. Both hi/lo accessors return
+/// [BigInt], so the full 128-bit signed range is preserved losslessly.
+BigInt? scValI128ToBigIntOrNull(XdrSCVal value) {
+  final i128 = value.i128;
+  if (i128 == null) return null;
+  final lo = i128.lo.uint64;
+  final hi = i128.hi.int64;
+  return (hi << 64) | lo;
+}
+
+// ---------------------------------------------------------------------------
 // Hex encoding
 // ---------------------------------------------------------------------------
 
@@ -225,9 +289,5 @@ List<int> hexToBytes(String hex) {
 
 /// Converts a [List<int>] to a lowercase hex string.
 String bytesToHex(List<int> bytes) {
-  final buffer = StringBuffer();
-  for (final byte in bytes) {
-    buffer.write((byte & 0xFF).toRadixString(16).padLeft(2, '0'));
-  }
-  return buffer.toString();
+  return Util.bytesToHex(Uint8List.fromList(bytes));
 }

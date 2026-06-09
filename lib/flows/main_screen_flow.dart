@@ -421,7 +421,7 @@ class MainScreenFlow {
   /// Registers a global listener on [kit.events] that pipes each emitted
   /// event into the activity log. Each event is converted to a human-readable
   /// entry at appropriate severity. Sensitive values (credential IDs) are
-  /// redacted via [_redactCredentialId].
+  /// redacted via [redactId].
   void _subscribeToKitEvents(OZSmartAccountKit kit) {
     kit.events.addListener((event) {
       final (level, message) = describeKitEvent(event);
@@ -438,11 +438,11 @@ class MainScreenFlow {
   /// Extracted as a pure static method so tests can verify each mapping
   /// independently without setting up a full kit or flow instance.
   ///
-  /// Credential IDs are truncated via [_redactCredentialId].
+  /// Credential IDs are truncated via [redactId].
   /// Transaction hashes are allowed in full (public on-chain identifiers).
   static (LogLevel, String) describeKitEvent(OZSmartAccountEvent event) {
     if (event is OZSmartAccountEventWalletConnected) {
-      final safeCredId = _redactCredentialId(event.credentialId);
+      final safeCredId = redactId(event.credentialId);
       return (
         LogLevel.success,
         'Wallet connected: ${truncateAddress(event.contractId)} '
@@ -456,15 +456,15 @@ class MainScreenFlow {
       );
     }
     if (event is OZSmartAccountEventCredentialCreated) {
-      final safeCredId = _redactCredentialId(event.credential.credentialId);
+      final safeCredId = redactId(event.credential.credentialId);
       return (LogLevel.success, 'Credential registered: $safeCredId');
     }
     if (event is OZSmartAccountEventCredentialDeleted) {
-      final safeCredId = _redactCredentialId(event.credentialId);
+      final safeCredId = redactId(event.credentialId);
       return (LogLevel.info, 'Credential removed: $safeCredId');
     }
     if (event is OZSmartAccountEventSessionExpired) {
-      final safeCredId = _redactCredentialId(event.credentialId);
+      final safeCredId = redactId(event.credentialId);
       return (
         LogLevel.error,
         'Session expired for ${truncateAddress(event.contractId)} '
@@ -473,7 +473,7 @@ class MainScreenFlow {
     }
     if (event is OZSmartAccountEventTransactionSigned) {
       final credDesc = event.credentialId != null
-          ? _redactCredentialId(event.credentialId!)
+          ? redactId(event.credentialId!)
           : 'external';
       return (
         LogLevel.info,
@@ -493,7 +493,7 @@ class MainScreenFlow {
       return (level, msg);
     }
     if (event is OZSmartAccountEventCredentialSyncFailed) {
-      final safeCredId = _redactCredentialId(event.credentialId);
+      final safeCredId = redactId(event.credentialId);
       return (
         LogLevel.error,
         'Credential sync failed for $safeCredId: '
@@ -507,14 +507,6 @@ class MainScreenFlow {
   // -------------------------------------------------------------------------
   // Private: helpers
   // -------------------------------------------------------------------------
-
-  /// Truncates a credential ID to a safe display form (first 8 / last 8 chars).
-  static String _redactCredentialId(String credentialId) {
-    if (credentialId.length <= 16) return credentialId;
-    final start = credentialId.substring(0, 8);
-    final end = credentialId.substring(credentialId.length - 8);
-    return '$start...$end';
-  }
 
   /// Converts any exception to a short, actionable message safe for the UI.
   static String _actionableMessage(Object error) {

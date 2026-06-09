@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../util/format_utils.dart';
+import 'sheet_header.dart';
 
 // ---------------------------------------------------------------------------
 // ContractPickerSheet
@@ -82,7 +83,11 @@ class _ContractPickerSheetState extends State<ContractPickerSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildHandle(colorScheme),
-            _buildHeader(context, colorScheme, textTheme),
+            const SheetHeader(
+              title: 'Select Wallet',
+              description: 'This passkey is a signer on more than one wallet. '
+                  'Pick the one to connect.',
+            ),
             Expanded(
               child: ListView(
                 controller: scrollController,
@@ -114,37 +119,6 @@ class _ContractPickerSheetState extends State<ContractPickerSheet> {
     );
   }
 
-  Widget _buildHeader(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Semantics(
-            header: true,
-            child: Text(
-              'Select Wallet',
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: colorScheme.onSurface,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'This passkey is a signer on more than one wallet. Pick the one to connect.',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildRadioTile(
     BuildContext context,

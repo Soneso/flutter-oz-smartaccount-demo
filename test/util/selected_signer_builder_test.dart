@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:smart_account_demo/flows/transfer_flow.dart'
+import 'package:smart_account_demo/flows/signer_info.dart'
     show SignerInfo, SignerKind;
 import 'package:smart_account_demo/util/selected_signer_builder.dart';
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';

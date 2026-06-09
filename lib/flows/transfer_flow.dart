@@ -26,77 +26,12 @@ import '../state/demo_state.dart';
 import '../util/error_utils.dart';
 import '../util/format_utils.dart';
 import '../util/keypair_registration.dart';
-import '../util/selected_signer_builder.dart';
-import 'ed25519_signer_identity.dart';
+import '../util/selected_signer_builder.dart' show SelectedSignerBuilder;
 import 'main_screen_flow.dart';
+import 'multi_signer_registrar.dart';
+import 'signer_info.dart';
 
-export 'ed25519_signer_identity.dart';
-
-// ---------------------------------------------------------------------------
-// SignerKind — categorization of signer types
-// ---------------------------------------------------------------------------
-
-/// Categorization of the signer represented by a [SignerInfo].
-///
-/// Determines the section the signer is rendered in within the signer picker
-/// and the auth path used when the transaction is submitted.
-enum SignerKind {
-  /// WebAuthn passkey signer (an [OZExternalSigner] whose [keyData] contains
-  /// a credential ID).
-  passkey,
-
-  /// Stellar account ("delegated") signer authorized by a G-address keypair.
-  delegated,
-
-  /// Ed25519 external signer (an [OZExternalSigner] without a WebAuthn
-  /// credential ID).
-  ed25519,
-}
-
-// ---------------------------------------------------------------------------
-// SignerInfo — signer descriptor used by the transfer flow
-// ---------------------------------------------------------------------------
-
-/// Describes a signer on the connected smart account, returned by
-/// [TransferFlow.loadAvailableSigners].
-final class SignerInfo {
-  /// Constructs a signer info record.
-  const SignerInfo({
-    required this.displayLabel,
-    required this.address,
-    required this.kind,
-    required this.isConnectedCredential,
-    this.credentialId,
-    this.rawSigner,
-  });
-
-  /// Human-readable label (e.g. passkey credential ID snippet, G-address).
-  final String displayLabel;
-
-  /// Stellar address (G-address for delegated signers, empty otherwise).
-  final String address;
-
-  /// Category of this signer; controls how the picker groups and authorizes
-  /// it.
-  final SignerKind kind;
-
-  /// True when this passkey matches the currently connected credential.
-  ///
-  /// Only meaningful when [kind] is [SignerKind.passkey].
-  final bool isConnectedCredential;
-
-  /// Base64URL credential ID for passkey signers, null for delegated and
-  /// Ed25519 signers.
-  final String? credentialId;
-
-  /// The underlying SDK signer this entry was extracted from.
-  ///
-  /// Carries the on-chain `keyData` required by
-  /// [OZMultiSignerManager.submitWithMultipleSigners] for rule resolution.
-  /// May be null when the entry was constructed by a widget test that does
-  /// not exercise multi-signer submission.
-  final OZSmartAccountSigner? rawSigner;
-}
+export 'signer_info.dart';
 
 // ---------------------------------------------------------------------------
 // TransferResult
@@ -254,7 +189,7 @@ final class ContextRuleManagerAdapter implements ContextRuleManagerType {
 /// concurrent in-flight transfer calls. The screen's [LoadingButton]
 /// provides the primary re-entrancy guard; this flag is an additional
 /// safeguard for callers outside the button.
-final class TransferFlow {
+final class TransferFlow with MultiSignerRegistrar {
   /// Constructs a flow with injected dependencies.
   ///
   /// [demoState] and [activityLog] are the Riverpod notifiers.
@@ -283,6 +218,11 @@ final class TransferFlow {
   final MultiSignerManagerType _multiSignerManager;
   final ContextRuleManagerType _contextRuleManager;
   final MainScreenFlow? _mainScreenFlow;
+
+  // ---- MultiSignerRegistrar ----
+
+  @override
+  DemoStateNotifier get registrarDemoState => _demoState;
 
   // ---- Re-entrancy guard ----
 
@@ -445,43 +385,7 @@ final class TransferFlow {
   }
 
   // -------------------------------------------------------------------------
-  // Public: registerDelegatedKeypairs
-  // -------------------------------------------------------------------------
-
-  /// Registers delegated signer keypairs as in-memory keypairs on the
-  /// kit-owned external signer manager.
-  ///
-  /// Calls [OZExternalSignerManager.addFromSecret] for each entry with a
-  /// non-empty seed. No-ops silently when the kit is not initialised.
-  ///
-  /// If any [addFromSecret] call fails, every signer registered on the manager
-  /// is removed via [OZExternalSignerManager.removeAll] before rethrowing so
-  /// the manager is never left in a partial state.
-  ///
-  /// Throws the original exception after cleanup — callers must not proceed with
-  /// the transfer.
-  Future<void> registerDelegatedKeypairs(
-    Map<String, String> delegatedKeyPairs,
-  ) async {
-    final manager = _demoState.externalSigners;
-    if (manager == null) return;
-
-    try {
-      for (final entry in delegatedKeyPairs.entries) {
-        final seed = entry.value;
-        if (seed.isNotEmpty) {
-          await manager.addFromSecret(seed);
-        }
-      }
-    } catch (e) {
-      // Partial registration — roll back to prevent a corrupt signer state.
-      await manager.removeAll();
-      rethrow;
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Public: registerEd25519Keypairs
+  // Public: registerEd25519Keypairs (in-process custody path)
   // -------------------------------------------------------------------------
 
   /// Registers Ed25519 signer keypairs into the kit-owned manager's in-process
@@ -502,48 +406,20 @@ final class TransferFlow {
     );
   }
 
-  /// Removes every signer the flow registered on the kit-owned manager.
-  ///
-  /// Calls [OZExternalSignerManager.removeAll], which clears all in-memory
-  /// keypair and Ed25519 signers, disconnects every external wallet
-  /// connection, and clears the persisted wallet connections from storage.
-  /// No-ops silently when the kit is not initialised.
-  Future<void> clearDelegatedKeypairs() async {
-    await _demoState.externalSigners?.removeAll();
-  }
-
-  /// Runs [body] and guarantees [clearDelegatedKeypairs] is called even if
-  /// [body] throws. Failures from [clearDelegatedKeypairs] are swallowed so
-  /// the cleanup never masks an in-flight error from [body].
-  ///
-  /// Call this AFTER `await registerDelegatedKeypairs(...)` has completed
-  /// successfully. The wrapper does not register anything itself; that
-  /// stays at the call site so the call site can classify register-time
-  /// failures with its own context ("Approve failed", "Transfer failed",
-  /// "Add rule failed", etc.) before invoking the body.
-  Future<R> withCleanupOfDelegatedKeypairs<R>(
-    Future<R> Function() body,
-  ) async {
-    try {
-      return await body();
-    } finally {
-      try {
-        await clearDelegatedKeypairs();
-      } catch (_) {
-        // Swallow cleanup failures — they must never mask body errors.
-      }
-    }
-  }
+  // -------------------------------------------------------------------------
+  // Public: withMultiSignerRegistration
+  // -------------------------------------------------------------------------
 
   /// Registers all multi-signer signing material, runs [body], then clears
   /// the registered material in a `finally`.
   ///
   /// Registers the delegated G-address keypairs via [registerDelegatedKeypairs]
-  /// and the Ed25519 secrets via [registerEd25519Keypairs] (the in-process
-  /// custody path), then runs [body] and returns its value. Both registrations
-  /// run inside the guarded region so a failure during Ed25519 registration
-  /// still clears the delegated keypairs that were registered first; nothing
-  /// leaks on success, failure, or cancellation.
+  /// (from [MultiSignerRegistrar]) and the Ed25519 secrets via
+  /// [registerEd25519Keypairs] (the in-process custody path), then runs [body]
+  /// and returns its value. Both registrations run inside the guarded region so
+  /// a failure during Ed25519 registration still clears the delegated keypairs
+  /// that were registered first; nothing leaks on success, failure, or
+  /// cancellation.
   ///
   /// Registration failures propagate to the caller after cleanup so the call
   /// site can classify them with its own context. [body] is invoked only when
@@ -553,11 +429,12 @@ final class TransferFlow {
     required Map<Ed25519SignerIdentity, Uint8List> ed25519Secrets,
     required Future<R> Function() body,
   }) {
-    return withCleanupOfDelegatedKeypairs(() async {
-      await registerDelegatedKeypairs(delegatedKeyPairs);
-      await registerEd25519Keypairs(ed25519Secrets);
-      return body();
-    });
+    return runWithMultiSignerRegistration(
+      delegatedKeyPairs: delegatedKeyPairs,
+      ed25519Secrets: ed25519Secrets,
+      registerEd25519: registerEd25519Keypairs,
+      body: body,
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -614,16 +491,13 @@ final class TransferFlow {
   /// Validates the recipient address.
   ///
   /// Returns null on success, or an error string on failure.
+  /// Delegates to [validateStellarAddress], threading the connected contract
+  /// ID as [selfAddress] to detect self-transfers.
   String? validateRecipient(String value) {
-    if (value.isEmpty) return null;
-    if (!StrKey.isValidStellarAccountId(value) &&
-        !StrKey.isValidContractId(value)) {
-      return 'Must be a valid Stellar account (G...) or contract (C...) address';
-    }
-    if (value == _demoState.currentState.contractId) {
-      return 'Cannot transfer to your own account';
-    }
-    return null;
+    return validateStellarAddress(
+      value,
+      selfAddress: _demoState.currentState.contractId,
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -710,14 +584,15 @@ final class TransferFlow {
   /// [availableBalance] is the user's current token balance as a decimal
   /// string. When provided and the entered amount exceeds it, returns
   /// `'Exceeds available balance'`.
+  ///
+  /// A leading sign is rejected by [stellarDecimalAmountPattern] as
+  /// `'Must be a valid number'`.
   static String? validateAmount(String value, {double? availableBalance}) {
     if (value.isEmpty) return null;
     if (value.toLowerCase().contains('e')) {
       return 'Scientific notation is not supported';
     }
-    // Enforce Stellar 7-decimal precision cap before double parsing.
-    final decimalPattern = RegExp(r'^-?\d+(\.\d{1,7})?$');
-    if (!decimalPattern.hasMatch(value)) {
+    if (!stellarDecimalAmountPattern.hasMatch(value)) {
       return 'Must be a valid number';
     }
     final parsed = double.tryParse(value);
@@ -739,22 +614,18 @@ final class TransferFlow {
 
   /// Maps a raw exception to a user-facing error message.
   ///
-  /// [WebAuthnCancelled] exceptions map to a fixed cancellation message.
-  /// All other exceptions are classified and sanitised via [classifyError].
+  /// Delegates to [classifyActionError] with the `'Transfer failed'` verb.
+  ///
+  /// [DemoError] validation failures are surfaced verbatim, without the
+  /// `'Transfer failed:'` prefix, matching the remove/add/edit classify
+  /// methods.
   String classifyTransferError(Object error) {
-    if (error is WebAuthnCancelled) {
-      _activityLog.info('Passkey authentication cancelled');
-      return 'Passkey authentication cancelled';
-    }
-    // StateError from the in-flight guard — surface a clear message rather
-    // than exposing the raw "Bad state:" prefix from Dart's StateError.
-    if (error is StateError) {
-      _activityLog.error('Transfer already in progress');
-      return 'A transfer is already in progress. Please wait.';
-    }
-    final classified = classifyError(error);
-    _activityLog.error('Transfer failed: ${classified.message}');
-    return 'Transfer failed: ${classified.message}';
+    return classifyActionError(
+      error,
+      _activityLog,
+      prefix: 'Transfer failed',
+      noun: 'A transfer',
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -790,75 +661,11 @@ final class TransferFlow {
     }
   }
 
-  /// Extracts [SignerInfo] entries from a list of parsed context rules.
-  ///
-  /// Each rule's [OZSmartAccountSigner] entries are inspected:
-  ///
-  /// - [OZExternalSigner] with a WebAuthn credential ID embedded in [keyData]
-  ///   becomes a [SignerKind.passkey] entry. When the Base64URL credential
-  ///   ID matches [connectedCredentialId] the entry is marked as
-  ///   [SignerInfo.isConnectedCredential].
-  /// - [OZExternalSigner] without a credential ID becomes a
-  ///   [SignerKind.ed25519] entry whose [address] is the verifier address.
-  /// - [OZDelegatedSigner] entries become [SignerKind.delegated] entries
-  ///   whose [address] is the Stellar G- or C-address.
-  ///
-  /// Duplicate signers (same [uniqueKey] across rules) are deduplicated.
   List<SignerInfo> _extractSigners(
     List<OZParsedContextRule> rules, {
     String? connectedCredentialId,
   }) {
-    final seen = <String>{};
-    final signers = <SignerInfo>[];
-
-    for (final rule in rules) {
-      for (final signer in rule.signers) {
-        final key = signer.uniqueKey;
-        if (!seen.add(key)) continue;
-
-        if (signer is OZExternalSigner) {
-          // Decode credential ID from keyData when it is a WebAuthn signer.
-          final credentialId =
-              OZSmartAccountBuilders.getCredentialIdStringFromSigner(signer);
-
-          if (credentialId != null) {
-            final isConnected = connectedCredentialId != null &&
-                credentialId == connectedCredentialId;
-            signers.add(SignerInfo(
-              displayLabel: truncateCredentialId(credentialId),
-              address: '',
-              kind: SignerKind.passkey,
-              isConnectedCredential: isConnected,
-              credentialId: credentialId,
-              rawSigner: signer,
-            ));
-          } else {
-            // Ed25519 signers are identified by their public key, not the
-            // verifier contract address. Show a short hex preview of keyData.
-            final keyHex = bytesToHex(signer.keyData);
-            final keyPreview = keyHex.length > 8 ? keyHex.substring(0, 8) : keyHex;
-            signers.add(SignerInfo(
-              displayLabel: 'key:$keyPreview...',
-              address: signer.verifierAddress,
-              kind: SignerKind.ed25519,
-              isConnectedCredential: false,
-              rawSigner: signer,
-            ));
-          }
-        } else if (signer is OZDelegatedSigner) {
-          final address = signer.address;
-          signers.add(SignerInfo(
-            displayLabel: truncateAddress(address),
-            address: address,
-            kind: SignerKind.delegated,
-            isConnectedCredential: false,
-            rawSigner: signer,
-          ));
-        }
-      }
-    }
-
-    return signers;
+    return extractSignerInfos(rules, connectedCredentialId: connectedCredentialId);
   }
 }
 

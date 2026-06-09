@@ -26,7 +26,7 @@ import 'dart:js_interop';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:js_interop_unsafe';
 
-import '../../config/demo_config.dart' show freighterDownloadUrl;
+import '../../config/demo_config.dart' show freighterDownloadUrl, networkPassphrase;
 import '../wallet_connector.dart';
 
 // ---------------------------------------------------------------------------
@@ -335,12 +335,9 @@ class FreighterWalletHandler implements WalletConnector {
       final passphrase = _stringProp(result, 'networkPassphrase');
       if (passphrase == null || passphrase.isEmpty) return;
 
-      // Hardcoded testnet passphrase to avoid importing non-web config symbols
-      // into this web-only compilation unit.
-      const expectedPassphrase = 'Test SDF Network ; September 2015';
-      if (passphrase != expectedPassphrase) {
+      if (passphrase != networkPassphrase) {
         throw WalletNetworkMismatchException(
-          expected: expectedPassphrase,
+          expected: networkPassphrase,
           actual: passphrase,
         );
       }

@@ -26,9 +26,18 @@ import '../state/activity_log_state.dart';
 import '../state/demo_state.dart';
 import '../token/demo_token_service.dart';
 import '../util/error_utils.dart';
-import '../util/format_utils.dart';
+import '../util/format_utils.dart'
+    show
+        validateStellarAddress,
+        stellarDecimalAmountPattern,
+        formatStroopsBigIntAsXlm,
+        nativeTokenDecimals,
+        addressToScVal,
+        scValI128ToBigIntOrNull,
+        truncateAddress;
 import 'context_rule_flow.dart' show ContextRuleFlow;
 import 'ed25519_signer_identity.dart';
+import 'multi_signer_registrar.dart';
 
 // ---------------------------------------------------------------------------
 // ApproveResult
@@ -174,7 +183,7 @@ abstract interface class AllowanceFetcherType {
 /// in-flight calls. The screen's [LoadingButton] provides the primary
 /// re-entrancy guard; this flag is an additional safeguard for callers
 /// outside the button.
-final class ApproveFlow {
+final class ApproveFlow with MultiSignerRegistrar {
   /// Constructs a flow with injected dependencies.
   ///
   /// [demoState] and [activityLog] are the Riverpod notifiers.
@@ -206,45 +215,26 @@ final class ApproveFlow {
   final ContextRuleFlow _contextRuleFlow;
   final AllowanceFetcherType _allowanceFetcher;
 
+  // ---- MultiSignerRegistrar ----
+
+  @override
+  DemoStateNotifier get registrarDemoState => _demoState;
+
+  /// Clears any secrets held by the [DemoEd25519Adapter] alongside the
+  /// kit manager cleanup. The adapter holds its own secrets outside the
+  /// manager, so it must be cleared separately.
+  @override
+  void extraClear() {
+    _demoState.ed25519Adapter?.clearAll();
+  }
+
   // ---- Re-entrancy guard ----
 
   /// True while an approve call is executing.
   bool _isApproving = false;
 
   // -------------------------------------------------------------------------
-  // Public: registerDelegatedKeypairs
-  // -------------------------------------------------------------------------
-
-  /// Registers delegated signer keypairs as in-memory keypairs on the
-  /// kit-owned external signer manager.
-  ///
-  /// Calls [OZExternalSignerManager.addFromSecret] for each entry with a
-  /// non-empty seed. No-ops silently when the kit is not initialised.
-  ///
-  /// If any [addFromSecret] call fails, every signer registered on the manager
-  /// is removed via [OZExternalSignerManager.removeAll] before rethrowing so
-  /// the manager is never left in a partial state.
-  Future<void> registerDelegatedKeypairs(
-    Map<String, String> delegatedKeyPairs,
-  ) async {
-    final manager = _demoState.externalSigners;
-    if (manager == null) return;
-
-    try {
-      for (final entry in delegatedKeyPairs.entries) {
-        final seed = entry.value;
-        if (seed.isNotEmpty) {
-          await manager.addFromSecret(seed);
-        }
-      }
-    } catch (e) {
-      await manager.removeAll();
-      rethrow;
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Public: registerEd25519ViaAdapter
+  // Public: registerEd25519ViaAdapter (adapter custody path)
   // -------------------------------------------------------------------------
 
   /// Registers Ed25519 signing secrets on the kit's [DemoEd25519Adapter].
@@ -275,51 +265,19 @@ final class ApproveFlow {
   }
 
   // -------------------------------------------------------------------------
-  // Public: clearDelegatedKeypairs / withCleanupOfDelegatedKeypairs
+  // Public: withMultiSignerRegistration
   // -------------------------------------------------------------------------
-
-  /// Removes every signer the flow registered on the kit-owned manager and
-  /// clears any secrets held by the Ed25519 adapter.
-  ///
-  /// Calls [OZExternalSignerManager.removeAll], which clears all in-memory
-  /// keypair and Ed25519 signers, disconnects every external wallet
-  /// connection, and clears the persisted wallet connections from storage.
-  /// The Ed25519 adapter holds its own secrets outside the manager, so it is
-  /// cleared separately via [DemoEd25519Adapter.clearAll].
-  ///
-  /// No-ops silently when neither the kit nor the adapter is initialised.
-  Future<void> clearDelegatedKeypairs() async {
-    await _demoState.externalSigners?.removeAll();
-    _demoState.ed25519Adapter?.clearAll();
-  }
-
-  /// Runs [body] and guarantees [clearDelegatedKeypairs] is called even if
-  /// [body] throws. Failures from [clearDelegatedKeypairs] are swallowed so
-  /// the cleanup never masks an in-flight error from [body].
-  Future<R> withCleanupOfDelegatedKeypairs<R>(
-    Future<R> Function() body,
-  ) async {
-    try {
-      return await body();
-    } finally {
-      try {
-        await clearDelegatedKeypairs();
-      } catch (_) {
-        // Swallow cleanup failures — they must never mask body errors.
-      }
-    }
-  }
 
   /// Registers all multi-signer signing material, runs [body], then clears
   /// the registered material in a `finally`.
   ///
   /// Registers the delegated G-address keypairs via [registerDelegatedKeypairs]
-  /// and the Ed25519 secrets on the [DemoEd25519Adapter] via
-  /// [registerEd25519ViaAdapter] (the adapter custody path), then runs [body]
-  /// and returns its value. Both registrations run inside the guarded region so
-  /// a failure during Ed25519 registration still clears the delegated keypairs
-  /// that were registered first; nothing leaks on success, failure, or
-  /// cancellation.
+  /// (from [MultiSignerRegistrar]) and the Ed25519 secrets on the
+  /// [DemoEd25519Adapter] via [registerEd25519ViaAdapter] (the adapter custody
+  /// path), then runs [body] and returns its value. Both registrations run
+  /// inside the guarded region so a failure during Ed25519 registration still
+  /// clears the delegated keypairs that were registered first; nothing leaks on
+  /// success, failure, or cancellation.
   ///
   /// Registration failures propagate to the caller after cleanup so the call
   /// site can classify them with its own context. [body] is invoked only when
@@ -329,11 +287,12 @@ final class ApproveFlow {
     required Map<Ed25519SignerIdentity, Uint8List> ed25519Secrets,
     required Future<R> Function() body,
   }) {
-    return withCleanupOfDelegatedKeypairs(() async {
-      await registerDelegatedKeypairs(delegatedKeyPairs);
-      registerEd25519ViaAdapter(ed25519Secrets);
-      return body();
-    });
+    return runWithMultiSignerRegistration(
+      delegatedKeyPairs: delegatedKeyPairs,
+      ed25519Secrets: ed25519Secrets,
+      registerEd25519: (secrets) async => registerEd25519ViaAdapter(secrets),
+      body: body,
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -541,14 +500,9 @@ final class ApproveFlow {
   ///
   /// Returns null when the field is empty (so the form is not flagged on
   /// initial render). Returns the validation error string when [value] is a
-  /// non-empty, non-address string.
+  /// non-empty, non-address string. Delegates to [validateStellarAddress].
   String? validateSpender(String value) {
-    if (value.isEmpty) return null;
-    if (!StrKey.isValidStellarAccountId(value) &&
-        !StrKey.isValidContractId(value)) {
-      return 'Must be a valid Stellar account (G...) or contract (C...) address';
-    }
-    return null;
+    return validateStellarAddress(value);
   }
 
   // -------------------------------------------------------------------------
@@ -603,7 +557,7 @@ final class ApproveFlow {
       amount,
       decimals: nativeTokenDecimals,
     );
-    final spenderScVal = _addressScVal(spenderAddress);
+    final spenderScVal = addressToScVal(spenderAddress);
 
     // Resolve the offset → absolute ledger sequence. The screen layer
     // guarantees offset > 0 (dropdown enforces it) so the result is always
@@ -618,16 +572,6 @@ final class ApproveFlow {
       Util.bigIntToI128ScVal(baseUnits),
       XdrSCVal.forU32(absolute),
     ];
-  }
-
-  /// Encodes a Stellar G- or C-address as an `Address` SCVal.
-  ///
-  /// Mirrors the SDK helper used by [OZMultiSignerManager.multiSignerTransfer].
-  XdrSCVal _addressScVal(String address) {
-    if (StrKey.isValidContractId(address)) {
-      return XdrSCVal.forAddress(Address.forContractId(address).toXdr());
-    }
-    return XdrSCVal.forAddress(Address.forAccountId(address).toXdr());
   }
 }
 
@@ -687,8 +631,8 @@ final class AllowanceFetcherAdapter implements AllowanceFetcherType {
     required String fromAddress,
     required String spenderAddress,
   }) {
-    final fromScVal = _addressScVal(fromAddress);
-    final spenderScVal = _addressScVal(spenderAddress);
+    final fromScVal = addressToScVal(fromAddress);
+    final spenderScVal = addressToScVal(spenderAddress);
 
     final invokeContractArgs = XdrInvokeContractArgs(
       Address.forContractId(tokenContract).toXdr(),
@@ -713,24 +657,8 @@ final class AllowanceFetcherAdapter implements AllowanceFetcherType {
         .build();
   }
 
-  XdrSCVal _addressScVal(String address) {
-    if (StrKey.isValidContractId(address)) {
-      return XdrSCVal.forAddress(Address.forContractId(address).toXdr());
-    }
-    return XdrSCVal.forAddress(Address.forAccountId(address).toXdr());
-  }
-
   /// Decodes an i128 [XdrSCVal] as a signed 128-bit [BigInt].
   ///
-  /// Returns null when [scVal] is not an i128. The math reconstructs the
-  /// signed 128-bit value from the (hi, lo) XDR limbs without truncating
-  /// to a 64-bit integer so any legitimate allowance amount is preserved.
-  BigInt? _extractI128AsBigInt(XdrSCVal scVal) {
-    final i128 = scVal.i128;
-    if (i128 == null) return null;
-    final hi = i128.hi.int64;
-    final lo = i128.lo.uint64;
-    final shifted = hi << 64;
-    return shifted + lo;
-  }
+  /// Returns null when [scVal] is not an i128.
+  BigInt? _extractI128AsBigInt(XdrSCVal scVal) => scValI128ToBigIntOrNull(scVal);
 }

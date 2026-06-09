@@ -15,15 +15,12 @@
 /// hash and posts a `Hash copied` snackbar.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 
 import '../flows/context_rule_edit_types.dart';
 import '../theme/spacing.dart';
-import '../util/clipboard.dart';
 import '../util/semantic_colors.dart';
+import 'copyable_hash_row.dart';
 
 // ---------------------------------------------------------------------------
 // EditSuccessCard
@@ -114,7 +111,11 @@ class EditSuccessCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               for (final hash in result.transactionHashes)
-                _HashRow(hash: hash, color: bodyColor, textTheme: textTheme),
+                CopyableHashRow(
+                  hash: hash,
+                  color: bodyColor,
+                  snackbarMessage: 'Hash copied',
+                ),
             ],
             if (result.authGuardMessage != null) ...[
               const SizedBox(height: 12),
@@ -161,60 +162,3 @@ class EditSuccessCard extends StatelessWidget {
   }
 }
 
-class _HashRow extends StatelessWidget {
-  const _HashRow({
-    required this.hash,
-    required this.color,
-    required this.textTheme,
-  });
-
-  final String hash;
-  final Color color;
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              hash,
-              style: textTheme.bodySmall?.copyWith(
-                fontFamily: 'monospace',
-                color: color,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Semantics(
-            button: true,
-            label: 'Copy transaction hash',
-            excludeSemantics: true,
-            child: OutlinedButton(
-              onPressed: () {
-                unawaited(_copyHash(context, hash));
-              },
-              child: const Text('Copy'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _copyHash(BuildContext context, String hash) async {
-    await copyTxHash(hash);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Hash copied')),
-    );
-    await SemanticsService.announce(
-      'Hash copied',
-      Directionality.of(context),
-    );
-  }
-}

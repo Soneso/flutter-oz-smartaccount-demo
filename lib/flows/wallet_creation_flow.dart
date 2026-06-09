@@ -443,7 +443,7 @@ final class WalletCreationFlow {
       isDeployed: autoSubmit,
     );
     final shortAddr = truncateAddress(sdkResult.contractId);
-    final safeCredId = _redactCredentialId(sdkResult.credentialId);
+    final safeCredId = redactId(sdkResult.credentialId);
     if (autoSubmit) {
       _activityLog.success(
         'Wallet created and deployed: $shortAddr (cred: $safeCredId)',
@@ -505,13 +505,5 @@ final class WalletCreationFlow {
       }
     }
     return redactMessage(buffer.toString());
-  }
-
-  /// Truncates a credential ID to a safe display form (first 8 / last 8 chars).
-  static String _redactCredentialId(String credentialId) {
-    if (credentialId.length <= 16) return credentialId;
-    final start = credentialId.substring(0, 8);
-    final end = credentialId.substring(credentialId.length - 8);
-    return '$start...$end';
   }
 }

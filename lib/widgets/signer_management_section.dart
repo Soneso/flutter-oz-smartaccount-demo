@@ -24,6 +24,7 @@ import '../util/context_rule_format.dart';
 import '../util/semantic_colors.dart';
 import '../util/signer_colors.dart';
 import '../util/signer_type_label.dart';
+import 'annotation_badge.dart';
 import 'field_error_text.dart';
 import 'rich_dropdown_item.dart';
 import 'signer_add_forms/delegated_add_form.dart';
@@ -457,7 +458,7 @@ class _StagedSignerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final typeLabel = _typeLabelFor(signer.type);
+    final typeLabel = labelForStagedSignerType(signer.type);
     final chipColor = signerTypeColor(_signerTypeKeyFor(signer.type));
 
     // Combined chip + identifier description forms a single semantic node;
@@ -480,17 +481,6 @@ class _StagedSignerRow extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  String _typeLabelFor(StagedSignerType type) {
-    switch (type) {
-      case StagedSignerType.delegated:
-        return 'Delegated';
-      case StagedSignerType.ed25519:
-        return SignerTypeLabel.ed25519;
-      case StagedSignerType.passkey:
-        return SignerTypeLabel.passkeyShort;
-    }
   }
 
   String _signerTypeKeyFor(StagedSignerType type) {
@@ -678,12 +668,9 @@ class _EditSignerRow extends StatelessWidget {
 
     // "(on-chain)" badge rendered inline with the identifier via Wrap.
     final Widget? inlineTrailing = entry.isOriginal
-        ? Text(
-            '(on-chain)',
-            style: textTheme.labelSmall?.copyWith(
-              color: colorScheme.onChainBadgeForeground,
-              fontWeight: FontWeight.w600,
-            ),
+        ? AnnotationBadge(
+            label: AnnotationBadgeLabel.onChain,
+            color: colorScheme.onChainBadgeForeground,
           )
         : null;
 

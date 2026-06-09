@@ -26,7 +26,6 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart' as crypto;
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
 import '../config/demo_config.dart' as config;
@@ -260,8 +259,8 @@ class DemoTokenService {
   /// SHA-256 of the seed string produces a stable 32-byte raw secret that
   /// is the same on every run. The admin account can be funded once and reused.
   static KeyPair _deriveAdminKeyPair() {
-    final seedBytes = Uint8List.fromList(
-      crypto.sha256.convert(utf8.encode(config.demoTokenAdminSeed)).bytes,
+    final seedBytes = Util.hash(
+      Uint8List.fromList(utf8.encode(config.demoTokenAdminSeed)),
     );
     return KeyPair.fromSecretSeedList(seedBytes);
   }
@@ -272,9 +271,7 @@ class DemoTokenService {
   /// Soroban ContractID derivation uses the same salt, the resulting contract
   /// address is always identical regardless of when or where deployment runs.
   static Uint8List _deriveTokenSalt() {
-    return Uint8List.fromList(
-      crypto.sha256.convert(utf8.encode(config.demoTokenSaltSeed)).bytes,
-    );
+    return Util.hash(Uint8List.fromList(utf8.encode(config.demoTokenSaltSeed)));
   }
 
   /// Derives the Soroban contract C-address for [deployerPublicKey] + [salt].
@@ -293,8 +290,8 @@ class DemoTokenService {
     required Uint8List salt,
   }) {
     // Step 1: network ID = SHA-256(networkPassphrase).
-    final networkIdBytes = Uint8List.fromList(
-      crypto.sha256.convert(utf8.encode(config.networkPassphrase)).bytes,
+    final networkIdBytes = Util.hash(
+      Uint8List.fromList(utf8.encode(config.networkPassphrase)),
     );
 
     // Step 2: deployer SCAddress.
@@ -326,9 +323,7 @@ class DemoTokenService {
     final encodedPreimage = Uint8List.fromList(stream.bytes);
 
     // Step 6: SHA-256 the encoded preimage.
-    final contractIdBytes = Uint8List.fromList(
-      crypto.sha256.convert(encodedPreimage).bytes,
-    );
+    final contractIdBytes = Util.hash(encodedPreimage);
 
     // Step 7: encode as C-address.
     return StrKey.encodeContractId(contractIdBytes);
@@ -391,10 +386,8 @@ class DemoTokenService {
     }
 
     // Step B: Compute the WASM hash (SHA-256 of raw WASM bytes).
-    final wasmHashBytes = Uint8List.fromList(
-      crypto.sha256.convert(wasmBytes).bytes,
-    );
-    final wasmHashHex = _bytesToHex(wasmHashBytes);
+    final wasmHashBytes = Util.hash(wasmBytes);
+    final wasmHashHex = Util.bytesToHex(wasmHashBytes);
 
     // Step C: Deploy the contract using CreateContractV2 with constructor args.
     final deployedAddress = await _submitDeployAndWait(
@@ -680,14 +673,6 @@ class DemoTokenService {
         msg.contains('exists');
   }
 
-  /// Converts [bytes] to a lowercase hex string.
-  static String _bytesToHex(Uint8List bytes) {
-    final buffer = StringBuffer();
-    for (final b in bytes) {
-      buffer.write(b.toRadixString(16).padLeft(2, '0'));
-    }
-    return buffer.toString();
-  }
 }
 
 // ---------------------------------------------------------------------------

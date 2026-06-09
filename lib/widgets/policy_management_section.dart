@@ -18,6 +18,7 @@ import '../theme/spacing.dart';
 import '../util/format_utils.dart';
 import '../util/policy_type.dart';
 import '../util/semantic_colors.dart';
+import 'annotation_badge.dart';
 import 'edit_policy_params_form.dart';
 import 'field_error_text.dart';
 import 'pill.dart';
@@ -711,20 +712,14 @@ class _EditPolicyRow extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                             if (entry.isOriginal)
-                              Text(
-                                '(on-chain)',
-                                style: textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.onChainBadgeForeground,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              AnnotationBadge(
+                                label: AnnotationBadgeLabel.onChain,
+                                color: colorScheme.onChainBadgeForeground,
                               ),
                             if (entry.modified)
-                              Text(
-                                '(modified)',
-                                style: textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.modifiedBadgeForeground,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              AnnotationBadge(
+                                label: AnnotationBadgeLabel.modified,
+                                color: colorScheme.modifiedBadgeForeground,
                               ),
                           ],
                         ),

@@ -18,8 +18,8 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../flows/approve_flow.dart';
-import '../flows/transfer_flow.dart'
-    show Ed25519SignerIdentity, SignerInfo, SignerKind, TransferFlow;
+import '../flows/signer_info.dart' show Ed25519SignerIdentity, SignerInfo, SignerKind;
+import '../flows/transfer_flow.dart' show TransferFlow;
 import '../navigation/routes.dart';
 import '../state/approve_flow_provider.dart';
 import '../state/demo_state.dart';

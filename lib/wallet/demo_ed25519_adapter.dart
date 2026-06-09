@@ -131,7 +131,7 @@ final class DemoAdapterError implements Exception {
   factory DemoAdapterError.keypairNotFound(Uint8List publicKey) {
     // Truncate to 8 bytes for log brevity; full keys are non-secret but
     // unwieldy in error messages.
-    final prefix = publicKey.take(8).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    final prefix = Util.bytesToHex(Uint8List.fromList(publicKey.take(8).toList()));
     return DemoAdapterError._(
       'No keypair registered for public key $prefix...',
     );
