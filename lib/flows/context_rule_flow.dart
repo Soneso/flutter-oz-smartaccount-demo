@@ -42,6 +42,7 @@ import '../util/selected_signer_builder.dart';
 import 'context_rule_builder_types.dart'
     show ContextRuleResult, FlowPolicyEntry;
 import 'context_rule_edit_types.dart';
+import 'context_rule_edit_types.dart' as edit_types;
 import 'context_rule_flow_adapters.dart';
 import 'transfer_flow.dart'
     show Ed25519SignerIdentity, SignerInfo, SignerKind, TransferFlow;
@@ -486,15 +487,16 @@ final class ContextRuleFlow {
     try {
       _activityLog.info('Submitting new context rule...');
 
-      // Convert the staged policy list into the {address: scVal} map shape
-      // the manager expects. Entries with a null SCVal are unreachable in
-      // the builder (every policy add-form computes the SCVal up front),
-      // but we skip them defensively rather than passing nulls through.
+      // Encode the staged policy list into the {address: scVal} map shape
+      // the manager expects. The toScVal() call here is the single SCVal
+      // conversion point for the create path. Entries with null install
+      // params are unreachable in the builder (every add-form configures
+      // params up front), but we skip them defensively.
       final policiesMap = <String, XdrSCVal>{};
       for (final entry in policies) {
-        final scVal = entry.scVal;
-        if (scVal != null) {
-          policiesMap[entry.address] = scVal;
+        final params = entry.installParams;
+        if (params != null) {
+          policiesMap[entry.address] = params.toScVal();
         }
       }
 
@@ -693,6 +695,35 @@ final class ContextRuleFlow {
   }
 
   // -------------------------------------------------------------------------
+  // Public: resolveSpendingLimitDecimals
+  // -------------------------------------------------------------------------
+
+  /// Resolves the decimal scale for a spending-limit policy's guarded token.
+  ///
+  /// A spending-limit policy applies to the rule's call-contract target, so
+  /// [guardedToken] is that contract address, or null for default /
+  /// create-contract rules. The native token and non-token rules resolve to
+  /// [nativeTokenDecimals] without a network call; a custom guarded token's
+  /// `decimals()` value is fetched on-chain.
+  ///
+  /// A malformed address is reported by the existing field validation; this
+  /// method returns [nativeTokenDecimals] for it so a later valid entry
+  /// re-triggers resolution. Throws when the on-chain `decimals()` read
+  /// fails so the caller can disable the spending-limit Add button rather
+  /// than scaling an amount with the wrong precision.
+  Future<int> resolveSpendingLimitDecimals(String? guardedToken) async {
+    final trimmed = guardedToken?.trim();
+    if (trimmed == null ||
+        trimmed.isEmpty ||
+        trimmed == config.nativeTokenContract ||
+        !isValidContractAddress(trimmed)) {
+      return nativeTokenDecimals;
+    }
+    final env = _requireEnvironment('resolveSpendingLimitDecimals');
+    return env.fetchTokenDecimals(trimmed);
+  }
+
+  // -------------------------------------------------------------------------
   // Public: ed25519VerifierAddress
   // -------------------------------------------------------------------------
 
@@ -773,8 +804,15 @@ final class ContextRuleFlow {
   ///
   /// The policy stores per-(account, rule) parameters under the storage key
   /// `Vec([Symbol("AccountContext"), Address(account), U32(ruleId)])`. The
-  /// returned [PolicyParams] is shaped per the policy [policyType]; the
-  /// caller passes the type discovered from the [PolicyInfo] metadata.
+  /// returned [PolicyParams] is shaped per the policy type discovered from
+  /// [policyAddress].
+  ///
+  /// [guardedToken] is the call-contract target of the rule, or null for
+  /// default / create-contract rules. For spending-limit policies the guarded
+  /// token's decimal scale is resolved and used to format the stored base-units
+  /// amount back to a human decimal string. A failed decimal resolution returns
+  /// null so the screen omits the inline editor rather than pre-populating
+  /// with a mis-scaled value — mirror iOS behaviour.
   ///
   /// Returns null when the entry is missing or cannot be parsed. Errors are
   /// logged at info level so the screen can continue and show empty
@@ -782,6 +820,7 @@ final class ContextRuleFlow {
   Future<PolicyParams?> readPolicyParams({
     required String policyAddress,
     required int ruleId,
+    String? guardedToken,
   }) async {
     final state = _demoState.currentState;
     final smartAccount = state.contractId;
@@ -809,7 +848,20 @@ final class ContextRuleFlow {
         case PolicyType.threshold:
           return parseThresholdParams(value);
         case PolicyType.spendingLimit:
-          return parseSpendingLimitParams(value);
+          // Resolve the guarded token's decimals before formatting the stored
+          // base-units value. A failed resolution returns null so the inline
+          // editor is omitted rather than pre-populating with a wrong scale.
+          final int decimals;
+          try {
+            decimals = await resolveSpendingLimitDecimals(guardedToken);
+          } catch (e) {
+            _activityLog.info(
+              'Could not resolve token decimals for spending-limit policy: '
+              '${classifyError(e).message}',
+            );
+            return null;
+          }
+          return parseSpendingLimitParams(value, decimals: decimals);
         case PolicyType.weightedThreshold:
           return parseWeightedThresholdParams(value);
         default:
@@ -993,12 +1045,12 @@ final class ContextRuleFlow {
         final sn = 'Adding policy ${i + 1} of ${diff.newPolicies.length}';
         final f = await step(
           stepName: sn,
-          precondition: () => _requireScVal(entry.scVal, sn,
+          precondition: () => _requireInstallSpec(entry.installSpec, sn,
               completed: completed, totalOps: totalOps, hashes: hashes),
-          call: () => _contextRuleManager.addPolicyToRule(
+          call: () => _dispatchAddPolicy(
             ruleId: ruleId,
             policyAddress: entry.address,
-            installParams: entry.scVal!,
+            spec: entry.installSpec!,
             selectedSigners: selectedSigners,
           ),
         );
@@ -1014,7 +1066,7 @@ final class ContextRuleFlow {
             'Updating policy ${i + 1} of ${diff.modifiedPolicies.length}';
 
         if (entry.info?.type == PolicyType.threshold) {
-          final threshold = _extractThresholdFromScVal(entry.scVal);
+          final threshold = _extractThresholdFromSpec(entry.installSpec);
           final f = await step(
             stepName: base,
             precondition: () => threshold == null
@@ -1061,10 +1113,10 @@ final class ContextRuleFlow {
 
         final fAdd = await step(
           stepName: readdStep,
-          call: () => _contextRuleManager.addPolicyToRule(
+          call: () => _dispatchAddPolicy(
             ruleId: ruleId,
             policyAddress: entry.address,
-            installParams: entry.scVal!,
+            spec: entry.installSpec!,
             selectedSigners: selectedSigners,
           ),
         );

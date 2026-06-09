@@ -163,6 +163,20 @@ class _ContextRuleBuilderScreenState
   final List<StagedSigner> _signers = <StagedSigner>[];
   final List<StagedPolicy> _policies = <StagedPolicy>[];
 
+  // Decimal scale of the rule's guarded token, used by the policy section to
+  // convert a spending-limit amount to base units. Resolved whenever the
+  // context type / guarded contract changes; native and non-token rules use
+  // [nativeTokenDecimals] without a network call.
+  int _spendingLimitDecimals = nativeTokenDecimals;
+  String? _spendingLimitDecimalsError;
+  int _spendingLimitDecimalsToken = 0;
+
+  // Placeholder install params used only when adapting an unchanged original
+  // policy into the display/removal [StagedPolicy] shape; the value is never
+  // read on the removal path.
+  static const OZPolicyInstallParams _removalPlaceholderParams =
+      OZSimpleThresholdPolicyParams(threshold: 1);
+
   // ---- Edit-mode state ----
 
   String _originalName = '';
@@ -223,6 +237,7 @@ class _ContextRuleBuilderScreenState
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         unawaited(_loadCreateAvailableSigners());
+        unawaited(_resolveSpendingLimitDecimals());
       });
     }
   }
@@ -279,6 +294,10 @@ class _ContextRuleBuilderScreenState
     setState(() {
       _isLoadingRule = false;
     });
+
+    // The loaded rule's context type / guarded contract is now in place;
+    // resolve the spending-limit decimals for the inline policy editor.
+    unawaited(_resolveSpendingLimitDecimals());
   }
 
   Future<void> _populateFromParsed(
@@ -340,9 +359,18 @@ class _ContextRuleBuilderScreenState
           );
       PolicyParams? params;
       if (known != null) {
+        // Derive the guarded token for spending-limit decimal resolution:
+        // the call-contract target, or null for default / create-contract rules.
+        String? guardedToken;
+        final ct = parsed.contextType;
+        if (ct is OZContextRuleTypeCallContract) {
+          final trimmed = ct.contractAddress.trim();
+          if (trimmed.isNotEmpty) guardedToken = trimmed;
+        }
         params = await flow.readPolicyParams(
           policyAddress: addr,
           ruleId: parsed.id,
+          guardedToken: guardedToken,
         );
         if (!mounted) return;
       }
@@ -422,7 +450,10 @@ class _ContextRuleBuilderScreenState
       result.add(StagedPolicy(
         info: info,
         label: entry.label,
-        scVal: entry.scVal ?? XdrSCVal.forVoid(),
+        // This adapter feeds the removal/display row only. The installParams
+        // field is never read on that path; a benign placeholder satisfies
+        // the required non-null contract.
+        installParams: _removalPlaceholderParams,
       ));
     }
     return result;
@@ -530,6 +561,41 @@ class _ContextRuleBuilderScreenState
     });
   }
 
+  /// The token contract a spending-limit policy on this rule would guard:
+  /// the call-contract target, or null for default / create-contract rules.
+  String? get _spendingLimitGuardedToken {
+    if (_contextType != _ContextTypeOption.callContract) return null;
+    final trimmed = _contractAddress.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  /// Resolves [_spendingLimitDecimals] for the current guarded token.
+  ///
+  /// Native XLM and non-token rules resolve to [nativeTokenDecimals] without
+  /// a network call. A custom guarded token's `decimals()` value is fetched
+  /// via the flow. A fetch failure is surfaced through
+  /// [_spendingLimitDecimalsError] and leaves the stored decimals unchanged
+  /// so the gated Add button prevents converting an amount with the wrong
+  /// scale. A monotonic token guards against a stale late response
+  /// overwriting a newer resolution.
+  Future<void> _resolveSpendingLimitDecimals() async {
+    final flow = _flow;
+    if (flow == null) return;
+    final guardedToken = _spendingLimitGuardedToken;
+    final requestToken = ++_spendingLimitDecimalsToken;
+    setState(() => _spendingLimitDecimalsError = null);
+    try {
+      final resolved = await flow.resolveSpendingLimitDecimals(guardedToken);
+      if (!mounted || requestToken != _spendingLimitDecimalsToken) return;
+      setState(() => _spendingLimitDecimals = resolved);
+    } catch (e) {
+      if (!mounted || requestToken != _spendingLimitDecimalsToken) return;
+      final message = classifyError(e).message;
+      setState(() => _spendingLimitDecimalsError =
+          'Could not read token decimals for the guarded contract: $message');
+    }
+  }
+
   String? _addPolicy(StagedPolicy policy) {
     final currentCount =
         _isEditMode ? _editPolicyEntries.length : _policies.length;
@@ -545,13 +611,19 @@ class _ContextRuleBuilderScreenState
     setState(() {
       _policies.add(policy);
       if (_isEditMode) {
+        // Convert the create-path typed params to an edit-path PolicyInstallSpec
+        // so the flow can call the correct SDK convenience method at submit.
+        final spec = _installParamsToSpec(
+          policy.installParams,
+          decimals: _spendingLimitDecimals,
+        );
         _editPolicyEntries = [
           ..._editPolicyEntries,
           EditPolicyEntry(
             info: policy.info,
             label: policy.label,
             address: policy.address,
-            scVal: policy.scVal,
+            installSpec: spec,
             onChainId: null,
             isOriginal: false,
           ),
@@ -571,6 +643,46 @@ class _ContextRuleBuilderScreenState
         ];
       }
     });
+  }
+
+  /// Converts a CREATE-path [OZPolicyInstallParams] to an edit-path
+  /// [PolicyInstallSpec] so the orchestrator can call the correct SDK
+  /// convenience method without going through [OZPolicyInstallParams.toScVal].
+  ///
+  /// Spending-limit conversion uses [decimals] as the token scale; the caller
+  /// should pass the currently resolved [_spendingLimitDecimals]. Returns null
+  /// when [params] is null or an unrecognised subtype.
+  PolicyInstallSpec? _installParamsToSpec(
+    OZPolicyInstallParams? params, {
+    required int decimals,
+  }) {
+    if (params == null) return null;
+    if (params is OZSimpleThresholdPolicyParams) {
+      return PolicyInstallSpecSimpleThreshold(threshold: params.threshold);
+    }
+    if (params is OZWeightedThresholdPolicyParams) {
+      final entries = params.signerWeights.entries
+          .map((e) => PolicyWeightedEntry(signer: e.key, weight: e.value))
+          .toList();
+      return PolicyInstallSpecWeightedThreshold(
+        entries: entries,
+        threshold: params.threshold,
+      );
+    }
+    if (params is OZSpendingLimitPolicyParams) {
+      // Reverse the base-units amount to a decimal string at the current
+      // guarded-token scale so the flow can forward it to addSpendingLimit.
+      final amountStr = formatBaseUnitsAsDecimal(
+        params.spendingLimit,
+        decimals: decimals,
+      );
+      return PolicyInstallSpecSpendingLimit(
+        amount: amountStr,
+        decimals: decimals,
+        periodLedgers: params.periodLedgers,
+      );
+    }
+    return null;
   }
 
   /// Replaces an existing edit-mode policy entry by address. Used by the
@@ -944,7 +1056,7 @@ class _ContextRuleBuilderScreenState
 
       final flowPolicies = [
         for (final p in _policies)
-          FlowPolicyEntry(address: p.address, scVal: p.scVal),
+          FlowPolicyEntry(address: p.address, installParams: p.installParams),
       ];
       final flowSigners = <OZSmartAccountSigner>[
         for (final s in _signers) s.signer,
@@ -1122,12 +1234,14 @@ class _ContextRuleBuilderScreenState
                 _contractAddress = config.nativeTokenContract;
               }
             });
+            unawaited(_resolveSpendingLimitDecimals());
           },
           onContractChanged: (addr) {
             setState(() {
               _contractAddress = addr;
               _fieldErrors.remove('contractAddress');
             });
+            unawaited(_resolveSpendingLimitDecimals());
           },
           onWasmChanged: () {
             if (_fieldErrors.containsKey('wasmHash')) {
@@ -1190,6 +1304,8 @@ class _ContextRuleBuilderScreenState
           fieldError: _fieldErrors['policies'],
           isSubmitting: _isSubmitting,
           maxPolicies: ContextRuleBuilderLimits.maxPolicies,
+          spendingLimitDecimals: _spendingLimitDecimals,
+          spendingLimitDecimalsError: _spendingLimitDecimalsError,
           onAddPolicy: _addPolicy,
           onRemovePolicy: _removePolicy,
           editEntries: _isEditMode ? _editPolicyEntries : null,

@@ -30,6 +30,7 @@ final class MockTransactionOperations implements TransactionOperationsType {
   String? lastTokenContract;
   String? lastRecipient;
   String? lastAmount;
+  int? lastDecimals;
   int callCount = 0;
 
   @override
@@ -37,11 +38,13 @@ final class MockTransactionOperations implements TransactionOperationsType {
     required String tokenContract,
     required String recipient,
     required String amount,
+    int? decimals,
   }) async {
     callCount++;
     lastTokenContract = tokenContract;
     lastRecipient = recipient;
     lastAmount = amount;
+    lastDecimals = decimals;
     final e = error;
     if (e != null) throw e;
     final r = result;
@@ -68,6 +71,7 @@ final class MockMultiSignerManager implements MultiSignerManagerType {
   String? lastTokenContract;
   String? lastRecipient;
   String? lastAmount;
+  int? lastDecimals;
   List<OZSelectedSigner>? lastSelectedSigners;
   int callCount = 0;
 
@@ -77,11 +81,13 @@ final class MockMultiSignerManager implements MultiSignerManagerType {
     required String recipient,
     required String amount,
     required List<OZSelectedSigner> selectedSigners,
+    int? decimals,
   }) async {
     callCount++;
     lastTokenContract = tokenContract;
     lastRecipient = recipient;
     lastAmount = amount;
+    lastDecimals = decimals;
     lastSelectedSigners = selectedSigners;
     final e = error;
     if (e != null) throw e;

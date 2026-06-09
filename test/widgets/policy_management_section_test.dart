@@ -9,7 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_account_demo/config/demo_config.dart'
     show knownPolicies;
 import 'package:smart_account_demo/flows/context_rule_builder_types.dart';
-import 'package:smart_account_demo/util/policy_scval_builders.dart';
+import 'package:smart_account_demo/util/format_utils.dart'
+    show nativeTokenDecimals;
 import 'package:smart_account_demo/widgets/policy_management_section.dart';
 
 import '../flows/context_rule_test_support.dart';
@@ -21,6 +22,8 @@ Future<void> _pump(
   String? fieldError,
   bool isSubmitting = false,
   int maxPolicies = 5,
+  int spendingLimitDecimals = nativeTokenDecimals,
+  String? spendingLimitDecimalsError,
   String? Function(StagedPolicy)? onAddPolicy,
   void Function(StagedPolicy)? onRemovePolicy,
 }) async {
@@ -42,6 +45,8 @@ Future<void> _pump(
             fieldError: fieldError,
             isSubmitting: isSubmitting,
             maxPolicies: maxPolicies,
+            spendingLimitDecimals: spendingLimitDecimals,
+            spendingLimitDecimalsError: spendingLimitDecimalsError,
             onAddPolicy: onAddPolicy ?? (_) => null,
             onRemovePolicy: onRemovePolicy ?? (_) {},
           ),
@@ -152,12 +157,18 @@ void main() {
     });
 
     testWidgets(
-      'Spending Limit form rejects scientific notation and 8+ decimal places',
+      'Spending Limit form rejects more fractional digits than the token '
+      'decimals (7)',
       (tester) async {
+        var captured = 0;
         await _pump(
           tester,
           policies: const <StagedPolicy>[],
           signers: [_stagedDelegated()],
+          onAddPolicy: (_) {
+            captured++;
+            return null;
+          },
         );
         await tester.tap(find.text('Policy Type'));
         await tester.pumpAndSettle();
@@ -170,7 +181,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Eight decimal places must be rejected (Stellar tops out at 7).
+        // Eight decimal places exceed the default native scale (7) and must
+        // be rejected by the base-units conversion.
         await tester.enterText(
           find.widgetWithText(TextField, 'Amount'),
           '99.99999999',
@@ -179,12 +191,173 @@ void main() {
         await tester.tap(find.text('Add Spending Limit Policy'));
         await tester.pumpAndSettle();
 
+        expect(captured, 0);
         expect(
-          find.textContaining(
-            'positive amount with up to 7 decimal places',
-          ),
+          find.textContaining('more than 7 fractional digits'),
           findsAtLeast(1),
         );
+      },
+    );
+
+    testWidgets(
+      'Spending Limit form converts the amount to the token base units',
+      (tester) async {
+        StagedPolicy? captured;
+        await _pump(
+          tester,
+          policies: const <StagedPolicy>[],
+          signers: [_stagedDelegated()],
+          // A non-native scale exercises the resolved-decimals conversion.
+          spendingLimitDecimals: 2,
+          onAddPolicy: (p) {
+            captured = p;
+            return null;
+          },
+        );
+        await tester.tap(find.text('Policy Type'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Spending Limit').last);
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Period (days)'),
+          '1',
+        );
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Amount'),
+          '100.5',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Spending Limit Policy'));
+        await tester.pumpAndSettle();
+
+        final params = captured?.installParams;
+        expect(params, isA<OZSpendingLimitPolicyParams>());
+        // 100.5 at 2 decimals == 10050 base units.
+        expect(
+          (params! as OZSpendingLimitPolicyParams).spendingLimit,
+          BigInt.from(10050),
+        );
+      },
+    );
+
+    testWidgets(
+      'Weighted Threshold form rejects a per-signer weight below 1',
+      (tester) async {
+        var captured = 0;
+        await _pump(
+          tester,
+          policies: const <StagedPolicy>[],
+          signers: [_stagedDelegated()],
+          onAddPolicy: (_) {
+            captured++;
+            return null;
+          },
+        );
+        await tester.tap(find.text('Policy Type'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Weighted Threshold').last);
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Weight Threshold'),
+          '1',
+        );
+        await tester.pumpAndSettle();
+        // Weight 0 is below the required minimum of 1.
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Weight'),
+          '0',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Weighted Threshold Policy'));
+        await tester.pumpAndSettle();
+
+        expect(captured, 0);
+        expect(
+          find.text('All signers must have a weight >= 1'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'Weighted Threshold form rejects total weight below the threshold',
+      (tester) async {
+        var captured = 0;
+        await _pump(
+          tester,
+          policies: const <StagedPolicy>[],
+          signers: [_stagedDelegated()],
+          onAddPolicy: (_) {
+            captured++;
+            return null;
+          },
+        );
+        await tester.tap(find.text('Policy Type'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Weighted Threshold').last);
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Weight Threshold'),
+          '5',
+        );
+        await tester.pumpAndSettle();
+        // Single signer weight 2 sums below the threshold of 5.
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Weight'),
+          '2',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Weighted Threshold Policy'));
+        await tester.pumpAndSettle();
+
+        expect(captured, 0);
+        expect(
+          find.text('Total weight (2) must be >= threshold (5)'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'Weighted Threshold form stages a valid weighted policy',
+      (tester) async {
+        StagedPolicy? captured;
+        await _pump(
+          tester,
+          policies: const <StagedPolicy>[],
+          signers: [_stagedDelegated()],
+          onAddPolicy: (p) {
+            captured = p;
+            return null;
+          },
+        );
+        await tester.tap(find.text('Policy Type'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Weighted Threshold').last);
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Weight Threshold'),
+          '2',
+        );
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Weight'),
+          '3',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Weighted Threshold Policy'));
+        await tester.pumpAndSettle();
+
+        final params = captured?.installParams;
+        expect(params, isA<OZWeightedThresholdPolicyParams>());
+        final weighted = params! as OZWeightedThresholdPolicyParams;
+        expect(weighted.threshold, 2);
+        expect(weighted.signerWeights.values.single, 3);
       },
     );
 
@@ -198,7 +371,7 @@ void main() {
             StagedPolicy(
               info: info,
               label: 'Test ${info.name}',
-              scVal: buildSimpleThresholdScVal(threshold: 1),
+              installParams: const OZSimpleThresholdPolicyParams(threshold: 1),
             ),
         ];
         await _pump(
@@ -220,11 +393,10 @@ void main() {
 
   group('PolicyManagementSection — staged rows', () {
     testWidgets('renders policy badge, label, and address', (tester) async {
-      final scVal = buildSimpleThresholdScVal(threshold: 2);
       final staged = StagedPolicy(
         info: knownPolicies.firstWhere((p) => p.type == 'threshold'),
         label: 'Threshold: 2-of-N',
-        scVal: scVal,
+        installParams: const OZSimpleThresholdPolicyParams(threshold: 2),
       );
 
       await _pump(

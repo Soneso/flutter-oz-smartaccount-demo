@@ -10,6 +10,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:smart_account_demo/flows/context_rule_edit_types.dart'
+    show PolicyWeightedEntry;
 import 'package:smart_account_demo/flows/context_rule_flow.dart';
 import 'package:smart_account_demo/flows/transfer_flow.dart'
     show SignerInfo, SignerKind;
@@ -225,16 +227,50 @@ final class MockContextRuleFlowManager
       });
 
   @override
-  Future<OZTransactionResult> addPolicyToRule({
+  Future<OZTransactionResult> addSimpleThresholdToRule({
     required int ruleId,
     required String policyAddress,
-    required XdrSCVal installParams,
+    required int threshold,
     List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
-      _runEditOp('addPolicy', <String, Object?>{
+      _runEditOp('addSimpleThreshold', <String, Object?>{
         'ruleId': ruleId,
         'policyAddress': policyAddress,
-        'installParams': installParams,
+        'threshold': threshold,
+        'selectedSigners': selectedSigners,
+      });
+
+  @override
+  Future<OZTransactionResult> addWeightedThresholdToRule({
+    required int ruleId,
+    required String policyAddress,
+    required List<PolicyWeightedEntry> entries,
+    required int threshold,
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
+  }) =>
+      _runEditOp('addWeightedThreshold', <String, Object?>{
+        'ruleId': ruleId,
+        'policyAddress': policyAddress,
+        'entries': entries,
+        'threshold': threshold,
+        'selectedSigners': selectedSigners,
+      });
+
+  @override
+  Future<OZTransactionResult> addSpendingLimitToRule({
+    required int ruleId,
+    required String policyAddress,
+    required String amount,
+    required int decimals,
+    required int periodLedgers,
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
+  }) =>
+      _runEditOp('addSpendingLimit', <String, Object?>{
+        'ruleId': ruleId,
+        'policyAddress': policyAddress,
+        'amount': amount,
+        'decimals': decimals,
+        'periodLedgers': periodLedgers,
         'selectedSigners': selectedSigners,
       });
 
@@ -313,6 +349,24 @@ final class MockBuilderEnvironment
     final e = getLedgerError;
     if (e != null) throw e;
     return currentLedger;
+  }
+
+  /// Decimals returned by [fetchTokenDecimals] for a custom guarded token.
+  int tokenDecimals = 7;
+
+  /// Optional error to throw on the next [fetchTokenDecimals] call.
+  Object? fetchTokenDecimalsError;
+
+  int fetchTokenDecimalsCallCount = 0;
+  String? lastFetchTokenDecimalsContract;
+
+  @override
+  Future<int> fetchTokenDecimals(String tokenContract) async {
+    fetchTokenDecimalsCallCount++;
+    lastFetchTokenDecimalsContract = tokenContract;
+    final e = fetchTokenDecimalsError;
+    if (e != null) throw e;
+    return tokenDecimals;
   }
 
   /// Map from `policyAddress` to the [XdrSCVal] this mock returns for a

@@ -16,14 +16,16 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:smart_account_demo/config/demo_config.dart' as config;
 import 'package:smart_account_demo/flows/context_rule_builder_types.dart'
     show FlowPolicyEntry;
 import 'package:smart_account_demo/flows/context_rule_flow.dart';
+import 'package:smart_account_demo/util/format_utils.dart'
+    show nativeTokenDecimals;
 import 'package:smart_account_demo/flows/ed25519_signer_identity.dart';
 import 'package:smart_account_demo/state/activity_log_state.dart';
 import 'package:smart_account_demo/util/error_utils.dart'
     show DemoError, DemoErrorCategory;
-import 'package:smart_account_demo/util/policy_scval_builders.dart';
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
 import 'context_rule_test_support.dart';
@@ -83,8 +85,6 @@ void main() {
         environment: MockBuilderEnvironment(),
       );
 
-      final scVal = buildSimpleThresholdScVal(threshold: 2);
-
       final result = await deps.flow.addContextRule(
         contextType: const OZContextRuleTypeDefault(),
         name: 'MultiSig',
@@ -93,10 +93,10 @@ void main() {
           OZDelegatedSigner(fixtureDelegatedAddress2),
         ],
         policies: [
-          FlowPolicyEntry(
+          const FlowPolicyEntry(
             address:
                 'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC',
-            scVal: scVal,
+            installParams: OZSimpleThresholdPolicyParams(threshold: 2),
           ),
         ],
         selectedSigners: const <OZSelectedSigner>[
@@ -190,7 +190,7 @@ void main() {
           FlowPolicyEntry(
             address:
                 'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC',
-            scVal: null,
+            installParams: null,
           ),
         ],
       );
@@ -409,6 +409,68 @@ void main() {
       final resolved = await deps.flow.resolveAbsoluteLedger(0);
       expect(resolved, isNull);
       expect(env.getCurrentLedgerCallCount, 0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // resolveSpendingLimitDecimals
+  // ---------------------------------------------------------------------------
+
+  group('ContextRuleFlow.resolveSpendingLimitDecimals', () {
+    const customToken =
+        'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC';
+
+    test('null guarded token resolves to native decimals without a fetch',
+        () async {
+      final env = MockBuilderEnvironment();
+      final deps = ContextRuleFixtures.makeFlowWithDeps(environment: env);
+
+      final resolved = await deps.flow.resolveSpendingLimitDecimals(null);
+      expect(resolved, nativeTokenDecimals);
+      expect(env.fetchTokenDecimalsCallCount, 0);
+    });
+
+    test('native token resolves to native decimals without a fetch', () async {
+      final env = MockBuilderEnvironment();
+      final deps = ContextRuleFixtures.makeFlowWithDeps(environment: env);
+
+      final resolved = await deps.flow
+          .resolveSpendingLimitDecimals(config.nativeTokenContract);
+      expect(resolved, nativeTokenDecimals);
+      expect(env.fetchTokenDecimalsCallCount, 0);
+    });
+
+    test('custom guarded token fetches the on-chain decimals', () async {
+      final env = MockBuilderEnvironment()..tokenDecimals = 6;
+      final deps = ContextRuleFixtures.makeFlowWithDeps(environment: env);
+
+      final resolved =
+          await deps.flow.resolveSpendingLimitDecimals(customToken);
+      expect(resolved, 6);
+      expect(env.fetchTokenDecimalsCallCount, 1);
+      expect(env.lastFetchTokenDecimalsContract, customToken);
+    });
+
+    test('malformed guarded token falls back to native decimals', () async {
+      final env = MockBuilderEnvironment();
+      final deps = ContextRuleFixtures.makeFlowWithDeps(environment: env);
+
+      final resolved =
+          await deps.flow.resolveSpendingLimitDecimals('not-an-address');
+      expect(resolved, nativeTokenDecimals);
+      expect(env.fetchTokenDecimalsCallCount, 0);
+    });
+
+    test('a fetch failure propagates so the caller can gate the form',
+        () async {
+      final env = MockBuilderEnvironment()
+        ..fetchTokenDecimalsError = StateError('rpc down');
+      final deps = ContextRuleFixtures.makeFlowWithDeps(environment: env);
+
+      await expectLater(
+        deps.flow.resolveSpendingLimitDecimals(customToken),
+        throwsA(isA<StateError>()),
+      );
     });
   });
 
@@ -685,8 +747,8 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('ContextRuleFlow.addContextRule — policy SCVal round-trip', () {
-    test('FlowPolicyEntry.scVal is forwarded into the manager.policies map '
-        'unchanged', () async {
+    test('FlowPolicyEntry.installParams is encoded into the manager.policies '
+        'map', () async {
       final mgr = MockContextRuleFlowManager()
         ..addResult = OZTransactionResult(success: true, hash: 'policyhash');
       final deps = ContextRuleFixtures.makeFlowWithDeps(
@@ -694,7 +756,6 @@ void main() {
         environment: MockBuilderEnvironment(),
       );
 
-      final scVal = buildSimpleThresholdScVal(threshold: 3);
       const policyAddress =
           'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC';
 
@@ -703,18 +764,23 @@ void main() {
         name: 'PolicyRule',
         signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
         policies: [
-          FlowPolicyEntry(address: policyAddress, scVal: scVal),
+          const FlowPolicyEntry(
+            address: policyAddress,
+            installParams: OZSimpleThresholdPolicyParams(threshold: 3),
+          ),
         ],
       );
 
       expect(mgr.lastAddedPolicies?.length, 1);
-      expect(mgr.lastAddedPolicies?[policyAddress], isNotNull);
-      // SCVal equality is by reference here — the flow must forward the
-      // exact instance, not re-encode it.
-      expect(
-        identical(mgr.lastAddedPolicies?[policyAddress], scVal),
-        isTrue,
-      );
+      final encoded = mgr.lastAddedPolicies?[policyAddress];
+      expect(encoded, isNotNull);
+      // The flow encodes the typed params to the on-chain
+      // `{ symbol("threshold"): u32(3) }` map.
+      final entries = encoded!.map;
+      expect(entries, isNotNull);
+      expect(entries!.length, 1);
+      expect(entries.first.key.sym, 'threshold');
+      expect(entries.first.val.u32?.uint32, 3);
     });
   });
 

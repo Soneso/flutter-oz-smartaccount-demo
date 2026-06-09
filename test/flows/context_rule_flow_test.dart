@@ -17,13 +17,17 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_account_demo/config/demo_config.dart' show PolicyInfo;
+import 'package:smart_account_demo/flows/context_rule_edit_types.dart'
+    show
+        PolicyInstallSpec,
+        PolicyInstallSpecSpendingLimit,
+        PolicyWeightedEntry;
 import 'package:smart_account_demo/flows/context_rule_flow.dart';
 import 'package:smart_account_demo/flows/transfer_flow.dart' show SignerKind;
 import 'package:smart_account_demo/state/activity_log_state.dart';
 import 'package:smart_account_demo/state/demo_state.dart';
 import 'package:smart_account_demo/util/error_utils.dart'
     show DemoError, DemoErrorCategory;
-import 'package:smart_account_demo/util/policy_scval_builders.dart';
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
 import 'context_rule_test_support.dart';
@@ -82,7 +86,7 @@ const PolicyInfo _spendingInfo = PolicyInfo(
 
 EditPolicyEntry _thresholdPolicyEntry({
   required int? onChainId,
-  required XdrSCVal? scVal,
+  PolicyInstallSpec? installSpec,
   bool modified = false,
   bool isOriginal = true,
 }) {
@@ -92,14 +96,14 @@ EditPolicyEntry _thresholdPolicyEntry({
     address: _thresholdPolicyAddress,
     onChainId: onChainId,
     isOriginal: isOriginal,
-    scVal: scVal,
+    installSpec: installSpec,
     modified: modified,
   );
 }
 
 EditPolicyEntry _spendingPolicyEntry({
   required int? onChainId,
-  required XdrSCVal? scVal,
+  PolicyInstallSpec? installSpec,
   bool modified = true,
   bool isOriginal = true,
 }) {
@@ -109,7 +113,7 @@ EditPolicyEntry _spendingPolicyEntry({
     address: _spendingPolicyAddress,
     onChainId: onChainId,
     isOriginal: isOriginal,
-    scVal: scVal,
+    installSpec: installSpec,
     modified: modified,
   );
 }
@@ -875,11 +879,19 @@ void main() {
 
         final policy1 = _spendingPolicyEntry(
           onChainId: 100,
-          scVal: buildSimpleThresholdScVal(threshold: 2),
+          installSpec: const PolicyInstallSpecSpendingLimit(
+            amount: '10',
+            decimals: 7,
+            periodLedgers: 17280,
+          ),
         );
         final policy2 = _spendingPolicyEntry(
           onChainId: 200,
-          scVal: buildSimpleThresholdScVal(threshold: 3),
+          installSpec: const PolicyInstallSpecSpendingLimit(
+            amount: '20',
+            decimals: 7,
+            periodLedgers: 17280,
+          ),
         );
 
         final diff = _emptyDiff(ruleId: 21).copyWith(
@@ -968,7 +980,7 @@ void main() {
 
         final orphanPolicy = _thresholdPolicyEntry(
           onChainId: null,
-          scVal: null,
+          installSpec: null,
         );
 
         final diff = _emptyDiff(ruleId: 31).copyWith(
@@ -995,7 +1007,7 @@ void main() {
     );
 
     test(
-      'add-policy pre-flight: scVal == null short-circuits the step',
+      'add-policy pre-flight: installSpec == null short-circuits the step',
       () async {
         final mgr = MockContextRuleFlowManager()
           ..editResults['updateValidUntil'] = const OZTransactionResult(
@@ -1006,7 +1018,7 @@ void main() {
 
         final unpreparedPolicy = _thresholdPolicyEntry(
           onChainId: null,
-          scVal: null,
+          installSpec: null,
           isOriginal: false,
         );
 
@@ -1043,12 +1055,12 @@ void main() {
           );
         final deps = ContextRuleFixtures.makeFlowWithDeps(manager: mgr);
 
-        // Threshold-type policy with a null scVal — the orchestrator passes
-        // it to _extractThresholdFromScVal which returns null for null input
+        // Threshold-type policy with null install params — the orchestrator
+        // passes it to _extractThreshold which returns null for null input
         // and the precondition trips.
         final brokenThresholdPolicy = _thresholdPolicyEntry(
           onChainId: 500,
-          scVal: null,
+          installSpec: null,
           modified: true,
         );
 
@@ -1093,7 +1105,11 @@ void main() {
         // first of the two pre-flight checks (the remove-step short-circuit).
         final brokenPolicy = _spendingPolicyEntry(
           onChainId: null,
-          scVal: buildSimpleThresholdScVal(threshold: 1),
+          installSpec: const PolicyInstallSpecSpendingLimit(
+            amount: '10',
+            decimals: 7,
+            periodLedgers: 17280,
+          ),
         );
 
         final diff = _emptyDiff(ruleId: 41).copyWith(
@@ -1124,14 +1140,14 @@ void main() {
             reason: 'no hash may be appended for either tx in the iteration');
         expect(mgr.editCallCounts['removePolicy'], isNull,
             reason: 'remove must not execute');
-        expect(mgr.editCallCounts['addPolicy'], isNull,
+        expect(mgr.editCallCounts['addSpendingLimit'], isNull,
             reason: 're-add must be skipped when remove is skipped');
         expect(mgr.editCallCounts['updateValidUntil'], isNull,
             reason: 'downstream step must be skipped');
 
-        // And again with the other pre-flight: scVal == null while
-        // onChainId is set. Current behaviour: the scVal precondition trips
-        // and the failed step is the re-add half ("(re-add)"). Both txs
+        // And again with the other pre-flight: installSpec == null while
+        // onChainId is set. Current behaviour: the installSpec precondition
+        // trips and the failed step is the re-add half ("(re-add)"). Both txs
         // are still skipped.
         final mgr2 = MockContextRuleFlowManager()
           ..editResults['updateValidUntil'] = const OZTransactionResult(
@@ -1142,7 +1158,7 @@ void main() {
 
         final brokenPolicy2 = _spendingPolicyEntry(
           onChainId: 700,
-          scVal: null,
+          installSpec: null,
         );
 
         final diff2 = _emptyDiff(ruleId: 42).copyWith(
@@ -1164,8 +1180,8 @@ void main() {
         expect(result2.totalOperations, 3);
         expect(result2.transactionHashes, isEmpty);
         expect(mgr2.editCallCounts['removePolicy'], isNull,
-            reason: 'scVal precondition must short-circuit remove too');
-        expect(mgr2.editCallCounts['addPolicy'], isNull);
+            reason: 'installSpec precondition must short-circuit remove too');
+        expect(mgr2.editCallCounts['addSpendingLimit'], isNull);
         expect(mgr2.editCallCounts['updateValidUntil'], isNull);
       },
     );
@@ -1190,6 +1206,8 @@ final class _SequentialMockManager implements ContextRuleFlowManagerType {
   final List<OZTransactionResult> addPolicyResults;
 
   int removePolicyCalls = 0;
+  // Counts addSpendingLimitToRule calls (the dispatch path for spending-limit
+  // PolicyInstallSpecSpendingLimit entries used in the loop-iteration tests).
   int addPolicyCalls = 0;
 
   Never _notUsed(String name) => throw UnimplementedError(
@@ -1294,16 +1312,37 @@ final class _SequentialMockManager implements ContextRuleFlowManagerType {
   }
 
   @override
-  Future<OZTransactionResult> addPolicyToRule({
+  Future<OZTransactionResult> addSimpleThresholdToRule({
     required int ruleId,
     required String policyAddress,
-    required XdrSCVal installParams,
+    required int threshold,
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
+  }) =>
+      _notUsed('addSimpleThresholdToRule');
+
+  @override
+  Future<OZTransactionResult> addWeightedThresholdToRule({
+    required int ruleId,
+    required String policyAddress,
+    required List<PolicyWeightedEntry> entries,
+    required int threshold,
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
+  }) =>
+      _notUsed('addWeightedThresholdToRule');
+
+  @override
+  Future<OZTransactionResult> addSpendingLimitToRule({
+    required int ruleId,
+    required String policyAddress,
+    required String amount,
+    required int decimals,
+    required int periodLedgers,
     List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) async {
     final i = addPolicyCalls++;
     if (i >= addPolicyResults.length) {
       throw StateError(
-        '_SequentialMockManager: addPolicyToRule called more times '
+        '_SequentialMockManager: addSpendingLimitToRule called more times '
         '(${i + 1}) than results were configured '
         '(${addPolicyResults.length}).',
       );

@@ -15,7 +15,6 @@ import 'package:flutter/services.dart';
 
 import '../../config/demo_config.dart' show PolicyInfo;
 import '../../flows/context_rule_builder_types.dart';
-import '../../util/policy_scval_builders.dart';
 import '../../util/signer_type_label.dart';
 import 'threshold_add_form.dart' show PolicyContractRow;
 
@@ -105,7 +104,7 @@ class _WeightedThresholdAddFormState extends State<WeightedThresholdAddForm> {
       weightsErr = 'Add signers before configuring weights';
     }
 
-    final weightEntries = <({XdrSCVal signer, int weight})>[];
+    final signerWeights = <OZSmartAccountSigner, int>{};
     var totalWeight = 0;
 
     if (weightsErr == null) {
@@ -117,7 +116,7 @@ class _WeightedThresholdAddFormState extends State<WeightedThresholdAddForm> {
           break;
         }
         totalWeight += w;
-        weightEntries.add((signer: s.signer.toScVal(), weight: w));
+        signerWeights[s.signer] = w;
       }
     }
 
@@ -136,21 +135,13 @@ class _WeightedThresholdAddFormState extends State<WeightedThresholdAddForm> {
       return;
     }
 
-    XdrSCVal scVal;
-    try {
-      scVal = buildWeightedThresholdScVal(
-        weights: weightEntries,
-        threshold: threshold!,
-      );
-    } catch (e) {
-      setState(() => _weightsError = e.toString());
-      return;
-    }
-
     final staged = StagedPolicy(
       info: widget.policy,
       label: 'Weighted: threshold=$threshold',
-      scVal: scVal,
+      installParams: OZWeightedThresholdPolicyParams(
+        signerWeights: signerWeights,
+        threshold: threshold!,
+      ),
     );
     final addError = widget.onAddPolicy(staged);
     if (addError != null) {

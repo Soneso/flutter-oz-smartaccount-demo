@@ -596,7 +596,13 @@ final class ApproveFlow {
     final smartAccount = _demoState.currentState.contractId;
     if (smartAccount == null) return null;
 
-    final stroops = Util.toXdrInt64Amount(amount);
+    // The Approve screen grants an allowance on the DEMO token, which uses
+    // the native 7-decimal scale, so convert with the known decimals rather
+    // than an on-chain decimals() read.
+    final baseUnits = OZTransactionOperations.amountToBaseUnits(
+      amount,
+      decimals: nativeTokenDecimals,
+    );
     final spenderScVal = _addressScVal(spenderAddress);
 
     // Resolve the offset → absolute ledger sequence. The screen layer
@@ -609,7 +615,7 @@ final class ApproveFlow {
     return <XdrSCVal>[
       XdrSCVal.forAddress(Address.forContractId(smartAccount).toXdr()),
       spenderScVal,
-      Util.stroopsToI128ScVal(stroops),
+      Util.bigIntToI128ScVal(baseUnits),
       XdrSCVal.forU32(absolute),
     ];
   }

@@ -39,8 +39,10 @@ class PolicyManagementSection extends StatefulWidget {
     required this.fieldError,
     required this.isSubmitting,
     required this.maxPolicies,
+    required this.spendingLimitDecimals,
     required this.onAddPolicy,
     required this.onRemovePolicy,
+    this.spendingLimitDecimalsError,
     this.editEntries,
     this.onEditEntryUpdated,
     super.key,
@@ -61,6 +63,15 @@ class PolicyManagementSection extends StatefulWidget {
 
   /// Maximum number of policies permitted on a rule (OZ contract limit).
   final int maxPolicies;
+
+  /// Decimal scale of the rule's guarded token, threaded into the
+  /// spending-limit add form and the inline spending-limit edit form so an
+  /// entered amount is converted to base units with the correct precision.
+  final int spendingLimitDecimals;
+
+  /// Non-null when the parent could not resolve the guarded token's decimals;
+  /// disables the spending-limit Add button and surfaces the message.
+  final String? spendingLimitDecimalsError;
 
   /// Called when the user successfully adds a new policy. Returns null on
   /// success or an error message string when the policy cannot be added.
@@ -139,6 +150,7 @@ class _PolicyManagementSectionState extends State<PolicyManagementSection> {
             colorScheme: colorScheme,
             textTheme: textTheme,
             isSubmitting: widget.isSubmitting,
+            spendingLimitDecimals: widget.spendingLimitDecimals,
             onRemove: (entry) {
               widget.onRemovePolicy(_adaptEditEntry(entry));
               _announcePolicyRemoved();
@@ -205,7 +217,10 @@ class _PolicyManagementSectionState extends State<PolicyManagementSection> {
     return StagedPolicy(
       info: info,
       label: entry.label,
-      scVal: entry.scVal ?? XdrSCVal.forVoid(),
+      // This adapter feeds the removal handler only; install params are never
+      // read on that path. A benign placeholder satisfies the required
+      // non-null contract.
+      installParams: const OZSimpleThresholdPolicyParams(threshold: 1),
     );
   }
 
@@ -238,6 +253,8 @@ class _PolicyManagementSectionState extends State<PolicyManagementSection> {
           key: const ValueKey<String>(PolicyType.spendingLimit),
           policy: type,
           isSubmitting: widget.isSubmitting,
+          decimals: widget.spendingLimitDecimals,
+          decimalsError: widget.spendingLimitDecimalsError,
           onAddPolicy: widget.onAddPolicy,
           onAddSucceeded: _onAddSucceeded,
         );
@@ -573,6 +590,7 @@ class _EditPoliciesList extends StatelessWidget {
     required this.colorScheme,
     required this.textTheme,
     required this.isSubmitting,
+    required this.spendingLimitDecimals,
     required this.onRemove,
     required this.onEntryUpdated,
   });
@@ -581,6 +599,7 @@ class _EditPoliciesList extends StatelessWidget {
   final ColorScheme colorScheme;
   final TextTheme textTheme;
   final bool isSubmitting;
+  final int spendingLimitDecimals;
   final void Function(EditPolicyEntry entry) onRemove;
   final void Function(EditPolicyEntry entry) onEntryUpdated;
 
@@ -611,6 +630,7 @@ class _EditPoliciesList extends StatelessWidget {
             colorScheme: colorScheme,
             textTheme: textTheme,
             isSubmitting: isSubmitting,
+            spendingLimitDecimals: spendingLimitDecimals,
             onRemove: () => onRemove(entry),
             onEntryUpdated: onEntryUpdated,
           ),
@@ -627,6 +647,7 @@ class _EditPolicyRow extends StatelessWidget {
     required this.colorScheme,
     required this.textTheme,
     required this.isSubmitting,
+    required this.spendingLimitDecimals,
     required this.onRemove,
     required this.onEntryUpdated,
   });
@@ -635,6 +656,7 @@ class _EditPolicyRow extends StatelessWidget {
   final ColorScheme colorScheme;
   final TextTheme textTheme;
   final bool isSubmitting;
+  final int spendingLimitDecimals;
   final VoidCallback onRemove;
   final void Function(EditPolicyEntry entry) onEntryUpdated;
 
@@ -733,6 +755,7 @@ class _EditPolicyRow extends StatelessWidget {
             EditPolicyParamsForm(
               entry: entry,
               isSubmitting: isSubmitting,
+              spendingLimitDecimals: spendingLimitDecimals,
               onEntryUpdated: onEntryUpdated,
             ),
         ],

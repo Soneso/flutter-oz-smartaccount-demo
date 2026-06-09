@@ -69,15 +69,41 @@ typedef OZSelectedSignerPasskey = sdk.OZSelectedSignerPasskey;
 /// Re-export of the wallet (G-address) selected-signer variant.
 typedef OZSelectedSignerWallet = sdk.OZSelectedSignerWallet;
 
-/// Re-export of the Soroban SCVal type used as the encoded policy
-/// install-parameter payload. Widgets pass this type through verbatim
-/// after computing it via the policy SCVal builders.
+/// Re-export of the Soroban SCVal type. The builder layer holds policy
+/// install parameters as typed [OZPolicyInstallParams] and only encodes
+/// them to an SCVal at the flow boundary, but a handful of call sites
+/// still pass an SCVal through directly (e.g. read-side void placeholders).
 typedef XdrSCVal = sdk.XdrSCVal;
+
+/// Re-export of the sealed policy install-parameter hierarchy. Add-forms
+/// construct a concrete variant; the flow layer encodes it to an SCVal via
+/// [OZPolicyInstallParams.toScVal] at submit time.
+typedef OZPolicyInstallParams = sdk.OZPolicyInstallParams;
+
+/// Re-export of the simple-threshold policy parameter type.
+typedef OZSimpleThresholdPolicyParams = sdk.OZSimpleThresholdPolicyParams;
+
+/// Re-export of the weighted-threshold policy parameter type.
+typedef OZWeightedThresholdPolicyParams = sdk.OZWeightedThresholdPolicyParams;
+
+/// Re-export of the spending-limit policy parameter type. Its
+/// `spendingLimit` field is a [BigInt] in the token's base units.
+typedef OZSpendingLimitPolicyParams = sdk.OZSpendingLimitPolicyParams;
+
+/// Re-export of [OZTransactionOperations] so the builder layer can call its
+/// static `amountToBaseUnits` converter and the `maxTokenDecimals` cap when
+/// scaling a spending-limit amount to base units.
+typedef OZTransactionOperations = sdk.OZTransactionOperations;
 
 /// Re-export of the WebAuthn cancellation marker exception raised by the
 /// passkey provider when the user dismisses the platform prompt. Widgets
 /// catch this to distinguish a user cancellation from a real failure.
 typedef WebAuthnCancelled = sdk.WebAuthnCancelled;
+
+/// Re-export of the SDK amount/input validation exception. Add-forms catch
+/// it to surface the SDK's field-level reason when converting an amount to
+/// base units fails (excess fractional digits, non-positive, out of range).
+typedef SmartAccountValidationException = sdk.SmartAccountValidationException;
 
 /// Re-export of the SDK credential storage record. Used by the wallet
 /// connection screen to type its pending-credential list without importing
@@ -180,13 +206,14 @@ final class StagedSigner {
 ///
 /// [info] is the canonical metadata (name, type, contract address).
 /// [label] is the human-readable summary shown on the policy card.
-/// [scVal] is the encoded install parameters, computed at add-time.
+/// [installParams] is the typed install parameters configured by the
+/// add-form; the flow layer encodes it to an SCVal at submit time.
 final class StagedPolicy {
   /// Constructs a staged policy record.
   const StagedPolicy({
     required this.info,
     required this.label,
-    required this.scVal,
+    required this.installParams,
   });
 
   /// Policy metadata (type, name, contract address).
@@ -195,8 +222,8 @@ final class StagedPolicy {
   /// Short human-readable description of the configured policy.
   final String label;
 
-  /// Install parameters encoded as an SCVal map.
-  final XdrSCVal scVal;
+  /// Typed install parameters configured for this policy.
+  final OZPolicyInstallParams installParams;
 
   /// Policy contract address shortcut.
   String get address => info.address;
@@ -214,15 +241,16 @@ final class FlowPolicyEntry {
   /// Constructs a flow policy entry.
   const FlowPolicyEntry({
     required this.address,
-    required this.scVal,
+    required this.installParams,
   });
 
   /// Policy contract C-address.
   final String address;
 
-  /// Install parameters encoded as an SCVal map. Null entries are
-  /// rejected by [ContextRuleFlow.addContextRule].
-  final XdrSCVal? scVal;
+  /// Typed install parameters. Null entries are rejected by
+  /// [ContextRuleFlow.addContextRule]; non-null entries are encoded to an
+  /// SCVal via [OZPolicyInstallParams.toScVal] at submit time.
+  final OZPolicyInstallParams? installParams;
 }
 
 // ---------------------------------------------------------------------------

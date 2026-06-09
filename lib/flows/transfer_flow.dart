@@ -135,10 +135,15 @@ final class TransferResult {
 /// Allows unit tests to inject a mock without running real network operations.
 abstract interface class TransactionOperationsType {
   /// Transfers tokens; triggers a WebAuthn ceremony.
+  ///
+  /// [decimals] selects the amount scale: the known native decimals for the
+  /// native token (skipping the on-chain `decimals()` read), or null to let
+  /// the SDK fetch the token's own decimals.
   Future<OZTransactionResult> transfer({
     required String tokenContract,
     required String recipient,
     required String amount,
+    int? decimals,
   });
 }
 
@@ -154,11 +159,13 @@ final class TransactionOperationsAdapter implements TransactionOperationsType {
     required String tokenContract,
     required String recipient,
     required String amount,
+    int? decimals,
   }) {
     return _ops.transfer(
       tokenContract: tokenContract,
       recipient: recipient,
       amount: amount,
+      decimals: decimals,
     );
   }
 }
@@ -171,11 +178,16 @@ final class TransactionOperationsAdapter implements TransactionOperationsType {
 /// [TransferFlow].
 abstract interface class MultiSignerManagerType {
   /// Transfers tokens signed by the explicit [selectedSigners] list.
+  ///
+  /// [decimals] selects the amount scale: the known native decimals for the
+  /// native token (skipping the on-chain `decimals()` read), or null to let
+  /// the SDK fetch the token's own decimals.
   Future<OZTransactionResult> multiSignerTransfer({
     required String tokenContract,
     required String recipient,
     required String amount,
     required List<OZSelectedSigner> selectedSigners,
+    int? decimals,
   });
 }
 
@@ -192,12 +204,14 @@ final class MultiSignerManagerAdapter implements MultiSignerManagerType {
     required String recipient,
     required String amount,
     required List<OZSelectedSigner> selectedSigners,
+    int? decimals,
   }) {
     return _manager.multiSignerTransfer(
       tokenContract: tokenContract,
       recipient: recipient,
       amount: amount,
       selectedSigners: selectedSigners,
+      decimals: decimals,
     );
   }
 }
@@ -336,6 +350,7 @@ final class TransferFlow {
         tokenContract: tokenContract,
         recipient: recipient,
         amount: amount,
+        decimals: _transferDecimals(tokenContract),
       );
 
       if (!result.success) {
@@ -401,6 +416,7 @@ final class TransferFlow {
         recipient: recipient,
         amount: amount,
         selectedSigners: selectedSigners,
+        decimals: _transferDecimals(tokenContract),
       );
 
       if (!result.success) {
@@ -754,6 +770,14 @@ final class TransferFlow {
   // -------------------------------------------------------------------------
   // Private helpers
   // -------------------------------------------------------------------------
+
+  /// Resolves the amount scale to pass to the SDK transfer methods.
+  ///
+  /// Native XLM is fixed at [nativeTokenDecimals], so the demo supplies it
+  /// directly to avoid an extra `decimals()` round trip. For any other token,
+  /// returns null so the SDK fetches the token contract's own decimals.
+  int? _transferDecimals(String tokenContract) =>
+      tokenContract == config.nativeTokenContract ? nativeTokenDecimals : null;
 
   /// Refreshes XLM and DEMO token balances after a successful transfer.
   ///

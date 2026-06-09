@@ -15,6 +15,92 @@ import '../util/policy_type.dart';
 import 'context_rule_builder_types.dart';
 
 // ---------------------------------------------------------------------------
+// PolicyWeightedEntry
+// ---------------------------------------------------------------------------
+
+/// A signer-weight pair staged in the weighted-threshold add form.
+///
+/// Carries the signer object and its assigned vote weight so the edit
+/// flow can forward it to [OZPolicyManager.addWeightedThreshold] without
+/// requiring the screen to encode an SCVal.
+final class PolicyWeightedEntry {
+  /// Constructs a signer-weight pair.
+  const PolicyWeightedEntry({required this.signer, required this.weight});
+
+  /// The signer contributing [weight] votes when it authorises.
+  final OZSmartAccountSigner signer;
+
+  /// Vote weight contributed by the signer. Must be greater than zero.
+  final int weight;
+}
+
+// ---------------------------------------------------------------------------
+// PolicyInstallSpec
+// ---------------------------------------------------------------------------
+
+/// Primitive description of a policy staged in the edit add-policy form.
+///
+/// Carries enough information for the flow layer to call the appropriate
+/// [OZPolicyManager] convenience method (addSimpleThreshold, addWeightedThreshold,
+/// addSpendingLimit) without any SDK-encoded blob crossing the UI/flow boundary.
+///
+/// Only used on the EDIT path (new policies added to an existing rule). The
+/// CREATE path continues to use typed [OZPolicyInstallParams] and encodes via
+/// [OZPolicyInstallParams.toScVal] at submit time.
+sealed class PolicyInstallSpec {
+  const PolicyInstallSpec();
+}
+
+/// Simple-threshold policy: requires [threshold] of the context rule's
+/// signers to authorise. All signers carry equal weight.
+final class PolicyInstallSpecSimpleThreshold extends PolicyInstallSpec {
+  /// Constructs a simple-threshold spec.
+  const PolicyInstallSpecSimpleThreshold({required this.threshold});
+
+  /// Number of signers required to authorise.
+  final int threshold;
+}
+
+/// Weighted-threshold policy: authorisation succeeds when the summed weights
+/// of authorising signers meet or exceed [threshold].
+final class PolicyInstallSpecWeightedThreshold extends PolicyInstallSpec {
+  /// Constructs a weighted-threshold spec.
+  const PolicyInstallSpecWeightedThreshold({
+    required this.entries,
+    required this.threshold,
+  });
+
+  /// Per-signer weight entries.
+  final List<PolicyWeightedEntry> entries;
+
+  /// Minimum aggregate weight required to authorise.
+  final int threshold;
+}
+
+/// Spending-limit policy: caps cumulative spend within a rolling window.
+///
+/// [amount] is the decimal display string the user entered (e.g. `"100.5"`).
+/// [decimals] is the token's scale, resolved before staging.
+/// [periodLedgers] is the already-computed ledger count for the chosen period.
+final class PolicyInstallSpecSpendingLimit extends PolicyInstallSpec {
+  /// Constructs a spending-limit spec.
+  const PolicyInstallSpecSpendingLimit({
+    required this.amount,
+    required this.decimals,
+    required this.periodLedgers,
+  });
+
+  /// Decimal amount string as entered by the user (e.g. `"100.5"`).
+  final String amount;
+
+  /// Decimal scale of the guarded token.
+  final int decimals;
+
+  /// Rolling window size in ledgers.
+  final int periodLedgers;
+}
+
+// ---------------------------------------------------------------------------
 // EditSignerEntry
 // ---------------------------------------------------------------------------
 
@@ -112,7 +198,7 @@ final class EditPolicyEntry {
     required this.address,
     required this.onChainId,
     required this.isOriginal,
-    this.scVal,
+    this.installSpec,
     this.modified = false,
     this.originalParams,
   });
@@ -133,9 +219,12 @@ final class EditPolicyEntry {
   /// True when this policy was loaded from the existing on-chain rule.
   final bool isOriginal;
 
-  /// Encoded install parameters when the user has added a new policy or
-  /// edited an existing one. Null while displaying an unchanged original.
-  final XdrSCVal? scVal;
+  /// Typed primitive install specification when the user has added a new
+  /// policy or edited an existing one. Null while displaying an unchanged
+  /// original. The flow dispatches the correct SDK convenience method
+  /// (addSimpleThreshold / addWeightedThreshold / addSpendingLimit) based on
+  /// the runtime type of this spec at submit time.
+  final PolicyInstallSpec? installSpec;
 
   /// True when the user changed parameters on an existing on-chain policy.
   final bool modified;
@@ -145,15 +234,15 @@ final class EditPolicyEntry {
   final PolicyParams? originalParams;
 
   /// Returns a copy of this entry with selected fields replaced. Pass
-  /// [clearScVal] to set [scVal] back to null.
+  /// [clearInstallSpec] to set [installSpec] back to null.
   EditPolicyEntry copyWith({
     PolicyInfo? info,
     String? label,
     String? address,
     int? onChainId,
     bool? isOriginal,
-    XdrSCVal? scVal,
-    bool clearScVal = false,
+    PolicyInstallSpec? installSpec,
+    bool clearInstallSpec = false,
     bool? modified,
     PolicyParams? originalParams,
   }) {
@@ -163,7 +252,7 @@ final class EditPolicyEntry {
       address: address ?? this.address,
       onChainId: onChainId ?? this.onChainId,
       isOriginal: isOriginal ?? this.isOriginal,
-      scVal: clearScVal ? null : (scVal ?? this.scVal),
+      installSpec: clearInstallSpec ? null : (installSpec ?? this.installSpec),
       modified: modified ?? this.modified,
       originalParams: originalParams ?? this.originalParams,
     );

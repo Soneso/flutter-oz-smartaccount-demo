@@ -1,7 +1,7 @@
 /// Inline form for editing parameters of an existing on-chain policy.
 ///
 /// Renders pre-populated fields for the relevant policy type. As the user
-/// changes any value, a fresh policy `XdrSCVal` is built and the entry is
+/// changes any value, a fresh [PolicyInstallSpec] is produced and the entry is
 /// reported back to the caller with [EditPolicyEntry.modified] set to
 /// `true`. Reverting all changes flips [EditPolicyEntry.modified] back to
 /// `false` so the parent can suppress the modified-badge.
@@ -14,10 +14,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../flows/context_rule_builder_types.dart'
+    show OZTransactionOperations, SmartAccountValidationException;
 import '../flows/context_rule_edit_types.dart';
 import '../flows/context_rule_flow.dart' show ledgersPerDay;
-import '../util/format_utils.dart';
-import '../util/policy_scval_builders.dart';
 import '../util/policy_type.dart';
 import '../util/semantic_colors.dart';
 import '../util/signer_type_label.dart';
@@ -27,6 +27,11 @@ import 'field_error_text.dart';
 // EditPolicyParamsForm
 // ---------------------------------------------------------------------------
 
+/// Matches a non-negative decimal with an optional single fractional part.
+/// Precision (against the guarded token's decimals) and positivity are
+/// enforced by [OZTransactionOperations.amountToBaseUnits].
+final RegExp _positiveDecimalPattern = RegExp(r'^\d+(\.\d+)?$');
+
 /// Renders an inline edit form for the parameters of an on-chain policy.
 class EditPolicyParamsForm extends StatefulWidget {
   /// Creates an inline policy edit form.
@@ -34,6 +39,7 @@ class EditPolicyParamsForm extends StatefulWidget {
     required this.entry,
     required this.onEntryUpdated,
     required this.isSubmitting,
+    required this.spendingLimitDecimals,
     super.key,
   });
 
@@ -47,6 +53,10 @@ class EditPolicyParamsForm extends StatefulWidget {
 
   /// True while a submission is in flight; disables every input.
   final bool isSubmitting;
+
+  /// Decimal scale of the rule's guarded token, used to convert an edited
+  /// spending-limit amount to base units.
+  final int spendingLimitDecimals;
 
   @override
   State<EditPolicyParamsForm> createState() => _EditPolicyParamsFormState();
@@ -117,20 +127,20 @@ class _EditPolicyParamsFormState extends State<EditPolicyParamsForm> {
       setState(() => _error = 'Must be between 1 and 15');
       // Still report the modified flag based on whether the value diverges
       // from the original — invalid inputs leave the form dirty but the
-      // SCVal stays null so the submit button can detect the issue.
+      // spec stays null so the submit button can detect the issue.
       final changed = value.trim() != (params.threshold?.toString() ?? '');
       widget.onEntryUpdated(
-        widget.entry.copyWith(modified: changed, clearScVal: true),
+        widget.entry.copyWith(modified: changed, clearInstallSpec: true),
       );
       return;
     }
     final changed = parsed != params.threshold;
-    final scVal = buildSimpleThresholdScVal(threshold: parsed);
+    final spec = PolicyInstallSpecSimpleThreshold(threshold: parsed);
     widget.onEntryUpdated(
       widget.entry.copyWith(
         modified: changed,
-        scVal: changed ? scVal : null,
-        clearScVal: !changed,
+        installSpec: changed ? spec : null,
+        clearInstallSpec: !changed,
         label: 'Threshold: $parsed-of-N',
       ),
     );
@@ -146,41 +156,51 @@ class _EditPolicyParamsFormState extends State<EditPolicyParamsForm> {
     final amountStr = _amountController.text.trim();
     final periodStr = _periodDaysController.text.trim();
 
-    final amountValid = stellarDecimalAmountPattern.hasMatch(amountStr);
+    final amountWellFormed =
+        !amountStr.toLowerCase().contains('e') &&
+            _positiveDecimalPattern.hasMatch(amountStr);
     final days = int.tryParse(periodStr);
 
     final amountChanged = amountStr != (params.spendingLimit ?? '');
     final periodChanged = days != params.periodDays;
     final isDirty = amountChanged || periodChanged;
 
-    if (!amountValid || days == null || days < 1) {
-      setState(() => _error =
-          'Must be a positive amount with up to 7 decimal places and >= 1 day');
+    if (!amountWellFormed || days == null || days < 1) {
+      setState(() => _error = 'Must be a positive amount and >= 1 day');
       widget.onEntryUpdated(
-        widget.entry.copyWith(modified: isDirty, clearScVal: true),
+        widget.entry.copyWith(modified: isDirty, clearInstallSpec: true),
       );
       return;
     }
 
-    final stroops = decimalToStroops(amountStr);
-    if (stroops == null || stroops <= 0) {
-      setState(() => _error = 'Must be a positive amount');
+    // Validate the amount via amountToBaseUnits to surface precision errors
+    // (excess fractional digits, non-positive, out of range) before staging.
+    try {
+      OZTransactionOperations.amountToBaseUnits(
+        amountStr,
+        decimals: widget.spendingLimitDecimals,
+      );
+    } on SmartAccountValidationException catch (e) {
+      setState(() => _error = e.message);
       widget.onEntryUpdated(
-        widget.entry.copyWith(modified: isDirty, clearScVal: true),
+        widget.entry.copyWith(modified: isDirty, clearInstallSpec: true),
       );
       return;
     }
 
+    // Pass the decimal string + decimals to the spec so the flow can forward
+    // them to policyManager.addSpendingLimit which handles the conversion.
     final periodLedgers = days * ledgersPerDay;
-    final scVal = buildSpendingLimitScVal(
-      limit: stroops,
+    final spec = PolicyInstallSpecSpendingLimit(
+      amount: amountStr,
+      decimals: widget.spendingLimitDecimals,
       periodLedgers: periodLedgers,
     );
     widget.onEntryUpdated(
       widget.entry.copyWith(
         modified: isDirty,
-        scVal: isDirty ? scVal : null,
-        clearScVal: !isDirty,
+        installSpec: isDirty ? spec : null,
+        clearInstallSpec: !isDirty,
         label: 'Limit: $amountStr / $days day(s)',
       ),
     );

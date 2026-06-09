@@ -23,8 +23,14 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_account_demo/config/demo_config.dart' show PolicyInfo;
+import 'package:smart_account_demo/flows/context_rule_edit_types.dart';
+import 'package:smart_account_demo/flows/context_rule_edit_types.dart'
+    show
+        PolicyInstallSpecSimpleThreshold,
+        PolicyInstallSpecSpendingLimit,
+        PolicyInstallSpecWeightedThreshold,
+        PolicyWeightedEntry;
 import 'package:smart_account_demo/flows/context_rule_flow.dart';
-import 'package:smart_account_demo/util/policy_scval_builders.dart';
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
 import 'context_rule_test_support.dart';
@@ -160,7 +166,7 @@ void main() {
             onChainId: 1,
             isOriginal: true,
             modified: true,
-            scVal: buildSimpleThresholdScVal(threshold: 2),
+            installSpec: const PolicyInstallSpecSimpleThreshold(threshold: 2),
           ),
           EditPolicyEntry(
             info: spendingInfo,
@@ -226,7 +232,7 @@ void main() {
             OZTransactionResult(success: true, hash: 'h-rms')
         ..editResults['addDelegated'] =
             OZTransactionResult(success: true, hash: 'h-add-d')
-        ..editResults['addPolicy'] =
+        ..editResults['addSimpleThreshold'] =
             OZTransactionResult(success: true, hash: 'h-add-p')
         ..editResults['updateValidUntil'] =
             OZTransactionResult(success: true, hash: 'h-exp');
@@ -255,7 +261,7 @@ void main() {
         ),
         label: 'Threshold: 2-of-N',
         address: 'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC',
-        scVal: buildSimpleThresholdScVal(threshold: 2),
+        installSpec: const PolicyInstallSpecSimpleThreshold(threshold: 2),
         onChainId: null,
         isOriginal: false,
       );
@@ -297,8 +303,9 @@ void main() {
         expect(m, 'Updating rule #9...');
       }
       // Verify the manager saw the calls in the documented order.
+      // The simple-threshold policy is dispatched via addSimpleThreshold.
       expect(mgr.editCalls.map((c) => c.op).toList(),
-          ['updateName', 'removeSigner', 'addPolicy']);
+          ['updateName', 'removeSigner', 'addSimpleThreshold']);
     });
   });
 
@@ -328,7 +335,7 @@ void main() {
         ),
         label: 'Threshold: 2-of-N',
         address: 'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC',
-        scVal: buildSimpleThresholdScVal(threshold: 2),
+        installSpec: const PolicyInstallSpecSimpleThreshold(threshold: 2),
         onChainId: null,
         isOriginal: false,
       );
@@ -355,8 +362,8 @@ void main() {
       expect(result.partialDueToAuthGuard, isTrue);
       expect(result.authGuardMessage, isNotNull);
       expect(result.completedOperations, 1);
-      // addPolicy was skipped.
-      expect(mgr.editCallCounts['addPolicy'], isNull);
+      // addSimpleThreshold was skipped due to the auth-guard.
+      expect(mgr.editCallCounts['addSimpleThreshold'], isNull);
     });
   });
 
@@ -471,6 +478,278 @@ void main() {
       expect(params, isNotNull);
       expect(params!.type, 'threshold');
       expect(params.threshold, 3);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Task A: edit-add routing through per-type convenience helpers
+  // ---------------------------------------------------------------------------
+
+  group('submitContextRuleEdits — edit-add routes to convenience helpers', () {
+    test('new simple-threshold policy calls addSimpleThresholdToRule', () async {
+      final mgr = MockContextRuleFlowManager()
+        ..editResults['addSimpleThreshold'] =
+            OZTransactionResult(success: true, hash: 'h-thresh');
+
+      final deps = ContextRuleFixtures.makeFlowWithDeps(
+        manager: mgr,
+        environment: MockBuilderEnvironment(),
+      );
+
+      const policyAddress =
+          'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC';
+      final newPolicy = EditPolicyEntry(
+        info: const PolicyInfo(
+            type: 'threshold',
+            name: 'Threshold',
+            description: '',
+            address: policyAddress),
+        label: 'Threshold: 2-of-N',
+        address: policyAddress,
+        installSpec: const PolicyInstallSpecSimpleThreshold(threshold: 2),
+        onChainId: null,
+        isOriginal: false,
+      );
+      final diff = ContextRuleEditDiff(
+        ruleId: 10,
+        nameChanged: false,
+        newName: null,
+        newSigners: const <EditSignerEntry>[],
+        removedSigners: const <EditSignerEntry>[],
+        newPolicies: [newPolicy],
+        removedPolicies: const <EditPolicyEntry>[],
+        modifiedPolicies: const <EditPolicyEntry>[],
+        expiryChanged: false,
+        newExpiry: null,
+      );
+
+      final result = await deps.flow.submitContextRuleEdits(
+        diff: diff,
+        selectedSigners: const <OZSelectedSigner>[],
+        onProgress: (_) {},
+      );
+
+      expect(result.success, isTrue);
+      expect(result.completedOperations, 1);
+      expect(mgr.editCallCounts['addSimpleThreshold'], 1);
+      // Verify the threshold value was passed through.
+      final call = mgr.editCalls.first;
+      expect(call.op, 'addSimpleThreshold');
+      expect(call.args['threshold'], 2);
+    });
+
+    test('new spending-limit policy calls addSpendingLimitToRule', () async {
+      final mgr = MockContextRuleFlowManager()
+        ..editResults['addSpendingLimit'] =
+            OZTransactionResult(success: true, hash: 'h-sl');
+
+      final deps = ContextRuleFixtures.makeFlowWithDeps(
+        manager: mgr,
+        environment: MockBuilderEnvironment(),
+      );
+
+      const policyAddress =
+          'CBQE7L3UNP5IR4I7IBKLS7NV256WHR5TTH26HTMUIK7WXJC6J64RSE2L';
+      final newPolicy = EditPolicyEntry(
+        info: const PolicyInfo(
+            type: 'spending_limit',
+            name: 'Spending Limit',
+            description: '',
+            address: policyAddress),
+        label: 'Limit: 50 / 1 day(s)',
+        address: policyAddress,
+        installSpec: const PolicyInstallSpecSpendingLimit(
+          amount: '50',
+          decimals: 2,
+          periodLedgers: 17280,
+        ),
+        onChainId: null,
+        isOriginal: false,
+      );
+      final diff = ContextRuleEditDiff(
+        ruleId: 11,
+        nameChanged: false,
+        newName: null,
+        newSigners: const <EditSignerEntry>[],
+        removedSigners: const <EditSignerEntry>[],
+        newPolicies: [newPolicy],
+        removedPolicies: const <EditPolicyEntry>[],
+        modifiedPolicies: const <EditPolicyEntry>[],
+        expiryChanged: false,
+        newExpiry: null,
+      );
+
+      final result = await deps.flow.submitContextRuleEdits(
+        diff: diff,
+        selectedSigners: const <OZSelectedSigner>[],
+        onProgress: (_) {},
+      );
+
+      expect(result.success, isTrue);
+      expect(result.completedOperations, 1);
+      expect(mgr.editCallCounts['addSpendingLimit'], 1);
+      final call = mgr.editCalls.first;
+      expect(call.op, 'addSpendingLimit');
+      expect(call.args['amount'], '50');
+      expect(call.args['decimals'], 2);
+      expect(call.args['periodLedgers'], 17280);
+    });
+
+    test('new weighted-threshold policy calls addWeightedThresholdToRule',
+        () async {
+      final mgr = MockContextRuleFlowManager()
+        ..editResults['addWeightedThreshold'] =
+            OZTransactionResult(success: true, hash: 'h-wt');
+
+      final deps = ContextRuleFixtures.makeFlowWithDeps(
+        manager: mgr,
+        environment: MockBuilderEnvironment(),
+      );
+
+      const policyAddress =
+          'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC';
+      final signer = OZDelegatedSigner(fixtureDelegatedAddress1);
+      final newPolicy = EditPolicyEntry(
+        info: const PolicyInfo(
+            type: 'weighted_threshold',
+            name: 'Weighted',
+            description: '',
+            address: policyAddress),
+        label: 'Weighted: threshold=2',
+        address: policyAddress,
+        installSpec: PolicyInstallSpecWeightedThreshold(
+          entries: [PolicyWeightedEntry(signer: signer, weight: 3)],
+          threshold: 2,
+        ),
+        onChainId: null,
+        isOriginal: false,
+      );
+      final diff = ContextRuleEditDiff(
+        ruleId: 12,
+        nameChanged: false,
+        newName: null,
+        newSigners: const <EditSignerEntry>[],
+        removedSigners: const <EditSignerEntry>[],
+        newPolicies: [newPolicy],
+        removedPolicies: const <EditPolicyEntry>[],
+        modifiedPolicies: const <EditPolicyEntry>[],
+        expiryChanged: false,
+        newExpiry: null,
+      );
+
+      final result = await deps.flow.submitContextRuleEdits(
+        diff: diff,
+        selectedSigners: const <OZSelectedSigner>[],
+        onProgress: (_) {},
+      );
+
+      expect(result.success, isTrue);
+      expect(result.completedOperations, 1);
+      expect(mgr.editCallCounts['addWeightedThreshold'], 1);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Task B: readPolicyParams decimals-aware read
+  // ---------------------------------------------------------------------------
+
+  group('ContextRuleFlow.readPolicyParams — spending-limit decimals', () {
+    // Builds a spending-limit SCVal: Map{spending_limit: I128(baseUnits),
+    // period_ledgers: U32(ledgers)}.
+    XdrSCVal makeSpendingLimitScVal(BigInt baseUnits, int periodLedgers) {
+      return XdrSCVal.forMap(<XdrSCMapEntry>[
+        XdrSCMapEntry(
+          XdrSCVal.forSymbol('spending_limit'),
+          XdrSCVal.forI128BigInt(baseUnits),
+        ),
+        XdrSCMapEntry(
+          XdrSCVal.forSymbol('period_ledgers'),
+          XdrSCVal.forU32(periodLedgers),
+        ),
+      ]);
+    }
+
+    test('formats stored base units using native decimals (7) by default',
+        () async {
+      const policyAddress =
+          'CBQE7L3UNP5IR4I7IBKLS7NV256WHR5TTH26HTMUIK7WXJC6J64RSE2L';
+      final env = MockBuilderEnvironment()
+        ..contractDataValues[policyAddress] =
+            makeSpendingLimitScVal(BigInt.from(10000000), 17280); // 1 XLM
+
+      final deps = ContextRuleFixtures.makeFlowWithDeps(
+        environment: env,
+      );
+
+      final params = await deps.flow.readPolicyParams(
+        policyAddress: policyAddress,
+        ruleId: 1,
+        guardedToken: null, // default rule -> native decimals
+      );
+
+      expect(params, isNotNull);
+      expect(params!.type, 'spending_limit');
+      // 10_000_000 base units at 7 decimals = 1 XLM.
+      expect(params.spendingLimit, '1');
+    });
+
+    test(
+        'formats stored base units using a custom 2-decimal guarded token',
+        () async {
+      const customToken =
+          'CAAQEAYEAUDAOCAJBIFQYDIOB4IBCEQTCQKRMFYYDENBWHA5DYPSBFLM';
+      const policyAddress =
+          'CBQE7L3UNP5IR4I7IBKLS7NV256WHR5TTH26HTMUIK7WXJC6J64RSE2L';
+      // 1050 base units at 2 decimals = "10.5"
+      final env = MockBuilderEnvironment()
+        ..tokenDecimals = 2
+        ..contractDataValues[policyAddress] =
+            makeSpendingLimitScVal(BigInt.from(1050), 17280);
+
+      final deps = ContextRuleFixtures.makeFlowWithDeps(
+        environment: env,
+      );
+
+      final params = await deps.flow.readPolicyParams(
+        policyAddress: policyAddress,
+        ruleId: 1,
+        guardedToken: customToken,
+      );
+
+      expect(params, isNotNull);
+      expect(params!.type, 'spending_limit');
+      // 1050 base units at 2 decimals = "10.5".
+      expect(params.spendingLimit, '10.5');
+      // The decimals fetch was triggered for the custom token.
+      expect(env.fetchTokenDecimalsCallCount, 1);
+      expect(env.lastFetchTokenDecimalsContract, customToken);
+    });
+
+    test(
+        'returns null when decimals fetch fails for a custom guarded token',
+        () async {
+      const customToken =
+          'CAAQEAYEAUDAOCAJBIFQYDIOB4IBCEQTCQKRMFYYDENBWHA5DYPSBFLM';
+      const policyAddress =
+          'CBQE7L3UNP5IR4I7IBKLS7NV256WHR5TTH26HTMUIK7WXJC6J64RSE2L';
+      final env = MockBuilderEnvironment()
+        ..fetchTokenDecimalsError = Exception('network error')
+        ..contractDataValues[policyAddress] =
+            makeSpendingLimitScVal(BigInt.from(1050), 17280);
+
+      final deps = ContextRuleFixtures.makeFlowWithDeps(
+        environment: env,
+      );
+
+      // A failed decimals read must produce null so the inline editor is
+      // omitted rather than pre-populating with a mis-scaled amount.
+      final params = await deps.flow.readPolicyParams(
+        policyAddress: policyAddress,
+        ruleId: 1,
+        guardedToken: customToken,
+      );
+
+      expect(params, isNull);
     });
   });
 

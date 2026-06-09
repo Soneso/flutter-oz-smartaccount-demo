@@ -13,7 +13,6 @@ import 'package:flutter/services.dart';
 import '../../config/demo_config.dart' show PolicyInfo;
 import '../../flows/context_rule_builder_types.dart';
 import '../../util/format_utils.dart';
-import '../../util/policy_scval_builders.dart';
 
 /// Stateful form that gathers a simple threshold (1..15) and submits it
 /// as a [StagedPolicy] for [PolicyInfo.type] equal to
@@ -76,18 +75,10 @@ class _ThresholdAddFormState extends State<ThresholdAddForm> {
       return;
     }
 
-    XdrSCVal scVal;
-    try {
-      scVal = buildSimpleThresholdScVal(threshold: t);
-    } catch (e) {
-      setState(() => _error = e.toString());
-      return;
-    }
-
     final staged = StagedPolicy(
       info: widget.policy,
       label: 'Threshold: $t-of-N',
-      scVal: scVal,
+      installParams: OZSimpleThresholdPolicyParams(threshold: t),
     );
 
     final addError = widget.onAddPolicy(staged);

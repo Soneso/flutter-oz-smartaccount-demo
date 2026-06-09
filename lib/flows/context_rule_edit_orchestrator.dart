@@ -41,13 +41,13 @@ extension _ContextRuleEditOrchestrator on ContextRuleFlow {
 
   /// Combined pre-flight for the non-threshold modified-policy branch.
   ///
-  /// Returns a non-null failure when either `onChainId` or `scVal` is missing
-  /// on [entry] — both inputs are required to run the remove + re-add pair,
-  /// and a missing input must short-circuit the WHOLE iteration so the re-add
-  /// never runs without its remove. The two null branches surface distinct
-  /// `failedStep` strings so the activity log identifies which input was
-  /// missing: `onChainId == null` reports the remove half, `scVal == null`
-  /// reports the re-add half.
+  /// Returns a non-null failure when either `onChainId` or `installSpec` is
+  /// missing on [entry] — both inputs are required to run the remove + re-add
+  /// pair, and a missing input must short-circuit the WHOLE iteration so the
+  /// re-add never runs without its remove. The two null branches surface
+  /// distinct `failedStep` strings so the activity log identifies which input
+  /// was missing: `onChainId == null` reports the remove half,
+  /// `installSpec == null` reports the re-add half.
   ContextRuleEditResult? _modifiedPolicyDualPreflight({
     required EditPolicyEntry entry,
     required String removeStep,
@@ -65,7 +65,7 @@ extension _ContextRuleEditOrchestrator on ContextRuleFlow {
         hashes: hashes,
       );
     }
-    if (entry.scVal == null) {
+    if (entry.installSpec == null) {
       return _editFailure(
         completedOps: completed,
         totalOps: totalOps,
@@ -117,16 +117,16 @@ extension _ContextRuleEditOrchestrator on ContextRuleFlow {
             )
           : null;
 
-  /// Pre-flight failure builder for `scVal` nullability checks on policy
-  /// install steps. Returns null when [scVal] is set.
-  ContextRuleEditResult? _requireScVal(
-    XdrSCVal? scVal,
+  /// Pre-flight failure builder for [PolicyInstallSpec] nullability checks on
+  /// policy install steps. Returns null when [spec] is set.
+  ContextRuleEditResult? _requireInstallSpec(
+    edit_types.PolicyInstallSpec? spec,
     String stepName, {
     required int completed,
     required int totalOps,
     required List<String> hashes,
   }) =>
-      scVal == null
+      spec == null
           ? _editFailure(
               completedOps: completed,
               totalOps: totalOps,
@@ -342,17 +342,50 @@ extension _ContextRuleEditOrchestrator on ContextRuleFlow {
     );
   }
 
-  /// Extracts the threshold value from a `{ symbol("threshold"): U32 }`
-  /// install-params map. Returns null when the input cannot be parsed.
-  int? _extractThresholdFromScVal(XdrSCVal? scVal) {
-    if (scVal == null) return null;
-    final entries = scVal.map;
-    if (entries == null) return null;
-    for (final entry in entries) {
-      final keySymbol = entry.key.sym;
-      if (keySymbol == PolicyType.threshold) {
-        return entry.val.u32?.uint32;
-      }
+  /// Dispatches an add-policy call to the correct typed SDK convenience method
+  /// based on the runtime type of [spec]. Mirrors iOS `dispatchAddPolicy`.
+  Future<OZTransactionResult> _dispatchAddPolicy({
+    required int ruleId,
+    required String policyAddress,
+    required edit_types.PolicyInstallSpec spec,
+    required List<OZSelectedSigner> selectedSigners,
+  }) {
+    if (spec is edit_types.PolicyInstallSpecSimpleThreshold) {
+      return _contextRuleManager.addSimpleThresholdToRule(
+        ruleId: ruleId,
+        policyAddress: policyAddress,
+        threshold: spec.threshold,
+        selectedSigners: selectedSigners,
+      );
+    }
+    if (spec is edit_types.PolicyInstallSpecWeightedThreshold) {
+      return _contextRuleManager.addWeightedThresholdToRule(
+        ruleId: ruleId,
+        policyAddress: policyAddress,
+        entries: spec.entries,
+        threshold: spec.threshold,
+        selectedSigners: selectedSigners,
+      );
+    }
+    if (spec is edit_types.PolicyInstallSpecSpendingLimit) {
+      return _contextRuleManager.addSpendingLimitToRule(
+        ruleId: ruleId,
+        policyAddress: policyAddress,
+        amount: spec.amount,
+        decimals: spec.decimals,
+        periodLedgers: spec.periodLedgers,
+        selectedSigners: selectedSigners,
+      );
+    }
+    // Exhaustive match above covers all sealed subtypes; this is unreachable.
+    throw StateError('Unhandled PolicyInstallSpec subtype: ${spec.runtimeType}');
+  }
+
+  /// Extracts the threshold value from a [PolicyInstallSpecSimpleThreshold]
+  /// spec. Returns null when [spec] is null or not a simple-threshold variant.
+  int? _extractThresholdFromSpec(edit_types.PolicyInstallSpec? spec) {
+    if (spec is edit_types.PolicyInstallSpecSimpleThreshold) {
+      return spec.threshold;
     }
     return null;
   }

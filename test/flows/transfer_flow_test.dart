@@ -984,6 +984,7 @@ final class _SlowTransactionOperations implements TransactionOperationsType {
     required String tokenContract,
     required String recipient,
     required String amount,
+    int? decimals,
   }) {
     return completer.future;
   }

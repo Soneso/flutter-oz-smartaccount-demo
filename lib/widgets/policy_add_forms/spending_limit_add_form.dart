@@ -13,8 +13,6 @@ import 'package:flutter/services.dart';
 import '../../config/demo_config.dart' show PolicyInfo;
 import '../../flows/context_rule_builder_types.dart';
 import '../../flows/context_rule_flow.dart' show ledgersPerDay;
-import '../../util/format_utils.dart';
-import '../../util/policy_scval_builders.dart';
 import 'threshold_add_form.dart' show PolicyContractRow;
 
 /// Stateful form that gathers a per-period spending limit (amount in
@@ -26,8 +24,10 @@ class SpendingLimitAddForm extends StatefulWidget {
   const SpendingLimitAddForm({
     required this.policy,
     required this.isSubmitting,
+    required this.decimals,
     required this.onAddPolicy,
     required this.onAddSucceeded,
+    this.decimalsError,
     super.key,
   });
 
@@ -36,6 +36,16 @@ class SpendingLimitAddForm extends StatefulWidget {
 
   /// True while the parent form is submitting; disables the inputs.
   final bool isSubmitting;
+
+  /// Decimal scale of the rule's guarded token, used to convert the entered
+  /// amount to base units. Resolved by the parent (native decimals for the
+  /// native / default-rule case, the token's own `decimals()` otherwise).
+  final int decimals;
+
+  /// Non-null when the parent could not resolve the guarded token's decimals.
+  /// While set, the Add button is disabled and the message is shown so the
+  /// amount is never scaled with the wrong precision.
+  final String? decimalsError;
 
   /// Called when the user successfully adds a new policy.
   ///
@@ -50,6 +60,11 @@ class SpendingLimitAddForm extends StatefulWidget {
   @override
   State<SpendingLimitAddForm> createState() => _SpendingLimitAddFormState();
 }
+
+/// Matches a non-negative decimal with an optional single fractional part.
+/// Precision (against the guarded token's decimals) and positivity are
+/// enforced by [OZTransactionOperations.amountToBaseUnits].
+final RegExp _positiveDecimalPattern = RegExp(r'^\d+(\.\d+)?$');
 
 class _SpendingLimitAddFormState extends State<SpendingLimitAddForm> {
   final TextEditingController _amountController = TextEditingController();
@@ -70,24 +85,27 @@ class _SpendingLimitAddFormState extends State<SpendingLimitAddForm> {
     String? amountErr;
     String? periodErr;
 
-    // Reject scientific notation and amounts with more than 7 fractional
-    // digits before any numeric parsing. Stellar amounts must fit in
-    // stroop precision (1 XLM = 10_000_000 stroops); accepting a richer
-    // input here would silently lose precision when reduced to integer
-    // stroops.
-    if (!stellarDecimalAmountPattern.hasMatch(amountRaw)) {
-      amountErr = 'Must be a positive amount with up to 7 decimal places';
+    // Reject scientific notation and non-decimal shapes before numeric
+    // parsing. Fractional-precision (relative to the guarded token's
+    // decimals) and range are enforced by amountToBaseUnits below.
+    if (amountRaw.toLowerCase().contains('e') ||
+        !_positiveDecimalPattern.hasMatch(amountRaw)) {
+      amountErr = 'Must be a positive number';
     }
     final days = int.tryParse(periodRaw);
     if (days == null || days < 1) {
       periodErr = 'Must be at least 1 day';
     }
 
-    int? stroops;
+    BigInt? baseUnits;
     if (amountErr == null) {
-      stroops = decimalToStroops(amountRaw);
-      if (stroops == null || stroops <= 0) {
-        amountErr = 'Must be a positive amount with up to 7 decimal places';
+      try {
+        baseUnits = OZTransactionOperations.amountToBaseUnits(
+          amountRaw,
+          decimals: widget.decimals,
+        );
+      } on SmartAccountValidationException catch (e) {
+        amountErr = e.message;
       }
     }
 
@@ -101,24 +119,16 @@ class _SpendingLimitAddFormState extends State<SpendingLimitAddForm> {
 
     final periodLedgers = days! * ledgersPerDay;
 
-    XdrSCVal scVal;
-    try {
-      scVal = buildSpendingLimitScVal(
-        limit: stroops!,
-        periodLedgers: periodLedgers,
-      );
-    } catch (e) {
-      setState(() => _amountError = e.toString());
-      return;
-    }
-
     // Normalise the display label via num.parse so trailing zeros are
     // dropped and the staged row reads "100" not "100.0000000".
     final normalised = num.parse(amountRaw).toString();
     final staged = StagedPolicy(
       info: widget.policy,
       label: 'Limit: $normalised / $days day(s)',
-      scVal: scVal,
+      installParams: OZSpendingLimitPolicyParams(
+        spendingLimit: baseUnits!,
+        periodLedgers: periodLedgers,
+      ),
     );
     final addError = widget.onAddPolicy(staged);
     if (addError != null) {
@@ -204,11 +214,22 @@ class _SpendingLimitAddFormState extends State<SpendingLimitAddForm> {
             ),
           ),
         ],
+        if (widget.decimalsError != null) ...[
+          const SizedBox(height: 6),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              widget.decimalsError!,
+              style: textTheme.bodySmall?.copyWith(color: colorScheme.error),
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: FilledButton(
             onPressed: widget.isSubmitting ||
+                    widget.decimalsError != null ||
                     _amountController.text.trim().isEmpty ||
                     _periodController.text.trim().isEmpty
                 ? null

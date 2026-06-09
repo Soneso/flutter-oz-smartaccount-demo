@@ -3,7 +3,7 @@
 /// Covers:
 /// 1. Renders pre-populated values from [EditPolicyEntry.originalParams].
 /// 2. Editing the threshold value invokes onEntryUpdated with modified=true
-///    and a fresh SCVal.
+///    and fresh install params.
 /// 3. Reverting the value back to the original clears the modified flag.
 /// 4. Spending-limit form rejects invalid amount inputs and keeps the
 ///    modified flag aligned with the user's last edit.
@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_account_demo/config/demo_config.dart' show PolicyInfo;
 import 'package:smart_account_demo/flows/context_rule_edit_types.dart';
+import 'package:smart_account_demo/util/format_utils.dart'
+    show nativeTokenDecimals;
 import 'package:smart_account_demo/widgets/edit_policy_params_form.dart';
 
 const PolicyInfo _thresholdInfo = PolicyInfo(
@@ -58,6 +60,7 @@ void main() {
       entry: entry,
       onEntryUpdated: (_) {},
       isSubmitting: false,
+      spendingLimitDecimals: nativeTokenDecimals,
     )));
     await tester.pump();
 
@@ -66,7 +69,7 @@ void main() {
     expect(find.textContaining('Current on-chain value: 2'), findsOneWidget);
   });
 
-  testWidgets('editing the threshold reports modified=true with new scVal',
+  testWidgets('editing the threshold reports modified=true with install params',
       (tester) async {
     tester.view.physicalSize = const Size(900, 1600);
     tester.view.devicePixelRatio = 1.0;
@@ -89,6 +92,7 @@ void main() {
       entry: entry,
       onEntryUpdated: (e) => captured = e,
       isSubmitting: false,
+      spendingLimitDecimals: nativeTokenDecimals,
     )));
     await tester.pump();
 
@@ -97,7 +101,12 @@ void main() {
 
     expect(captured, isNotNull);
     expect(captured!.modified, isTrue);
-    expect(captured!.scVal, isNotNull);
+    expect(captured!.installSpec, isNotNull);
+    expect(captured!.installSpec, isA<PolicyInstallSpecSimpleThreshold>());
+    expect(
+      (captured!.installSpec! as PolicyInstallSpecSimpleThreshold).threshold,
+      3,
+    );
     expect(captured!.label, 'Threshold: 3-of-N');
   });
 
@@ -123,6 +132,7 @@ void main() {
       entry: entry,
       onEntryUpdated: (e) => captured = e,
       isSubmitting: false,
+      spendingLimitDecimals: nativeTokenDecimals,
     )));
     await tester.pump();
 
@@ -161,6 +171,7 @@ void main() {
       entry: entry,
       onEntryUpdated: (_) {},
       isSubmitting: false,
+      spendingLimitDecimals: nativeTokenDecimals,
     )));
     await tester.pump();
 

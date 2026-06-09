@@ -16,6 +16,7 @@ import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
 import '../config/demo_config.dart' as config;
 import '../util/error_utils.dart';
+import 'context_rule_edit_types.dart' show PolicyWeightedEntry;
 
 // ---------------------------------------------------------------------------
 // ContextRuleFlowManagerType
@@ -89,11 +90,39 @@ abstract interface class ContextRuleFlowManagerType {
     List<OZSelectedSigner> selectedSigners,
   });
 
-  /// Adds a policy with the given install parameters to an existing rule.
-  Future<OZTransactionResult> addPolicyToRule({
+  /// Adds a simple-threshold policy to an existing rule.
+  ///
+  /// Delegates to [OZPolicyManager.addSimpleThreshold]. Used for the
+  /// EDIT "add new policy" and "re-add after remove" paths.
+  Future<OZTransactionResult> addSimpleThresholdToRule({
     required int ruleId,
     required String policyAddress,
-    required XdrSCVal installParams,
+    required int threshold,
+    List<OZSelectedSigner> selectedSigners,
+  });
+
+  /// Adds a weighted-threshold policy to an existing rule.
+  ///
+  /// Delegates to [OZPolicyManager.addWeightedThreshold]. The [entries]
+  /// list is mapped to [OZSignerWeightEntry] inside the production adapter.
+  Future<OZTransactionResult> addWeightedThresholdToRule({
+    required int ruleId,
+    required String policyAddress,
+    required List<PolicyWeightedEntry> entries,
+    required int threshold,
+    List<OZSelectedSigner> selectedSigners,
+  });
+
+  /// Adds a spending-limit policy to an existing rule.
+  ///
+  /// Delegates to [OZPolicyManager.addSpendingLimit]. The SDK converts
+  /// [amount] (decimal string) to base units using [decimals].
+  Future<OZTransactionResult> addSpendingLimitToRule({
+    required int ruleId,
+    required String policyAddress,
+    required String amount,
+    required int decimals,
+    required int periodLedgers,
     List<OZSelectedSigner> selectedSigners,
   });
 
@@ -136,6 +165,10 @@ abstract interface class ContextRuleBuilderEnvironmentType {
 
   /// Returns the current absolute ledger sequence on the network.
   Future<int> getCurrentLedger();
+
+  /// Reads the `decimals()` value of the token contract at [tokenContract]
+  /// via a read-only simulation.
+  Future<int> fetchTokenDecimals(String tokenContract);
 
   /// Reads a persistent contract-data ledger entry from the network.
   ///
@@ -188,6 +221,10 @@ final class ContextRuleBuilderEnvironmentAdapter
       server.close();
     }
   }
+
+  @override
+  Future<int> fetchTokenDecimals(String tokenContract) =>
+      _kit.transactionOperations.fetchTokenDecimals(tokenContract);
 
   @override
   Future<XdrSCVal?> readContractDataValue({
@@ -335,16 +372,56 @@ final class ContextRuleManagerFlowAdapter
       );
 
   @override
-  Future<OZTransactionResult> addPolicyToRule({
+  Future<OZTransactionResult> addSimpleThresholdToRule({
     required int ruleId,
     required String policyAddress,
-    required XdrSCVal installParams,
+    required int threshold,
     List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
-      _policyManager.addPolicy(
+      _policyManager.addSimpleThreshold(
         contextRuleId: ruleId,
         policyAddress: policyAddress,
-        installParams: installParams,
+        threshold: threshold,
+        selectedSigners: selectedSigners,
+      );
+
+  @override
+  Future<OZTransactionResult> addWeightedThresholdToRule({
+    required int ruleId,
+    required String policyAddress,
+    required List<PolicyWeightedEntry> entries,
+    required int threshold,
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
+  }) {
+    // Convert the flat list of [PolicyWeightedEntry] to the Map shape the SDK
+    // expects. Insertion order is preserved so the on-chain encoding is stable.
+    final signerWeights = <OZSmartAccountSigner, int>{
+      for (final e in entries) e.signer: e.weight,
+    };
+    return _policyManager.addWeightedThreshold(
+      contextRuleId: ruleId,
+      policyAddress: policyAddress,
+      signerWeights: signerWeights,
+      threshold: threshold,
+      selectedSigners: selectedSigners,
+    );
+  }
+
+  @override
+  Future<OZTransactionResult> addSpendingLimitToRule({
+    required int ruleId,
+    required String policyAddress,
+    required String amount,
+    required int decimals,
+    required int periodLedgers,
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
+  }) =>
+      _policyManager.addSpendingLimit(
+        contextRuleId: ruleId,
+        policyAddress: policyAddress,
+        spendingLimit: amount,
+        periodLedgers: periodLedgers,
+        decimals: decimals,
         selectedSigners: selectedSigners,
       );
 

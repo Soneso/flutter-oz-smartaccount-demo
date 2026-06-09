@@ -27,33 +27,39 @@ PolicyParams? parseThresholdParams(XdrSCVal value) {
 
 /// Parses a `spending_limit` policy stored value.
 ///
-/// The stored shape is a map containing a `spending_limit` I128 (stroops)
-/// and a `period_ledgers` U32. The decoded result converts the limit to a
-/// decimal XLM string and the period to whole days (clamped to at least 1).
-PolicyParams? parseSpendingLimitParams(XdrSCVal value) {
+/// The stored shape is a map containing a `spending_limit` I128 (base units)
+/// and a `period_ledgers` U32. The decoded result formats the limit to a
+/// decimal string at [decimals] scale, so the inline editor pre-populates with
+/// the exact stored amount regardless of the guarded token's precision.
+/// The period is converted to whole days, clamped to at least 1.
+///
+/// [decimals] must be the decimal scale of the guarded token. For the native
+/// XLM token pass [nativeTokenDecimals] (7). A failed scale resolution at the
+/// call site should return null rather than passing a wrong value here.
+PolicyParams? parseSpendingLimitParams(XdrSCVal value, {required int decimals}) {
   final entries = value.map;
   if (entries == null) return null;
 
-  BigInt? limitStroops;
+  BigInt? limitBaseUnits;
   int? periodLedgers;
 
   for (final entry in entries) {
     final symbol = entry.key.sym;
     if (symbol == PolicyType.spendingLimit) {
-      limitStroops = scValToI128BigInt(entry.val);
+      limitBaseUnits = scValToI128BigInt(entry.val);
     } else if (symbol == 'period_ledgers') {
       periodLedgers = entry.val.u32?.uint32;
     }
   }
 
-  if (limitStroops == null || periodLedgers == null) return null;
+  if (limitBaseUnits == null || periodLedgers == null) return null;
 
-  final xlm = formatStroopsBigIntAsXlm(limitStroops);
+  final amountStr = formatBaseUnitsAsDecimal(limitBaseUnits, decimals: decimals);
   final periodDays = (periodLedgers ~/ _ledgersPerDay).clamp(1, 1 << 31);
 
   return PolicyParams(
     type: PolicyType.spendingLimit,
-    spendingLimit: xlm,
+    spendingLimit: amountStr,
     periodDays: periodDays,
   );
 }

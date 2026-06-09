@@ -479,10 +479,31 @@ final class _StallingMockManager implements ContextRuleFlowManagerType {
       Completer<OZTransactionResult>().future;
 
   @override
-  Future<OZTransactionResult> addPolicyToRule({
+  Future<OZTransactionResult> addSimpleThresholdToRule({
     required int ruleId,
     required String policyAddress,
-    required XdrSCVal installParams,
+    required int threshold,
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
+  }) =>
+      Completer<OZTransactionResult>().future;
+
+  @override
+  Future<OZTransactionResult> addWeightedThresholdToRule({
+    required int ruleId,
+    required String policyAddress,
+    required List<PolicyWeightedEntry> entries,
+    required int threshold,
+    List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
+  }) =>
+      Completer<OZTransactionResult>().future;
+
+  @override
+  Future<OZTransactionResult> addSpendingLimitToRule({
+    required int ruleId,
+    required String policyAddress,
+    required String amount,
+    required int decimals,
+    required int periodLedgers,
     List<OZSelectedSigner> selectedSigners = const <OZSelectedSigner>[],
   }) =>
       Completer<OZTransactionResult>().future;

@@ -7,6 +7,10 @@ import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart'
 /// Number of stroops in one XLM (Stellar's 7-decimal native unit).
 const int stroopsPerXlm = 10000000;
 
+/// Decimal scale of the native XLM token (7). Used to convert native-token
+/// amounts to base units without an on-chain `decimals()` round trip.
+const int nativeTokenDecimals = 7;
+
 /// [BigInt] form of [stroopsPerXlm] for divisor use in the high-precision
 /// I128 stroop formatter.
 final BigInt _stroopsPerXlmBigInt = BigInt.from(stroopsPerXlm);
@@ -101,6 +105,29 @@ String formatStroopsAsXlm(int stroops) {
   return '$prefix$wholePart.$fractional';
 }
 
+/// Converts a base-units [BigInt] amount to a decimal display string at the
+/// given [decimals] scale.
+///
+/// Strips trailing fractional zeros. When there is no fractional remainder
+/// the integer portion is returned without a decimal point (e.g. `"100"` not
+/// `"100.0"`).
+String formatBaseUnitsAsDecimal(BigInt baseUnits, {required int decimals}) {
+  if (decimals <= 0) return baseUnits.toString();
+  final divisor = BigInt.from(10).pow(decimals);
+  final negative = baseUnits.sign < 0;
+  final abs = negative ? -baseUnits : baseUnits;
+  final whole = abs ~/ divisor;
+  final remainder = abs % divisor;
+  final prefix = negative ? '-' : '';
+  if (remainder == BigInt.zero) return '$prefix$whole';
+  final fractional = remainder
+      .toString()
+      .padLeft(decimals, '0')
+      .replaceAll(RegExp(r'0+$'), '');
+  if (fractional.isEmpty) return '$prefix$whole';
+  return '$prefix$whole.$fractional';
+}
+
 /// [BigInt] overload of [formatStroopsAsXlm].
 ///
 /// Used by paths that read an I128 stroop amount from an SCVal and must
@@ -124,29 +151,6 @@ String formatStroopsBigIntAsXlm(BigInt stroops) {
       .replaceAll(RegExp(r'0+$'), '');
   if (fractional.isEmpty) return '$prefix$whole';
   return '$prefix$whole.$fractional';
-}
-
-/// Converts a regex-validated decimal amount string to integer stroops using
-/// split-then-multiply integer arithmetic.
-///
-/// Returns null when the lift would overflow int64 (whole > 922337203685) or
-/// when either component fails to parse. The fractional portion is padded
-/// to seven digits before being combined with the whole portion.
-///
-/// Input must already be regex-validated by [stellarDecimalAmountPattern]
-/// or equivalent so this helper can assume the format is well-formed.
-int? decimalToStroops(String amountRaw) {
-  final parts = amountRaw.split('.');
-  final wholeStr = parts[0];
-  final fracStr = parts.length == 2 ? parts[1] : '';
-  final whole = int.tryParse(wholeStr);
-  final fracPadded = fracStr.padRight(7, '0');
-  final frac = fracPadded.isEmpty ? 0 : int.tryParse(fracPadded);
-  if (whole == null || frac == null) return null;
-  // Safe multiplication: whole values up to ~9.2e11 stroops worth of XLM
-  // still fit in int64 after the * 10_000_000 lift.
-  if (whole > 922337203685) return null;
-  return whole * stroopsPerXlm + frac;
 }
 
 // ---------------------------------------------------------------------------
