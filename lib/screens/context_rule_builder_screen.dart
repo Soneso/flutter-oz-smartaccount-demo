@@ -470,8 +470,12 @@ class _ContextRuleBuilderScreenState
 
     final removedSigners = <EditSignerEntry>[];
     for (final original in _originalSignerEntries) {
+      // Only an original entry keeps the signer present. A newly added entry for
+      // the same signer does not — otherwise removing a signer and adding the
+      // same signer back in one edit would drop the remove, and the on-chain add
+      // would fail with DuplicateSigner.
       final stillPresent = _editSignerEntries.any(
-        (e) => signersEqual(e.signer, original.signer),
+        (e) => e.isOriginal && signersEqual(e.signer, original.signer),
       );
       if (!stillPresent) removedSigners.add(original);
     }
