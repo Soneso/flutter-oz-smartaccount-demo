@@ -482,8 +482,12 @@ class _ContextRuleBuilderScreenState
 
     final removedPolicies = <EditPolicyEntry>[];
     for (final original in _originalPolicyEntries) {
-      final stillPresent =
-          _editPolicyEntries.any((e) => e.address == original.address);
+      // Only an original entry keeps the policy present. A newly added policy
+      // of the same type (same contract address) does not — otherwise removing
+      // a policy and adding a fresh one of the same type would drop the remove,
+      // and the on-chain add would fail with DuplicatePolicy.
+      final stillPresent = _editPolicyEntries
+          .any((e) => e.isOriginal && e.address == original.address);
       if (!stillPresent) removedPolicies.add(original);
     }
     final newPolicies = <EditPolicyEntry>[
