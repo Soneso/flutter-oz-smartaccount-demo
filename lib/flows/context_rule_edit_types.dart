@@ -11,6 +11,7 @@
 library;
 
 import '../config/demo_config.dart' show PolicyInfo;
+import '../util/context_rule_format.dart' show SignerDisplayInfo;
 import '../util/policy_type.dart';
 import 'context_rule_builder_types.dart';
 
@@ -32,6 +33,50 @@ final class PolicyWeightedEntry {
 
   /// Vote weight contributed by the signer. Must be greater than zero.
   final int weight;
+}
+
+// ---------------------------------------------------------------------------
+// WeightedSignerEntry
+// ---------------------------------------------------------------------------
+
+/// A per-signer row in the on-chain weighted-threshold `signer_weights` map,
+/// as read from contract storage and used for display in the edit form.
+///
+/// [signer] is non-null when the SCVal could be reconstructed into a typed
+/// SDK signer (Delegated, Ed25519, or WebAuthn External). When reconstruction
+/// fails [signer] is null and [fallbackDisplay] carries a raw descriptor
+/// string so the row always renders something meaningful.
+///
+/// [displayInfo] is derived from [signer] when non-null, or synthesised from
+/// [fallbackDisplay] when the signer could not be reconstructed.
+///
+/// [stableKey] is a per-entry unique string suitable for use as a
+/// [Map] or widget key; it is the SDK [OZSmartAccountSigner.uniqueKey] when
+/// [signer] is non-null, or [fallbackDisplay] otherwise.
+final class WeightedSignerEntry {
+  /// Constructs a weighted signer entry.
+  const WeightedSignerEntry({
+    required this.weight,
+    required this.displayInfo,
+    required this.stableKey,
+    this.signer,
+    this.fallbackDisplay,
+  });
+
+  /// Vote weight for this signer in the weighted-threshold policy.
+  final int weight;
+
+  /// Reconstructed SDK signer, or null when reconstruction failed.
+  final OZSmartAccountSigner? signer;
+
+  /// Raw fallback descriptor used when [signer] is null.
+  final String? fallbackDisplay;
+
+  /// Pre-computed display info (badge label + display value) for this entry.
+  final SignerDisplayInfo displayInfo;
+
+  /// Stable unique key for deduplication and widget keying.
+  final String stableKey;
 }
 
 // ---------------------------------------------------------------------------
@@ -180,8 +225,12 @@ final class PolicyParams {
   /// ledgersPerDay, minimum 1).
   final int? periodDays;
 
-  /// Map of signer-key string to weight for `weighted_threshold` policies.
-  final Map<String, int>? signerWeights;
+  /// Per-signer weight entries for `weighted_threshold` policies.
+  ///
+  /// Each entry carries a reconstructed [OZSmartAccountSigner] (or fallback
+  /// display info when reconstruction fails), a pre-computed [SignerDisplayInfo]
+  /// for badge rendering, and the on-chain vote weight.
+  final List<WeightedSignerEntry>? signerWeights;
 }
 
 // ---------------------------------------------------------------------------

@@ -25,11 +25,11 @@ import '../util/semantic_colors.dart';
 import '../util/signer_colors.dart';
 import '../util/signer_type_label.dart';
 import 'field_error_text.dart';
-import 'pill.dart';
 import 'rich_dropdown_item.dart';
 import 'signer_add_forms/delegated_add_form.dart';
 import 'signer_add_forms/ed25519_add_form.dart';
 import 'signer_add_forms/passkey_add_form.dart';
+import 'signer_identity_chip.dart';
 
 /// Add-form mode for the signer type dropdown.
 enum SignerAddMode {
@@ -433,8 +433,6 @@ class _SignersList extends StatelessWidget {
         for (final s in signers) ...[
           _StagedSignerRow(
             signer: s,
-            colorScheme: colorScheme,
-            textTheme: textTheme,
             isSubmitting: isSubmitting,
             onRemove: () => onRemove(s),
           ),
@@ -448,76 +446,39 @@ class _SignersList extends StatelessWidget {
 class _StagedSignerRow extends StatelessWidget {
   const _StagedSignerRow({
     required this.signer,
-    required this.colorScheme,
-    required this.textTheme,
     required this.isSubmitting,
     required this.onRemove,
   });
 
   final StagedSigner signer;
-  final ColorScheme colorScheme;
-  final TextTheme textTheme;
   final bool isSubmitting;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final typeLabel = _typeLabelFor(signer.type);
     final chipColor = signerTypeColor(_signerTypeKeyFor(signer.type));
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
-      decoration: BoxDecoration(
-        color: chipColor.withAlpha(20),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          // Combined chip + identifier description forms a single
-          // semantic node; the remove button sits outside the excluded
-          // subtree so it stays independently focusable.
-          Expanded(
-            child: Semantics(
-              container: true,
-              label: '$typeLabel signer: ${signer.identifier}',
-              excludeSemantics: true,
-              child: Row(
-                children: [
-                  Pill(
-                    label: typeLabel,
-                    background: chipColor,
-                    foreground: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      signer.identifier,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                        fontFamily: 'monospace',
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+    // Combined chip + identifier description forms a single semantic node;
+    // the remove button sits outside the chip so it stays independently
+    // focusable.
+    return Row(
+      children: [
+        Expanded(
+          child: SignerIdentityChip(
+            typeLabel: typeLabel,
+            displayValue: signer.identifier,
+            chipColor: chipColor,
           ),
-          IconButton(
-            tooltip: 'Remove signer',
-            onPressed: isSubmitting ? null : onRemove,
-            iconSize: 18,
-            icon: Icon(Icons.close, color: colorScheme.error),
-          ),
-        ],
-      ),
+        ),
+        IconButton(
+          tooltip: 'Remove signer',
+          onPressed: isSubmitting ? null : onRemove,
+          iconSize: 18,
+          icon: Icon(Icons.close, color: colorScheme.error),
+        ),
+      ],
     );
   }
 
@@ -673,8 +634,6 @@ class _EditSignersList extends StatelessWidget {
           _EditSignerRow(
             entry: entry,
             connectedCredentialId: connectedCredentialId,
-            colorScheme: colorScheme,
-            textTheme: textTheme,
             isSubmitting: isSubmitting,
             onRemove: () => onRemove(entry),
           ),
@@ -689,21 +648,19 @@ class _EditSignerRow extends StatelessWidget {
   const _EditSignerRow({
     required this.entry,
     required this.connectedCredentialId,
-    required this.colorScheme,
-    required this.textTheme,
     required this.isSubmitting,
     required this.onRemove,
   });
 
   final EditSignerEntry entry;
   final String? connectedCredentialId;
-  final ColorScheme colorScheme;
-  final TextTheme textTheme;
   final bool isSubmitting;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final signer = entry.signer;
     final info = formatSignerForDisplay(signer);
     final chipColor = signerTypeColor(_signerKey(signer));
@@ -715,87 +672,57 @@ class _EditSignerRow extends StatelessWidget {
         connectedCredentialId != null &&
         credentialId == connectedCredentialId;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
-      decoration: BoxDecoration(
-        color: chipColor.withAlpha(20),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Semantics(
-              container: true,
-              label: '${info.typeLabel} signer: ${info.displayValue}'
-                  '${entry.isOriginal ? ', on-chain' : ''}'
-                  '${isConnected ? ', you' : ''}',
-              excludeSemantics: true,
-              child: Row(
-                children: [
-                  Pill(
-                    label: info.typeLabel,
-                    background: chipColor,
-                    foreground: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 6,
-                      children: [
-                        Text(
-                          info.displayValue,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface,
-                            fontFamily: 'monospace',
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (entry.isOriginal)
-                          Text(
-                            '(on-chain)',
-                            style: textTheme.labelSmall?.copyWith(
-                              color: colorScheme.onChainBadgeForeground,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+    // Build optional suffix parts for the semantics label.
+    final semanticsSuffix = '${entry.isOriginal ? ', on-chain' : ''}'
+        '${isConnected ? ', you' : ''}';
+
+    // "(on-chain)" badge rendered inline with the identifier via Wrap.
+    final Widget? inlineTrailing = entry.isOriginal
+        ? Text(
+            '(on-chain)',
+            style: textTheme.labelSmall?.copyWith(
+              color: colorScheme.onChainBadgeForeground,
+              fontWeight: FontWeight.w600,
             ),
+          )
+        : null;
+
+    // The chip and the trailing action (You label or remove button) are Row
+    // siblings; the chip is independently focusable via its Semantics node.
+    return Row(
+      children: [
+        Expanded(
+          child: SignerIdentityChip(
+            typeLabel: info.typeLabel,
+            displayValue: info.displayValue,
+            chipColor: chipColor,
+            semanticsSuffix: semanticsSuffix.isNotEmpty ? semanticsSuffix : null,
+            inlineTrailing: inlineTrailing,
           ),
-          if (isConnected)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Semantics(
-                label: 'You. Cannot remove your own connected passkey.',
-                excludeSemantics: true,
-                child: Text(
-                  'You',
-                  style: textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
+        ),
+        if (isConnected)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Semantics(
+              label: 'You. Cannot remove your own connected passkey.',
+              excludeSemantics: true,
+              child: Text(
+                'You',
+                style: textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            )
-          else
-            IconButton(
-              tooltip: 'Remove signer',
-              onPressed: isSubmitting ? null : onRemove,
-              iconSize: 18,
-              icon: Icon(Icons.close, color: colorScheme.error),
             ),
-        ],
-      ),
+          )
+        else
+          IconButton(
+            tooltip: 'Remove signer',
+            onPressed: isSubmitting ? null : onRemove,
+            iconSize: 18,
+            icon: Icon(Icons.close, color: colorScheme.error),
+          ),
+      ],
     );
   }
 

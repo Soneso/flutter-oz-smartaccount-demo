@@ -20,8 +20,9 @@ import '../flows/context_rule_edit_types.dart';
 import '../flows/context_rule_flow.dart' show ledgersPerDay;
 import '../util/policy_type.dart';
 import '../util/semantic_colors.dart';
-import '../util/signer_type_label.dart';
+import '../util/signer_colors.dart';
 import 'field_error_text.dart';
+import 'signer_identity_chip.dart';
 
 // ---------------------------------------------------------------------------
 // EditPolicyParamsForm
@@ -68,7 +69,7 @@ class _EditPolicyParamsFormState extends State<EditPolicyParamsForm> {
   late final TextEditingController _periodDaysController;
   late final TextEditingController _weightedThresholdController;
 
-  // Per-signer weight inputs keyed by signer key string. Read-only;
+  // Per-signer weight inputs keyed by the entry's stableKey. Read-only;
   // populated for display so users can see the on-chain weights alongside
   // the "edit unsupported" helper text.
   final Map<String, TextEditingController> _weightControllers =
@@ -96,9 +97,9 @@ class _EditPolicyParamsFormState extends State<EditPolicyParamsForm> {
 
     final weights = params?.signerWeights;
     if (weights != null) {
-      for (final entry in weights.entries) {
-        _weightControllers[entry.key] =
-            TextEditingController(text: entry.value.toString());
+      for (final entry in weights) {
+        _weightControllers[entry.stableKey] =
+            TextEditingController(text: entry.weight.toString());
       }
     }
   }
@@ -312,7 +313,7 @@ class _EditPolicyParamsFormState extends State<EditPolicyParamsForm> {
           ],
         );
       case PolicyType.weightedThreshold:
-        final weights = params.signerWeights ?? const <String, int>{};
+        final weights = params.signerWeights ?? const <WeightedSignerEntry>[];
         // Weighted-threshold inline editing is unsupported; fields are inert
         // with a live-region helper for assistive technology.
         return Column(
@@ -351,50 +352,17 @@ class _EditPolicyParamsFormState extends State<EditPolicyParamsForm> {
                 ),
               ),
               const SizedBox(height: 6),
-              for (final entry in weights.entries)
+              for (final entry in weights)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          entry.key,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface,
-                            fontFamily: 'monospace',
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                  child: _WeightedSignerRow(
+                    entry: entry,
+                    controller: _weightControllers.putIfAbsent(
+                      entry.stableKey,
+                      () => TextEditingController(
+                        text: entry.weight.toString(),
                       ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 100,
-                        child: Semantics(
-                          label: 'Weight for ${_signerLabelFor(entry.key)} '
-                              'signer ${entry.key}',
-                          textField: true,
-                          child: TextField(
-                            controller: _weightControllers.putIfAbsent(
-                              entry.key,
-                              () => TextEditingController(
-                                text: entry.value.toString(),
-                              ),
-                            ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            enabled: false,
-                            decoration: const InputDecoration(
-                              labelText: 'Weight',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
             ],
@@ -405,15 +373,61 @@ class _EditPolicyParamsFormState extends State<EditPolicyParamsForm> {
     }
   }
 
-  /// Best-effort signer-type descriptor for assistive-technology weight
-  /// field labels. The on-chain signer-weight map key is opaque (a typed
-  /// descriptor string assembled by the policy parser), so the readable
-  /// label uses its leading token when one is recognisable and otherwise
-  /// falls back to a generic descriptor.
-  String _signerLabelFor(String key) {
-    if (key.startsWith('External:')) return SignerTypeLabel.external;
-    if (key.length == 56 && key.startsWith('G')) return 'Delegated';
-    return 'Signer';
+}
+
+// ---------------------------------------------------------------------------
+// _WeightedSignerRow
+// ---------------------------------------------------------------------------
+
+/// A single row in the weighted-threshold Per-Signer Weights display.
+///
+/// Renders the signer badge and display value via [SignerIdentityChip]
+/// alongside a read-only weight field.
+class _WeightedSignerRow extends StatelessWidget {
+  const _WeightedSignerRow({
+    required this.entry,
+    required this.controller,
+  });
+
+  final WeightedSignerEntry entry;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final info = entry.displayInfo;
+    final chipColor = signerTypeColorForDisplayLabel(info.typeLabel);
+
+    return Row(
+      children: [
+        Expanded(
+          child: SignerIdentityChip(
+            typeLabel: info.typeLabel,
+            displayValue: info.displayValue,
+            chipColor: chipColor,
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 100,
+          child: Semantics(
+            label: 'Weight for ${info.typeLabel} signer ${info.displayValue}',
+            textField: true,
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              enabled: false,
+              decoration: const InputDecoration(
+                labelText: 'Weight',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
