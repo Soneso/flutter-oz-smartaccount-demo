@@ -43,10 +43,8 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Stellar SDK — local path dependency for fast iteration during development.
-  # Switch to a git reference pinned to a commit SHA before any public release.
-  stellar_flutter_sdk:
-    path: ../stellar_flutter_sdk
+  # Stellar SDK (published on pub.dev).
+  stellar_flutter_sdk: ^3.1.0
 
   # Reown WalletConnect integration — dApp-side Sign client.
   # Resolved via Option 4 (see header comment). ReownWalletHandler uses these
