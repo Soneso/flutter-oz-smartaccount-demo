@@ -5,6 +5,7 @@
 | File | Purpose |
 |---|---|
 | `run_web_dev.sh` | Start / stop the Flutter web dev server |
+| `start_coordination_server.sh` | Start the agent-signer coordination server with a chosen token/port (and optional store) |
 | `agent_browser_webauthn.sh` | Attach a virtual WebAuthn authenticator to an agent-browser session |
 | `scenarios/` | End-to-end browser test scenarios (one script per user flow); see [scenarios/README.md](scenarios/README.md) |
 
@@ -50,6 +51,24 @@ The default origin for development is `http://localhost:5173`.
 
 For incremental dev iteration with hot reload, run `flutter run -d chrome`
 interactively from your own terminal instead.
+
+---
+
+## Starting the coordination server
+
+```sh
+./tool/start_coordination_server.sh --token dev-token-change-me --port 8787
+# optional persistent store:
+./tool/start_coordination_server.sh --token dev-token-change-me --port 8787 \
+  --store ./coordination_server/requests.store.json
+```
+
+Starts the agent-signer coordination server (`coordination_server/`) bound to
+`0.0.0.0:<port>` and prints the URL. The token is required and never hard-coded:
+pass `--token` or set `COORDINATION_TOKEN`; `--port` / `PORT` default to `8787`;
+`--store` / `COORDINATION_STORE` optionally persists requests. Stop with Ctrl-C.
+This is the server used by the full agent-signer flow — see
+[documentation/agent-flow.md](../documentation/agent-flow.md).
 
 ---
 

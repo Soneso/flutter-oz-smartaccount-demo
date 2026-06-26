@@ -51,6 +51,41 @@ pulls plugin packages (path_provider and friends) whose macOS runner requires
 CocoaPods and signing scaffolding. That is a follow-up if a non-test launcher
 is needed; the `flutter test` entry is the reliable run path today.
 
+## Bootstrap: get the agent's public key (print-key mode)
+
+Before a full live config exists, obtain the agent's identity. The print-key
+mode derives or generates an Ed25519 keypair and nothing else — it does not
+need the rest of the live config. It runs under `flutter test` like the other
+entries, gated on `AGENT_PRINT_KEY` so the default `flutter test` run never
+generates a key as a side effect.
+
+```sh
+# Generate a fresh seed + G-address (no other config needed):
+AGENT_PRINT_KEY=true flutter test test/agent_print_key_test.dart
+```
+
+Look for the `[agent] [KEY]` lines:
+
+```
+[agent] [KEY] Generated a new agent Ed25519 keypair.
+[agent] [KEY] AGENT_SECRET_SEED (copy into the agent config, keep secret): S...
+[agent] [KEY] Agent public key (paste into Delegate-to-agent): G...
+```
+
+Copy the `S...` seed into `AGENT_SECRET_SEED` (keep it secret) and paste the
+`G...` public key into the demo's Delegate-to-agent screen. To re-derive the
+public key for a seed you already hold — the secret is never printed back:
+
+```sh
+AGENT_PRINT_KEY=true AGENT_SECRET_SEED=S... \
+  flutter test test/agent_print_key_test.dart
+```
+
+The keygen itself lives in `lib/src/agent_keygen.dart` (`resolveAgentKey`,
+`formatAgentKeyOutput`, `shouldPrintAgentKey`); `shouldPrintAgentKey` also
+honors a `--print-key` argument for any non-test launcher. It is unit-tested in
+`test/agent_keygen_test.dart`.
+
 ## Configuration
 
 `AgentConfig.resolve()` layers configuration sources, highest precedence first:
@@ -142,11 +177,14 @@ lib/
     agent.dart                         production assembly + SDK-backed adapters
     agent_config.dart                  config + defaults + resolution
     agent_ed25519_signer_adapter.dart  OZExternalEd25519SignerAdapter
+    agent_keygen.dart                  print-key bootstrap (derive/generate key)
     agent_runner.dart                  orchestration + interfaces + results
     coordination_client.dart           coordination REST client + model
     outcome.dart                       contract-call outcome classification
 test/
   agent_live_run_test.dart             primary run entry (skipped without config)
+  agent_print_key_test.dart            print-key run entry (gated on AGENT_PRINT_KEY)
+  agent_keygen_test.dart               keygen derive/generate/format unit tests
   agent_runner_test.dart               success / rejection / escalation paths
   coordination_client_test.dart        REST wire-format tests (MockClient)
   agent_config_test.dart               config resolution + validation

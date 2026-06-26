@@ -10,6 +10,7 @@ library;
 export 'src/agent.dart';
 export 'src/agent_config.dart';
 export 'src/agent_ed25519_signer_adapter.dart';
+export 'src/agent_keygen.dart';
 export 'src/agent_runner.dart';
 export 'src/coordination_client.dart';
 export 'src/outcome.dart';
