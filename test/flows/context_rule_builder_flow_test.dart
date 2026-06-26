@@ -20,12 +20,12 @@ import 'package:smart_account_demo/config/demo_config.dart' as config;
 import 'package:smart_account_demo/flows/context_rule_builder_types.dart'
     show FlowPolicyEntry;
 import 'package:smart_account_demo/flows/context_rule_flow.dart';
-import 'package:smart_account_demo/util/format_utils.dart'
-    show nativeTokenDecimals;
 import 'package:smart_account_demo/flows/ed25519_signer_identity.dart';
 import 'package:smart_account_demo/state/activity_log_state.dart';
 import 'package:smart_account_demo/util/error_utils.dart'
     show DemoError, DemoErrorCategory;
+import 'package:smart_account_demo/util/format_utils.dart'
+    show nativeTokenDecimals;
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
 import 'context_rule_test_support.dart';
@@ -44,7 +44,7 @@ void main() {
     test('happy path: single delegated signer, default, no expiry, no policies',
         () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = OZTransactionResult(success: true, hash: 'abc123');
+        ..addResult = const OZTransactionResult(success: true, hash: 'abc123');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -78,7 +78,7 @@ void main() {
 
     test('forwards multi-signer selectedSigners list verbatim', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = OZTransactionResult(success: true, hash: 'deadbeef');
+        ..addResult = const OZTransactionResult(success: true, hash: 'deadbeef');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -118,7 +118,7 @@ void main() {
         'error verbatim under the "Failed to create context rule" prefix',
         () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = OZTransactionResult(
+        ..addResult = const OZTransactionResult(
           success: false,
           error: 'on-chain rejected: bad XDR payload',
         );
@@ -175,7 +175,7 @@ void main() {
 
     test('skips policies whose SCVal is null', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = OZTransactionResult(success: true, hash: 'h');
+        ..addResult = const OZTransactionResult(success: true, hash: 'h');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -200,7 +200,7 @@ void main() {
 
     test('re-entry guard: concurrent calls throw StateError', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = OZTransactionResult(success: true, hash: 'h');
+        ..addResult = const OZTransactionResult(success: true, hash: 'h');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -311,7 +311,6 @@ void main() {
       final mgr = MockContextRuleFlowManager()
         ..rules = [
           makeRule(
-            id: 1,
             signers: [
               webauthnPasskey,
               ed25519,
@@ -347,7 +346,7 @@ void main() {
 
       final mgr = MockContextRuleFlowManager()
         ..rules = [
-          makeRule(id: 1, signers: [excluded, kept]),
+          makeRule(signers: [excluded, kept]),
         ];
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
@@ -374,7 +373,7 @@ void main() {
 
       final mgr = MockContextRuleFlowManager()
         ..rules = [
-          makeRule(id: 1, signers: [passkey]),
+          makeRule(signers: [passkey]),
           makeRule(id: 2, signers: [passkey]),
         ];
 
@@ -492,7 +491,7 @@ void main() {
   group('ContextRuleFlow.buildEd25519Signer', () {
     test('uses environment verifier address', () {
       final env = MockBuilderEnvironment(
-        ed25519VerifierAddress: _fakeEd25519Verifier,
+        
       );
       final deps = ContextRuleFixtures.makeFlowWithDeps(environment: env);
 
@@ -522,7 +521,7 @@ void main() {
         () async {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
       await expectLater(
-        () => deps.flow.loadAvailablePasskeySigners(),
+        deps.flow.loadAvailablePasskeySigners,
         throwsA(isA<StateError>()),
       );
     });
@@ -579,7 +578,7 @@ void main() {
   group('ContextRuleFlow.addContextRule — with expiry', () {
     test('validUntil resolves to current ledger + supplied offset', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = OZTransactionResult(success: true, hash: 'expiryhash');
+        ..addResult = const OZTransactionResult(success: true, hash: 'expiryhash');
       final env = MockBuilderEnvironment(currentLedger: 10000);
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -717,7 +716,7 @@ void main() {
     test('on-chain "invalid input" error is surfaced verbatim with the '
         '"Failed to create context rule" prefix', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = OZTransactionResult(
+        ..addResult = const OZTransactionResult(
           success: false,
           error: 'invocation failed: invalid input bytes 0xDEADBEEF',
         );
@@ -750,7 +749,7 @@ void main() {
     test('FlowPolicyEntry.installParams is encoded into the manager.policies '
         'map', () async {
       final mgr = MockContextRuleFlowManager()
-        ..addResult = OZTransactionResult(success: true, hash: 'policyhash');
+        ..addResult = const OZTransactionResult(success: true, hash: 'policyhash');
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
         environment: MockBuilderEnvironment(),

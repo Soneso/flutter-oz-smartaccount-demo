@@ -182,7 +182,7 @@ void main() {
   group('ContextRulesScreen — loaded state', () {
     testWidgets('shows rule count summary', (tester) async {
       final mgr = MockContextRuleFlowManager()
-        ..rules = [makeRule(id: 1), makeRule(id: 2)];
+        ..rules = [makeRule(), makeRule(id: 2)];
       final flow = _makeFlow(manager: mgr);
       await tester.pumpWidget(_wrapWithFlow(flow));
       await tester.pump();
@@ -196,7 +196,7 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       final mgr = MockContextRuleFlowManager()
-        ..rules = [makeRule(id: 1), makeRule(id: 2), makeRule(id: 3)];
+        ..rules = [makeRule(), makeRule(id: 2), makeRule(id: 3)];
       final flow = _makeFlow(manager: mgr);
       await tester.pumpWidget(_wrapWithFlow(flow));
       await tester.pump();
@@ -209,7 +209,7 @@ void main() {
 
     testWidgets('shows rule names', (tester) async {
       final mgr = MockContextRuleFlowManager()
-        ..rules = [makeRule(id: 1, name: 'rule-alpha')];
+        ..rules = [makeRule(name: 'rule-alpha')];
       final flow = _makeFlow(manager: mgr);
       await tester.pumpWidget(_wrapWithFlow(flow));
       await tester.pump();
@@ -223,7 +223,7 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       final mgr = MockContextRuleFlowManager()
-        ..rules = [makeRule(id: 3), makeRule(id: 1), makeRule(id: 2)];
+        ..rules = [makeRule(id: 3), makeRule(), makeRule(id: 2)];
       final flow = _makeFlow(manager: mgr);
       await tester.pumpWidget(_wrapWithFlow(flow));
       await tester.pump();
@@ -242,7 +242,7 @@ void main() {
 
   group('ContextRulesScreen — expand/collapse', () {
     testWidgets('Signers section shown after tapping expand', (tester) async {
-      final mgr = MockContextRuleFlowManager()..rules = [makeRule(id: 1)];
+      final mgr = MockContextRuleFlowManager()..rules = [makeRule()];
       final flow = _makeFlow(manager: mgr);
       await tester.pumpWidget(_wrapWithFlow(flow));
       await tester.pump();
@@ -258,7 +258,7 @@ void main() {
     });
 
     testWidgets('Signers section hidden after collapse', (tester) async {
-      final mgr = MockContextRuleFlowManager()..rules = [makeRule(id: 1)];
+      final mgr = MockContextRuleFlowManager()..rules = [makeRule()];
       final flow = _makeFlow(manager: mgr);
       await tester.pumpWidget(_wrapWithFlow(flow));
       await tester.pump();
@@ -282,7 +282,7 @@ void main() {
 
   group('ContextRulesScreen — last rule disabled', () {
     testWidgets('shows "Last Rule" when only one rule exists', (tester) async {
-      final mgr = MockContextRuleFlowManager()..rules = [makeRule(id: 1)];
+      final mgr = MockContextRuleFlowManager()..rules = [makeRule()];
       final flow = _makeFlow(manager: mgr);
       await tester.pumpWidget(_wrapWithFlow(flow));
       await tester.pump();
@@ -293,7 +293,7 @@ void main() {
 
     testWidgets('shows "Remove Rule" when multiple rules exist', (tester) async {
       final mgr = MockContextRuleFlowManager()
-        ..rules = [makeRule(id: 1), makeRule(id: 2)];
+        ..rules = [makeRule(), makeRule(id: 2)];
       final flow = _makeFlow(manager: mgr);
       await tester.pumpWidget(_wrapWithFlow(flow));
       await tester.pump();

@@ -17,11 +17,6 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_account_demo/config/demo_config.dart' show PolicyInfo;
-import 'package:smart_account_demo/flows/context_rule_edit_types.dart'
-    show
-        PolicyInstallSpec,
-        PolicyInstallSpecSpendingLimit,
-        PolicyWeightedEntry;
 import 'package:smart_account_demo/flows/context_rule_flow.dart';
 import 'package:smart_account_demo/flows/signer_info.dart' show SignerKind;
 import 'package:smart_account_demo/state/activity_log_state.dart';
@@ -163,7 +158,7 @@ void main() {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
       deps.manager.rules = [
         makeRule(id: 3, name: 'c'),
-        makeRule(id: 1, name: 'a'),
+        makeRule(name: 'a'),
         makeRule(id: 2, name: 'b'),
       ];
 
@@ -213,7 +208,6 @@ void main() {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
       deps.manager.rules = [
         makeRule(
-          id: 1,
           signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
         ),
         makeRule(
@@ -236,7 +230,6 @@ void main() {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
       deps.manager.rules = [
         makeRule(
-          id: 1,
           signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
         ),
         makeRule(
@@ -308,7 +301,7 @@ void main() {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
       deps.manager.removeResult = successResult();
       final selectedSigners = [
-        OZSelectedSignerWallet(fixtureDelegatedAddress1),
+        const OZSelectedSignerWallet(fixtureDelegatedAddress1),
       ];
 
       await deps.flow.removeContextRule(
@@ -370,7 +363,7 @@ void main() {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
       final multi = [
         const OZSelectedSignerPasskey(),
-        OZSelectedSignerWallet(fixtureDelegatedAddress1),
+        const OZSelectedSignerWallet(fixtureDelegatedAddress1),
       ];
 
       expect(deps.flow.isSinglePasskeyRemoval(multi), isFalse);
@@ -378,7 +371,7 @@ void main() {
 
     test('isSinglePasskeyRemoval returns false for wallet signer', () {
       final deps = ContextRuleFixtures.makeFlowWithDeps();
-      final walletOnly = [OZSelectedSignerWallet(fixtureDelegatedAddress1)];
+      final walletOnly = [const OZSelectedSignerWallet(fixtureDelegatedAddress1)];
 
       expect(deps.flow.isSinglePasskeyRemoval(walletOnly), isFalse);
     });
@@ -480,7 +473,7 @@ void main() {
       deps.manager.listError = MockNetworkError();
 
       expect(
-        () => deps.flow.listContextRules(),
+        deps.flow.listContextRules,
         throwsA(isA<MockNetworkError>()),
       );
     });
@@ -637,7 +630,7 @@ void main() {
       );
 
       expect(err, isNotNull);
-      expect(err, contains("does not match"));
+      expect(err, contains('does not match'));
     });
   });
 
@@ -980,7 +973,6 @@ void main() {
 
         final orphanPolicy = _thresholdPolicyEntry(
           onChainId: null,
-          installSpec: null,
         );
 
         final diff = _emptyDiff(ruleId: 31).copyWith(
@@ -1018,7 +1010,6 @@ void main() {
 
         final unpreparedPolicy = _thresholdPolicyEntry(
           onChainId: null,
-          installSpec: null,
           isOriginal: false,
         );
 
@@ -1060,7 +1051,6 @@ void main() {
         // and the precondition trips.
         final brokenThresholdPolicy = _thresholdPolicyEntry(
           onChainId: 500,
-          installSpec: null,
           modified: true,
         );
 
@@ -1158,7 +1148,6 @@ void main() {
 
         final brokenPolicy2 = _spendingPolicyEntry(
           onChainId: 700,
-          installSpec: null,
         );
 
         final diff2 = _emptyDiff(ruleId: 42).copyWith(

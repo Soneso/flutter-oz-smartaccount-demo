@@ -30,14 +30,14 @@ void main() {
   group('ContractPickerSheet', () {
     testWidgets('shows "Select Wallet" title', (tester) async {
       await tester.pumpWidget(
-        _wrap(ContractPickerSheet(candidates: [_addr1, _addr2])),
+        _wrap(const ContractPickerSheet(candidates: [_addr1, _addr2])),
       );
       expect(find.text('Select Wallet'), findsOneWidget);
     });
 
     testWidgets('shows description text', (tester) async {
       await tester.pumpWidget(
-        _wrap(ContractPickerSheet(candidates: [_addr1, _addr2])),
+        _wrap(const ContractPickerSheet(candidates: [_addr1, _addr2])),
       );
       expect(
         find.textContaining(
@@ -49,7 +49,7 @@ void main() {
 
     testWidgets('shows a radio tile for each candidate', (tester) async {
       await tester.pumpWidget(
-        _wrap(ContractPickerSheet(candidates: [_addr1, _addr2])),
+        _wrap(const ContractPickerSheet(candidates: [_addr1, _addr2])),
       );
       // Each address is shown truncated — just verify two RadioListTile widgets.
       expect(find.byType(RadioListTile<String>), findsNWidgets(2));
@@ -57,7 +57,7 @@ void main() {
 
     testWidgets('"Connect" button is disabled before selection', (tester) async {
       await tester.pumpWidget(
-        _wrap(ContractPickerSheet(candidates: [_addr1, _addr2])),
+        _wrap(const ContractPickerSheet(candidates: [_addr1, _addr2])),
       );
       final connectButton = find.widgetWithText(FilledButton, 'Connect');
       expect(connectButton, findsOneWidget);
@@ -67,7 +67,7 @@ void main() {
 
     testWidgets('"Connect" button enabled after selection', (tester) async {
       await tester.pumpWidget(
-        _wrap(ContractPickerSheet(candidates: [_addr1, _addr2])),
+        _wrap(const ContractPickerSheet(candidates: [_addr1, _addr2])),
       );
       // Select the first radio tile.
       await tester.tap(find.byType(RadioListTile<String>).first);
@@ -80,7 +80,7 @@ void main() {
 
     testWidgets('shows "Cancel" button', (tester) async {
       await tester.pumpWidget(
-        _wrap(ContractPickerSheet(candidates: [_addr1, _addr2])),
+        _wrap(const ContractPickerSheet(candidates: [_addr1, _addr2])),
       );
       expect(find.text('Cancel'), findsOneWidget);
     });

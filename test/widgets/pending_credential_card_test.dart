@@ -67,7 +67,7 @@ void main() {
     });
 
     testWidgets('credential ID is truncated (first 12 + last 8)', (tester) async {
-      await tester.pumpWidget(_buildCard(credentialId: _longCredId));
+      await tester.pumpWidget(_buildCard());
       // Verify truncation: should NOT show the full raw string.
       expect(find.text(_longCredId), findsNothing);
       // Should contain ellipsis.
@@ -84,7 +84,7 @@ void main() {
 
     testWidgets('nickname appears after credential ID', (tester) async {
       await tester.pumpWidget(
-        _buildCard(credentialId: _longCredId, nickname: 'My Key'),
+        _buildCard(nickname: 'My Key'),
       );
       expect(find.textContaining('My Key'), findsOneWidget);
     });

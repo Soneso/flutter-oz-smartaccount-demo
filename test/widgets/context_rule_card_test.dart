@@ -33,7 +33,7 @@ void main() {
     });
 
     testWidgets('shows rule name', (tester) async {
-      final rule = makeRule(id: 1, name: 'my-rule');
+      final rule = makeRule(name: 'my-rule');
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -47,7 +47,7 @@ void main() {
     });
 
     testWidgets('shows "Unnamed Rule" for empty name', (tester) async {
-      final rule = makeRule(id: 1, name: '');
+      final rule = makeRule(name: '');
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -61,7 +61,7 @@ void main() {
     });
 
     testWidgets('shows context type badge', (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -76,7 +76,6 @@ void main() {
 
     testWidgets('shows signer count badge', (tester) async {
       final rule = makeRule(
-        id: 1,
         signers: [
           OZDelegatedSigner(fixtureDelegatedAddress1),
           OZDelegatedSigner(fixtureDelegatedAddress2),
@@ -95,7 +94,7 @@ void main() {
     });
 
     testWidgets('shows singular "1 signer"', (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -141,7 +140,7 @@ void main() {
 
     testWidgets('does not show expiry badge when validUntil is null',
         (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -156,7 +155,7 @@ void main() {
 
     testWidgets('shows "Remove Rule" button when canRemove is true',
         (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -171,7 +170,7 @@ void main() {
 
     testWidgets('shows "Last Rule" button when canRemove is false',
         (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -185,7 +184,7 @@ void main() {
     });
 
     testWidgets('"Last Rule" button is disabled', (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -206,7 +205,7 @@ void main() {
 
     testWidgets('onRemove called when Remove Rule tapped', (tester) async {
       var tapped = false;
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -225,7 +224,7 @@ void main() {
 
   group('ContextRuleCard — expanded state', () {
     testWidgets('shows "Signers" section header when expanded', (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: true,
@@ -239,7 +238,7 @@ void main() {
     });
 
     testWidgets('shows "Policies" section header when expanded', (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: true,
@@ -312,7 +311,7 @@ void main() {
     });
 
     testWidgets('Signers section not shown when collapsed', (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -328,7 +327,7 @@ void main() {
     testWidgets('onToggleExpanded called when expand icon tapped',
         (tester) async {
       var toggled = false;
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -347,14 +346,13 @@ void main() {
 
   group('ContextRuleCard — removing state', () {
     testWidgets('shows spinner when isRemoving is true', (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
         onToggleExpanded: () {},
         canRemove: true,
         isRemoving: true,
-        onRemove: null,
       )));
 
       expect(find.text('Removing...'), findsOneWidget);
@@ -364,7 +362,7 @@ void main() {
 
   group('ContextRuleCard — Edit Rule button', () {
     testWidgets('Edit Rule button hidden when onEdit is null', (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -379,7 +377,7 @@ void main() {
 
     testWidgets('Edit Rule button visible when onEdit is non-null',
         (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -395,7 +393,7 @@ void main() {
 
     testWidgets('onEdit invoked when Edit Rule tapped', (tester) async {
       var editTapped = false;
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
@@ -414,14 +412,13 @@ void main() {
 
     testWidgets('Edit Rule button disabled while isRemoving is true',
         (tester) async {
-      final rule = makeRule(id: 1);
+      final rule = makeRule();
       await tester.pumpWidget(_wrap(ContextRuleCard(
         rule: rule,
         isExpanded: false,
         onToggleExpanded: () {},
         canRemove: true,
         isRemoving: true,
-        onRemove: null,
         onEdit: () {},
       )));
 

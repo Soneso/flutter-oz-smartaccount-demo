@@ -23,7 +23,7 @@ void main() {
     test('CallContract returns "Call Contract: <truncated address>"', () {
       const addr = 'CAAQEAYEAUDAOCAJBIFQYDIOB4IBCEQTCQKRMFYYDENBWHA5DYPSBFLM';
       final result =
-          formatContextType(OZContextRuleTypeCallContract(addr));
+          formatContextType(const OZContextRuleTypeCallContract(addr));
 
       // Uses the 4-char `truncateAddress` form so the label fits chip and
       // pill layouts without horizontal overflow.
