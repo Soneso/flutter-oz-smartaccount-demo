@@ -10,8 +10,8 @@ import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 /// Every value mirrors a constant already published in the demo app's
 /// `lib/config/demo_config.dart` (or the coordination server README). They are
 /// testnet-only, public by design, and safe to ship as defaults. Per-run
-/// identity values (smart account, credential, agent seed, destination) have
-/// no static default and must be supplied explicitly.
+/// identity values (smart account, agent seed, destination) have no static
+/// default and must be supplied explicitly.
 abstract final class AgentDefaults {
   /// Soroban RPC endpoint for testnet.
   static const String rpcUrl = 'https://soroban-testnet.stellar.org';
@@ -108,7 +108,6 @@ class AgentConfig {
     this.tokenDecimals = AgentDefaults.tokenDecimals,
     this.amount = AgentDefaults.amount,
     this.smartAccountContractId,
-    this.credentialId,
     this.agentSecretSeed,
     this.destinationAddress,
     this.coordinationBaseUrl = AgentDefaults.coordinationBaseUrl,
@@ -148,11 +147,8 @@ class AgentConfig {
   /// run.
   final String? smartAccountContractId;
 
-  /// Base64URL credential ID of the smart account's connected passkey.
-  /// Required for a live headless connect.
-  final String? credentialId;
-
-  /// Agent Ed25519 secret seed (Stellar S-strkey). Required for a live run.
+  /// Agent Ed25519 secret seed as raw 64-character hex (32 bytes). Required for
+  /// a live run.
   final String? agentSecretSeed;
 
   /// Transfer recipient address (G- or C-address). Required for a live
@@ -195,18 +191,13 @@ class AgentConfig {
       );
     }
 
-    final credential = credentialId;
-    if (credential == null || credential.isEmpty) {
-      throw const AgentConfigException('credentialId is required.');
-    }
-
     final seed = agentSecretSeed;
     if (seed == null || seed.isEmpty) {
       throw const AgentConfigException('agentSecretSeed is required.');
     }
-    if (!StrKey.isValidStellarSecretSeed(seed)) {
+    if (seed.length != 64 || !isHexString(seed)) {
       throw const AgentConfigException(
-        'agentSecretSeed is not a valid Stellar secret seed (S...).',
+        'agentSecretSeed is not a valid 64-character hex Ed25519 seed.',
       );
     }
 
@@ -252,7 +243,6 @@ class AgentConfig {
     int? tokenDecimals,
     String? amount,
     String? smartAccountContractId,
-    String? credentialId,
     String? agentSecretSeed,
     String? destinationAddress,
     String? coordinationBaseUrl,
@@ -274,7 +264,6 @@ class AgentConfig {
       amount: amount ?? this.amount,
       smartAccountContractId:
           smartAccountContractId ?? this.smartAccountContractId,
-      credentialId: credentialId ?? this.credentialId,
       agentSecretSeed: agentSecretSeed ?? this.agentSecretSeed,
       destinationAddress: destinationAddress ?? this.destinationAddress,
       coordinationBaseUrl: coordinationBaseUrl ?? this.coordinationBaseUrl,
@@ -360,8 +349,6 @@ class AgentConfig {
       amount: pick('amount', 'AGENT_AMOUNT', 'amount') ?? AgentDefaults.amount,
       smartAccountContractId:
           pick('smart-account', 'AGENT_SMART_ACCOUNT', 'smartAccountContractId'),
-      credentialId:
-          pick('credential-id', 'AGENT_CREDENTIAL_ID', 'credentialId'),
       agentSecretSeed:
           pick('secret-seed', 'AGENT_SECRET_SEED', 'agentSecretSeed'),
       destinationAddress:

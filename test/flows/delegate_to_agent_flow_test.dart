@@ -54,7 +54,10 @@ final class _FlowHarness {
   final MockBuilderEnvironment environment;
   final KeyPair agentKeypair;
 
-  String get agentPublicKey => agentKeypair.accountId;
+  /// The agent's raw 32-byte Ed25519 public key as 64-character hex — the form
+  /// the Delegate-to-agent screen accepts.
+  String get agentPublicKey =>
+      Util.bytesToHex(Uint8List.fromList(agentKeypair.publicKey));
   Uint8List get agentPublicKeyBytes =>
       Uint8List.fromList(agentKeypair.publicKey);
 }
@@ -96,21 +99,26 @@ void main() {
       expect(h.flow.validateAgentPublicKey('   '), isNull);
     });
 
-    test('valid G-address passes', () {
+    test('valid 64-hex key passes', () {
       final h = _makeHarness();
       expect(h.flow.validateAgentPublicKey(h.agentPublicKey), isNull);
+      // Upper-case hex is accepted (normalised to lower-case).
+      expect(
+        h.flow.validateAgentPublicKey(h.agentPublicKey.toUpperCase()),
+        isNull,
+      );
     });
 
     test('malformed key returns an error', () {
       final h = _makeHarness();
+      // Too short and non-hex.
       expect(h.flow.validateAgentPublicKey('not-a-key'), isNotNull);
-      // A C-address is not a valid account public key.
+      // A C-address is not 64 hex characters.
       expect(h.flow.validateAgentPublicKey(_tokenContract), isNotNull);
-      // A secret seed is not a public key.
-      expect(
-        h.flow.validateAgentPublicKey(KeyPair.random().secretSeed),
-        isNotNull,
-      );
+      // A 64-length string with non-hex characters is rejected.
+      expect(h.flow.validateAgentPublicKey('z' * 64), isNotNull);
+      // A 63-character hex string is the wrong length.
+      expect(h.flow.validateAgentPublicKey('a' * 63), isNotNull);
     });
   });
 
@@ -274,7 +282,7 @@ void main() {
       );
 
       expect(result.success, isFalse);
-      expect(result.error, contains('G...'));
+      expect(result.error, contains('hex'));
       expect(h.manager.addCallCount, 0);
     });
 

@@ -137,10 +137,14 @@ void main() {
     signerAdapter = AgentEd25519SignerAdapter();
   });
 
+  // The runner is constructed with the agent keypair directly; the config's
+  // hex seed is not re-derived here, so any valid 64-hex seed is sufficient.
+  const agentSeedHex =
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
   AgentConfig buildConfig() => AgentConfig(
         smartAccountContractId: smartAccount,
-        credentialId: 'demo-credential-id',
-        agentSecretSeed: agentKeypair.secretSeed,
+        agentSecretSeed: agentSeedHex,
         destinationAddress: destination,
         amount: '5',
         pollInterval: Duration.zero,
@@ -203,8 +207,7 @@ void main() {
         Uint8List.fromList(agentKeypair.publicKey)), isFalse);
   });
 
-  test('logs the agent public key as a pasteable G-address on startup',
-      () async {
+  test('logs the agent public key as raw 64-char hex on startup', () async {
     final contractCall = FakeContractCall(
       result: const OZTransactionResult(success: true, hash: 'TXHASH123'),
     );
@@ -221,16 +224,18 @@ void main() {
 
     await runner.run();
 
-    // The agent prints its own public key as a Stellar G-address so an
+    // The agent prints its own public key as raw 64-character hex so an
     // operator can paste it into the demo's Delegate-to-agent screen. The
-    // emitted value must match the agent keypair's account id exactly.
+    // emitted value must be the keypair's raw public-key bytes in hex.
+    final expectedHex =
+        Util.bytesToHex(Uint8List.fromList(agentKeypair.publicKey));
     final startupLine = logger.messages.firstWhere(
       (m) => m.contains('Delegate-to-agent'),
       orElse: () => '',
     );
     expect(startupLine, isNotEmpty);
-    expect(startupLine, contains(agentKeypair.accountId));
-    expect(agentKeypair.accountId, startsWith('G'));
+    expect(startupLine, contains(expectedHex));
+    expect(expectedHex, matches(RegExp(r'^[0-9a-f]{64}$')));
   });
 
   test('non-policy failure returns AgentCallFailed without escalating', () async {

@@ -14,8 +14,7 @@ Five pieces cooperate. Read the component docs for the detail behind each:
 - Demo coordination config — `lib/config/demo_config.dart`
 - Convenience launcher — [`tool/start_coordination_server.sh`](../tool/start_coordination_server.sh)
 
-Commands assume `flutter` and `dart` are on `PATH` (the toolchain lives at
-`/Users/chris/flutter/bin`). Everything below targets Stellar **testnet**; the
+Commands assume `flutter` and `dart` are on `PATH`. Everything below targets Stellar **testnet**; the
 defaults in `lib/config/demo_config.dart` and `AgentDefaults` are testnet-only
 and public by design.
 
@@ -33,7 +32,7 @@ escalation (passkey).
 
 ## Prerequisites
 
-- Flutter `>=3.35.0`, Dart `>=3.8.0` (this toolchain ships Dart 3.9).
+- Flutter `>=3.35.0`, Dart `>=3.8.0`.
 - A run target with passkey support: an iOS simulator, an Android emulator
   (API 28+), or Chrome with `--dart-define=RP_ID=localhost`. See the demo
   `README.md` for platform entitlements.
@@ -52,10 +51,9 @@ are produced during the flow and copied between processes.
 |-------|---------------------|-----------------|----------|--------------------|
 | Coordination URL | bind `0.0.0.0:$PORT` (`--port`, default 8787) | `AGENT_COORDINATION_URL` | `--dart-define=COORDINATION_URL` | agent posts and demo polls the same server |
 | Coordination token | `COORDINATION_TOKEN` / `--token` (required) | `AGENT_COORDINATION_TOKEN` | `--dart-define=COORDINATION_TOKEN` | every `/requests*` call is bearer-authenticated |
-| Agent seed | — | `AGENT_SECRET_SEED` (`S...`, secret) | — | the agent signs with this key |
-| Agent public key | — | derived from the seed | pasted into Delegate-to-agent | the demo registers it as the Ed25519 external signer |
+| Agent seed | — | `AGENT_SECRET_SEED` (raw 64-char hex, secret) | — | the agent signs with this key |
+| Agent public key | — | derived from the seed (raw 64-char hex) | pasted into Delegate-to-agent | the demo registers it as the Ed25519 external signer |
 | Smart account | — | `AGENT_SMART_ACCOUNT` (`C...`) | the connected account's "Contract address" | the agent connects to the account it was delegated on |
-| Credential ID | — | `AGENT_CREDENTIAL_ID` (base64url) | the connected passkey's "Credential ID" | the agent connects headlessly via this credential |
 | Destination | — | `AGENT_DESTINATION` (`G...`/`C...`) | — | the transfer recipient |
 | Scoped token | — | `AGENT_TOKEN_CONTRACT` (default XLM SAC) | the token chosen in Delegate-to-agent | the call must hit the one token the rule scopes |
 | Spending cap vs. amount | — | `AGENT_AMOUNT` (default `1`) | the cap entered in Delegate-to-agent | **`AGENT_AMOUNT` must EXCEED the cap** so the call is policy-rejected |
@@ -91,7 +89,7 @@ Confirm it is up: `curl http://localhost:8787/health` returns `200`.
 
 Before a full live config exists, obtain the agent's identity. With no seed set,
 this generates a fresh one and prints BOTH the seed (to copy into the agent
-config) and the `G...` public key (to paste into the demo):
+config) and the 64-hex public key (to paste into the demo):
 
 ```sh
 cd reference_agent
@@ -102,19 +100,19 @@ Output (look for the `[agent] [KEY]` lines):
 
 ```
 [agent] [KEY] Generated a new agent Ed25519 keypair.
-[agent] [KEY] AGENT_SECRET_SEED (copy into the agent config, keep secret): S...
-[agent] [KEY] Agent public key (paste into Delegate-to-agent): G...
+[agent] [KEY] AGENT_SECRET_SEED (copy into the agent config, keep secret): <64-hex>
+[agent] [KEY] Agent public key (paste into Delegate-to-agent): <64-hex>
 ```
 
 To re-derive the public key for a seed you already hold (the secret is never
 printed back):
 
 ```sh
-AGENT_PRINT_KEY=true AGENT_SECRET_SEED=S... \
+AGENT_PRINT_KEY=true AGENT_SECRET_SEED=<64-hex> \
   flutter test test/agent_print_key_test.dart
 ```
 
-Keep the seed secret; share only the `G...` address with the wallet.
+Keep the seed secret; share only the 64-hex public key with the wallet.
 
 ## Step 2 — Create/connect the account, then delegate to the agent (device-only)
 
@@ -122,7 +120,7 @@ Run the demo (see "Running the demo" below). In the app:
 
 1. **Create or connect a smart account** with a passkey.
 2. From the **Context Rules** screen, open **Delegate to agent** and:
-   - paste the agent's `G...` public key from step 1;
+   - paste the agent's 64-hex public key from step 1;
    - scope the rule to the demo token (the field defaults to the DEMO token);
    - set a **small** spending cap (this is what the agent must exceed);
    - set an expiry (for example ~24h);
@@ -132,8 +130,9 @@ This installs one context rule that scopes the agent to one token, caps its
 spend, and expires on its own. The mechanics are in
 [`smart-accounts/agent-delegation-demo.md`](smart-accounts/agent-delegation-demo.md).
 
-Copy two values the agent needs from the demo's wallet status card: the account
-**Contract address** (`C...`) and the connected **Credential ID** (base64url).
+Copy the value the agent needs from the demo's wallet status card: the account
+**Contract address** (`C...`). The agent connects headlessly by contract
+address alone — it holds no passkey credential.
 
 ## Step 3 — Configure and run the agent so its call is rejected
 
@@ -144,8 +143,7 @@ rejects the call. The agent escalates the rejection and polls:
 cd reference_agent
 AGENT_RUN_LIVE=true \
 AGENT_SMART_ACCOUNT=C...           # account "Contract address" from step 2 \
-AGENT_CREDENTIAL_ID=<base64url>    # "Credential ID" from step 2 \
-AGENT_SECRET_SEED=S...             # the agent seed from step 1 \
+AGENT_SECRET_SEED=<64-hex>         # the agent seed from step 1 \
 AGENT_DESTINATION=G...             # transfer recipient \
 AGENT_AMOUNT=1000                  # MUST exceed the delegated cap \
 AGENT_COORDINATION_URL=http://localhost:8787 \
@@ -225,10 +223,10 @@ The agent (typically on the same machine as the server) keeps
   `AGENT_COORDINATION_TOKEN`, and the demo's
   `--dart-define=COORDINATION_TOKEN` must be identical.
 - **Account mismatch / agent cannot connect or sign.** `AGENT_SMART_ACCOUNT`
-  and `AGENT_CREDENTIAL_ID` must be the exact "Contract address" and
-  "Credential ID" of the account you delegated on in step 2, and the agent's
-  `G...` (from `AGENT_SECRET_SEED`) must be the key you pasted into
-  Delegate-to-agent. Re-derive it with `AGENT_PRINT_KEY=true` (step 1).
+  must be the exact "Contract address" of the account you delegated on in
+  step 2, and the agent's 64-hex public key (from `AGENT_SECRET_SEED`) must be
+  the key you pasted into Delegate-to-agent. Re-derive it with
+  `AGENT_PRINT_KEY=true` (step 1).
 - **No rejection — the call succeeds instead of escalating.** `AGENT_AMOUNT` is
   at or below the delegated cap, so the spending-limit policy permits it. Raise
   `AGENT_AMOUNT` above the cap, or lower the cap in a new delegation. Also

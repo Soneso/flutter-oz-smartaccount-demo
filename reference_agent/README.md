@@ -7,7 +7,8 @@ process that acts within scoped, user-delegated authority.
 Given an existing smart account and its own delegated Ed25519 key, the agent:
 
 1. Connects to the smart account headlessly (in-memory storage, no WebAuthn
-   provider) using the account's public credential ID and contract ID.
+   provider) using only the smart-account contract ID, via the SDK's
+   `connectToContract` method — no passkey credential required.
 2. Registers its Ed25519 keypair as an external signer through the
    verifier-contract path, via the same adapter callback the demo app uses.
 3. Attempts a scoped contract call (token `transfer`) through the multi-signer
@@ -38,8 +39,7 @@ flutter test
 # Live end-to-end run (testnet + a running coordination server):
 AGENT_RUN_LIVE=true \
 AGENT_SMART_ACCOUNT=C... \
-AGENT_CREDENTIAL_ID=<base64url credential id> \
-AGENT_SECRET_SEED=S... \
+AGENT_SECRET_SEED=<64-hex> \
 AGENT_DESTINATION=G... \
 AGENT_COORDINATION_URL=http://localhost:8787 \
 AGENT_COORDINATION_TOKEN=dev-token-change-me \
@@ -60,7 +60,7 @@ entries, gated on `AGENT_PRINT_KEY` so the default `flutter test` run never
 generates a key as a side effect.
 
 ```sh
-# Generate a fresh seed + G-address (no other config needed):
+# Generate a fresh 64-hex seed + 64-hex public key (no other config needed):
 AGENT_PRINT_KEY=true flutter test test/agent_print_key_test.dart
 ```
 
@@ -68,16 +68,16 @@ Look for the `[agent] [KEY]` lines:
 
 ```
 [agent] [KEY] Generated a new agent Ed25519 keypair.
-[agent] [KEY] AGENT_SECRET_SEED (copy into the agent config, keep secret): S...
-[agent] [KEY] Agent public key (paste into Delegate-to-agent): G...
+[agent] [KEY] AGENT_SECRET_SEED (copy into the agent config, keep secret): <64-hex>
+[agent] [KEY] Agent public key (paste into Delegate-to-agent): <64-hex>
 ```
 
-Copy the `S...` seed into `AGENT_SECRET_SEED` (keep it secret) and paste the
-`G...` public key into the demo's Delegate-to-agent screen. To re-derive the
+Copy the 64-hex seed into `AGENT_SECRET_SEED` (keep it secret) and paste the
+64-hex public key into the demo's Delegate-to-agent screen. To re-derive the
 public key for a seed you already hold — the secret is never printed back:
 
 ```sh
-AGENT_PRINT_KEY=true AGENT_SECRET_SEED=S... \
+AGENT_PRINT_KEY=true AGENT_SECRET_SEED=<64-hex> \
   flutter test test/agent_print_key_test.dart
 ```
 
@@ -125,8 +125,7 @@ the agent's Ed25519 key as a scoped signer on the smart account.
 | Field | Env var | Description |
 |-------|---------|-------------|
 | `smartAccountContractId` | `AGENT_SMART_ACCOUNT` | Deployed smart-account C-address |
-| `credentialId` | `AGENT_CREDENTIAL_ID` | Base64URL credential ID of the account's connected passkey |
-| `agentSecretSeed` | `AGENT_SECRET_SEED` | Agent Ed25519 secret seed (Stellar `S...`) |
+| `agentSecretSeed` | `AGENT_SECRET_SEED` | Agent Ed25519 secret seed as raw 64-character hex (32 bytes) |
 | `destinationAddress` | `AGENT_DESTINATION` | Transfer recipient (`G...` or `C...`) |
 
 `AgentConfig.validateForLiveRun()` checks that these are present and

@@ -278,16 +278,13 @@ harness:
 2. **Identify the root cause.** If it is an SDK-typed error, the message
    field carries the contract error code (e.g.
    `SmartAccountException [5001]: ...HostError: Error(Contract, #3015)`).
-   Look up the code in
-   `/Users/chris/projects/Stellar/oz/stellar-contracts/packages/accounts/src/smart_account/mod.rs`
-   under `SmartAccountError`. Common codes encountered so far:
+   Look up the code in the OpenZeppelin smart-account contract's
+   `SmartAccountError` enum. Common codes encountered so far:
    - `3015` — `NameTooLong` (context rule name > 20 bytes)
    - `3016` — `UnauthorizedSigner`
    - `3011` — `TooManyPolicies`
 
-3. **Fix the demo** (and/or the SDK if the bug originates there — see
-   `/Users/chris/projects/soneso-sa/CLAUDE.md::Repository Edit Boundaries`
-   for which repos are writable).
+3. **Fix the demo** (and/or the SDK if the bug originates there).
 
 4. **Cross-platform parity check.** Whenever a Flutter bug is fixed,
    inspect the iOS/macOS demo for the same pattern. File-path mapping:
@@ -306,16 +303,6 @@ harness:
    CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO` plus
    `swiftlint --strict`. If iOS is structurally immune (Swift `Result`
    matching, `Task.cancel`, etc.), document why in the bug entry.
-
-5. **Record the bug** in `/Users/chris/projects/soneso-sa/plans/web-test-scenarios.md`
-   under `## Bugs found` with the next `B-N` number, root cause, fix
-   summary, cross-platform notes, and verification status.
-
-6. **File proposals** in `/Users/chris/projects/soneso-sa/progress/proposals/executed/`:
-   - `commit-NNN-<sha>-<short-desc>.md` per commit
-   - `push-NNN-<sha>-<short-desc>.md` per push
-   - Sequence numbers are project-global; check
-     `ls progress/proposals/executed/ | tail` for the next free index.
 
 ## Common UI references in the demo
 
@@ -394,11 +381,3 @@ authoring a similar verification step.
 8. **The accessibility-tree snapshot is fresh per `snapshot` call** but
    refs are not stable across calls. Always capture a snapshot
    immediately before grep-extracting refs you intend to act on.
-
-## Plan & progress tracking
-
-Out-of-tree planning lives at
-`/Users/chris/projects/soneso-sa/plans/web-test-scenarios.md` — scenario
-matrix, bug list (B-1..), and changelog. Commit + push proposals live at
-`/Users/chris/projects/soneso-sa/progress/proposals/executed/`. Future
-agents working on this harness should read both files before extending it.

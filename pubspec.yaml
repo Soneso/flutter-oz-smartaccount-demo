@@ -18,7 +18,7 @@
 #   Version sources: pub.dev API queried 2026-05-16.
 #
 # Pinned dependency versions — verified from pub.dev 2026-05-16:
-#   stellar_flutter_sdk          local path ../stellar_flutter_sdk (branch feature/oz-smart-account)
+#   stellar_flutter_sdk          ^3.1.0  pub.dev 2026-05-16 (resolves 3.2.0)
 #   reown_core                   1.3.8  pub.dev 2026-05-16
 #   reown_sign                   1.3.9  pub.dev 2026-05-16
 #   flutter_riverpod             3.3.1  pub.dev 2026-05-16
@@ -102,6 +102,14 @@ dev_dependencies:
   # Required to mock UrlLauncherPlatform in url_opener_test.dart.
   plugin_platform_interface: ^2.1.8
   url_launcher_platform_interface: ^2.3.2
+
+# TEMPORARY (local testing only) — overrides stellar_flutter_sdk with the local
+# clone on branch sa-improvements to test the auto-fund Friendbot-propagation
+# poll fix before it ships to pub.dev. REMOVE before committing: external users
+# have no local clone, so the committed demo must use the pub.dev version.
+dependency_overrides:
+  stellar_flutter_sdk:
+    path: ../stellar_flutter_sdk
 
 flutter:
   uses-material-design: true

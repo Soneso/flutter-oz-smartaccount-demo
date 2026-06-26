@@ -319,7 +319,7 @@ class _DelegateToAgentScreenState
             'Register an agent as an Ed25519 external signer in one context '
             'rule: scoped to a single token contract, capped by a spending '
             'limit, and expiring after a set time. The agent holds its own '
-            'secret; paste only its public key (G...).',
+            'secret; paste only its public key (64-char hex).',
         tint: SectionDescriptionTint.primary,
       ),
       const SizedBox(height: 16),
@@ -356,12 +356,12 @@ class _DelegateToAgentScreenState
         keyboardType: TextInputType.text,
         textInputAction: TextInputAction.next,
         decoration: InputDecoration(
-          labelText: 'Agent Public Key',
-          hintText: 'G...',
+          labelText: 'Agent Ed25519 Public Key (hex)',
+          hintText: '64 hex characters',
           border: const OutlineInputBorder(),
           helperText: hasError
               ? null
-              : "The agent's Stellar public key (printed on its startup line)",
+              : "The agent's Ed25519 public key in hex (printed on its startup line)",
           errorStyle: const TextStyle(height: 0, fontSize: 0),
           errorText: hasError ? ' ' : null,
         ),

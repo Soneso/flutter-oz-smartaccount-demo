@@ -10,45 +10,25 @@ import 'coordination_client.dart';
 
 /// Production [WalletSession] that connects an [OZSmartAccountKit] headlessly.
 ///
-/// Uses the explicit `(credentialId, contractId)` connect path, which bypasses
-/// session restore and the WebAuthn cascade — no passkey ceremony is needed.
+/// Uses the contract-address-only [OZWalletOperations.connectToContract] path:
+/// no passkey credential, no WebAuthn ceremony, no session restore. The agent
+/// operates the account through the multi-signer / external-signer pipeline.
 class KitWalletSession implements WalletSession {
-  /// Constructs a session for [kit] connecting to [contractId] via
-  /// [credentialId].
+  /// Constructs a session for [kit] connecting headlessly to [contractId].
   KitWalletSession({
     required OZSmartAccountKit kit,
-    required String credentialId,
     required String contractId,
   })  : _kit = kit,
-        _credentialId = credentialId,
         _contractId = contractId;
 
   final OZSmartAccountKit _kit;
-  final String _credentialId;
   final String _contractId;
 
   @override
   Future<String> connect() async {
-    final result = await _kit.walletOperations.connectWallet(
-      options: OZConnectWalletOptions(
-        credentialId: _credentialId,
-        contractId: _contractId,
-      ),
-    );
-    switch (result) {
-      case OZConnectWalletConnected(:final contractId):
-        return contractId;
-      case OZConnectWalletAmbiguous():
-        throw StateError(
-          'connectWallet returned multiple candidates for an explicit '
-          'contractId; this should not happen.',
-        );
-      case null:
-        throw StateError(
-          'connectWallet returned null for an explicit credential/contract '
-          'pair; the contract may not exist on-chain.',
-        );
-    }
+    final result =
+        await _kit.walletOperations.connectToContract(_contractId);
+    return result.contractId;
   }
 }
 
@@ -107,7 +87,8 @@ class Agent {
   }) {
     config.validateForLiveRun();
 
-    final agentKeypair = KeyPair.fromSecretSeed(config.agentSecretSeed!);
+    final agentKeypair =
+        KeyPair.fromSecretSeedList(Util.hexToBytes(config.agentSecretSeed!));
     final signerAdapter = AgentEd25519SignerAdapter();
 
     final ozConfig = OZSmartAccountConfig(
@@ -131,7 +112,6 @@ class Agent {
       config: config,
       session: KitWalletSession(
         kit: kit,
-        credentialId: config.credentialId!,
         contractId: config.smartAccountContractId!,
       ),
       contractCall: MultiSignerContractCallAdapter(kit.multiSignerManager),

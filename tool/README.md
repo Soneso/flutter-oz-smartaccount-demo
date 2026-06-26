@@ -32,7 +32,7 @@ cd /path/to/flutter-oz-smartaccount-demo
 ./tool/run_web_dev.sh
 ```
 
-This runs `flutter build web --release --pwa-strategy=none --dart-define=RP_ID=<value>`
+This runs `flutter build web --<mode> --pwa-strategy=none --dart-define=RP_ID=<value>`
 to produce the static bundle under `build/web/`, then serves that directory with
 `python3 -m http.server 5173 --bind localhost` detached in the background. The
 server PID is saved to `tool/.web_dev.pid` and build output is logged to
@@ -40,6 +40,18 @@ server PID is saved to `tool/.web_dev.pid` and build output is logged to
 browser does not cache a stale shell between iterations. `RP_ID` defaults to
 `localhost`; override it in the environment before launching (for example
 `RP_ID=demo.example.com ./tool/run_web_dev.sh`).
+
+The build mode defaults to release. **The agent-flow approval inbox requires a
+debug build:** outside debug builds the coordination ship-blocker guard
+(`coordinationConfigShipBlocker` in `lib/config/demo_config.dart`) refuses the
+local dev coordination token and the non-HTTPS `http://localhost` coordination
+URL, so the inbox fails to start (it surfaces a "provider in error state"
+error). To exercise the full agent-signer flow, build in debug mode via
+`WEB_BUILD_MODE` (release default, or `debug`/`profile`):
+
+```bash
+WEB_BUILD_MODE=debug ./tool/run_web_dev.sh
+```
 
 To stop:
 
@@ -68,7 +80,10 @@ Starts the agent-signer coordination server (`coordination_server/`) bound to
 pass `--token` or set `COORDINATION_TOKEN`; `--port` / `PORT` default to `8787`;
 `--store` / `COORDINATION_STORE` optionally persists requests. Stop with Ctrl-C.
 This is the server used by the full agent-signer flow — see
-[documentation/agent-flow.md](../documentation/agent-flow.md).
+[documentation/agent-flow.md](../documentation/agent-flow.md). The web demo must
+run as a debug build for the approval inbox to reach this server
+(`WEB_BUILD_MODE=debug ./tool/run_web_dev.sh`; see "Starting the web dev server"
+above).
 
 ---
 

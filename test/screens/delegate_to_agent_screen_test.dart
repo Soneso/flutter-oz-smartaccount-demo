@@ -5,6 +5,8 @@
 /// no testnet, no network.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,7 +78,7 @@ void main() {
       await tester.pumpWidget(_wrap(_makeFlow(manager)));
       await tester.pump();
 
-      expect(find.widgetWithText(TextField, 'Agent Public Key'),
+      expect(find.widgetWithText(TextField, 'Agent Ed25519 Public Key (hex)'),
           findsOneWidget);
       expect(find.widgetWithText(TextField, 'Token Contract'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'Spending Limit'), findsOneWidget);
@@ -93,13 +95,13 @@ void main() {
       await tester.pump();
 
       await tester.enterText(
-        find.widgetWithText(TextField, 'Agent Public Key'),
+        find.widgetWithText(TextField, 'Agent Ed25519 Public Key (hex)'),
         'not-a-key',
       );
       await tester.pump();
 
       expect(
-        find.textContaining('valid Stellar agent public key'),
+        find.textContaining('Must be 64 hex characters'),
         findsOneWidget,
       );
     });
@@ -109,13 +111,14 @@ void main() {
       _useTallSurface(tester);
       final manager = MockContextRuleFlowManager()
         ..addResult = successResult(hash: 'delegationhash');
-      final agentKey = KeyPair.random().accountId;
+      final agentKey =
+          Util.bytesToHex(Uint8List.fromList(KeyPair.random().publicKey));
 
       await tester.pumpWidget(_wrap(_makeFlow(manager)));
       await tester.pump();
 
       await tester.enterText(
-        find.widgetWithText(TextField, 'Agent Public Key'),
+        find.widgetWithText(TextField, 'Agent Ed25519 Public Key (hex)'),
         agentKey,
       );
       await tester.enterText(

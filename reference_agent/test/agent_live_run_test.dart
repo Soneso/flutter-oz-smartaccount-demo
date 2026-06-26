@@ -11,8 +11,7 @@
 //
 //   AGENT_RUN_LIVE=true \
 //   AGENT_SMART_ACCOUNT=C... \
-//   AGENT_CREDENTIAL_ID=<base64url credential id> \
-//   AGENT_SECRET_SEED=S... \
+//   AGENT_SECRET_SEED=<64-hex> \
 //   AGENT_DESTINATION=G... \
 //   AGENT_COORDINATION_URL=http://localhost:8787 \
 //   AGENT_COORDINATION_TOKEN=dev-token-change-me \
@@ -55,6 +54,15 @@ void main() {
         ),
       );
     },
+    // A rejected call escalates and the agent polls for the user's decision, so
+    // the run can take up to (pollInterval x pollMaxAttempts). The framework's
+    // default 30s timeout is shorter than that window and would kill the run
+    // before a manual approval lands, so derive the timeout from the polling
+    // bound plus a margin for the connect/simulate/submit round-trips.
+    timeout: Timeout(
+      config.pollInterval * config.pollMaxAttempts +
+          const Duration(minutes: 1),
+    ),
     skip: shouldRun
         ? null
         : 'Set AGENT_RUN_LIVE=true and supply a complete live config '

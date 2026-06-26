@@ -13,19 +13,19 @@ time-bounded. A single context rule expresses all three: it scopes the agent to
 one token, caps how much it may move, and expires on its own.
 
 The agent owns its Ed25519 secret. It never leaves the agent process. Only the
-agent's **public key** is shared with the wallet, as a Stellar `G...` address
-(StrKey, checksummed). The reference agent prints it on startup:
+agent's **public key** is shared with the wallet, as raw 32-byte Ed25519 hex
+(64 characters, lowercase). The reference agent prints it on startup:
 
 ```
-[agent] [INFO] Agent public key (paste into Delegate-to-agent): GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFF36LPGADB4QLE3VG
+[agent] [INFO] Agent public key (paste into Delegate-to-agent): a3f5c8d12e6b4079bdf1024856ac9e3f7b0d5142c6e8093aef12b4d6c8a05f7e
 ```
 
-The wallet pastes that `G...` value, decodes it to the raw 32-byte Ed25519 key
+The wallet pastes that 64-hex value, decodes it to the raw 32-byte Ed25519 key
 the verifier contract expects, and registers it as an external signer:
 
 ```dart
-// G-address -> raw 32-byte Ed25519 public key.
-final agentKey = KeyPair.fromAccountId(agentGAddress).publicKey;
+// 64-char hex -> raw 32-byte Ed25519 public key.
+final agentKey = Util.hexToBytes(agentPublicKeyHex);
 
 // Cap (decimal string) -> base units at the token's scale (DEMO uses 7).
 final cap = OZTransactionOperations.amountToBaseUnits('100', decimals: 7);
@@ -79,7 +79,7 @@ await kit.contextRuleManager.addContextRule(
    agent is an *external* Ed25519 signer: signatures are verified on-chain by
    the Ed25519 verifier contract
    `CAW2Z46INPO5VIJEILMYSSEOLBVJIIII5GOE3TN5EUURSRM2FJCF7AJ6`. `publicKey` is
-   the raw 32-byte key decoded from the agent's `G...` address. This is
+   the raw 32-byte key decoded from the agent's 64-char hex public key. This is
    deliberately not `OZDelegatedSigner`: a delegated signer is a Stellar
    account that authorizes natively, whereas the agent authorizes through the
    verifier-contract path the SDK's multi-signer pipeline drives.

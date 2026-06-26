@@ -24,14 +24,11 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart'
-    show KeyPair, StrKey;
-
 import '../config/demo_config.dart' as config;
 import '../state/activity_log_state.dart';
 import '../util/error_utils.dart' show classifyError;
 import '../util/format_utils.dart'
-    show stellarDecimalAmountPattern, truncateAddress;
+    show hexToBytes, isValidHex, stellarDecimalAmountPattern, truncateAddress;
 import '../util/policy_type.dart' show PolicyType;
 import 'context_rule_builder_types.dart'
     show
@@ -73,7 +70,7 @@ final class DelegationSummary {
     required this.verifierAddress,
   });
 
-  /// The agent's Stellar public key (G-address) that was authorised.
+  /// The agent's Ed25519 public key (64-character hex) that was authorised.
   final String agentPublicKey;
 
   /// The token contract the agent is scoped to (C-address).
@@ -174,17 +171,21 @@ final class DelegateToAgentFlow {
   // Public: validation
   // -------------------------------------------------------------------------
 
-  /// Validates [value] as a well-formed Stellar agent public key (G-address).
+  /// Validates [value] as the agent's raw 32-byte Ed25519 public key in hex.
   ///
   /// Returns null when [value] is empty (so the form is not flagged on initial
-  /// render) or when it is a valid Stellar account public key. Returns an error
-  /// string otherwise. The agent emits its public key as a Stellar G-address
-  /// (StrKey, checksummed), so the screen accepts the same representation.
+  /// render) or when it is exactly 64 hex characters. Returns an error string
+  /// otherwise. The agent emits its public key as raw 64-character hex, so the
+  /// screen accepts the same representation. Mirrors the Ed25519 add form's
+  /// length/hex checks and error strings.
   String? validateAgentPublicKey(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return null;
-    if (!StrKey.isValidStellarAccountId(trimmed)) {
-      return 'Must be a valid Stellar agent public key (G...).';
+    final raw = value.trim().toLowerCase();
+    if (raw.isEmpty) return null;
+    if (raw.length != 64) {
+      return 'Must be 64 hex characters (32 bytes), got ${raw.length}';
+    }
+    if (!isValidHex(raw)) {
+      return 'Invalid hex characters';
     }
     return null;
   }
@@ -234,9 +235,9 @@ final class DelegateToAgentFlow {
   /// Composes and submits ONE `addContextRule` call delegating scoped,
   /// spend-capped, time-bounded authority to the agent.
   ///
-  /// - [agentPublicKey] is the agent's Stellar public key (G-address). It is
-  ///   validated and converted to the raw 32-byte Ed25519 key the verifier
-  ///   contract expects.
+  /// - [agentPublicKey] is the agent's raw 32-byte Ed25519 public key as
+  ///   64-character hex. It is validated and decoded to the raw 32-byte key the
+  ///   verifier contract expects.
   /// - [tokenContract] is the single token the rule scopes to via
   ///   `CallContract`.
   /// - [amount] is the spending cap as a human decimal string, converted to
@@ -263,22 +264,21 @@ final class DelegateToAgentFlow {
     }
     _isSubmitting = true;
     try {
-      final trimmedKey = agentPublicKey.trim();
-      if (!StrKey.isValidStellarAccountId(trimmedKey)) {
+      final trimmedKey = agentPublicKey.trim().toLowerCase();
+      if (trimmedKey.length != 64 || !isValidHex(trimmedKey)) {
         return const DelegationResult(
           success: false,
-          error: 'Enter a valid Stellar agent public key (G...).',
+          error: 'Enter the agent Ed25519 public key as 64 hex characters.',
         );
       }
 
       final Uint8List agentKeyBytes;
       try {
-        agentKeyBytes =
-            Uint8List.fromList(KeyPair.fromAccountId(trimmedKey).publicKey);
+        agentKeyBytes = hexToBytes(trimmedKey);
       } catch (_) {
         return const DelegationResult(
           success: false,
-          error: 'Enter a valid Stellar agent public key (G...).',
+          error: 'Enter the agent Ed25519 public key as 64 hex characters.',
         );
       }
 

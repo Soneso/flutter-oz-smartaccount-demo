@@ -7,6 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:reference_agent/reference_agent.dart';
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
+/// A fresh, valid raw 32-byte agent seed as 64-character hex.
+String validSeedHex() => resolveAgentKey().secretSeedHex!;
+
 void main() {
   group('defaults', () {
     test('a bare config carries the demo testnet defaults', () {
@@ -29,7 +32,7 @@ void main() {
 
     test('toString redacts the seed and coordination token', () {
       final config = AgentConfig(
-        agentSecretSeed: KeyPair.random().secretSeed,
+        agentSecretSeed: validSeedHex(),
         coordinationToken: 'super-secret',
       );
       final text = config.toString();
@@ -118,8 +121,7 @@ void main() {
   group('validateForLiveRun', () {
     AgentConfig completeConfig() => AgentConfig(
           smartAccountContractId: AgentDefaults.nativeTokenContract,
-          credentialId: 'demo-credential',
-          agentSecretSeed: KeyPair.random().secretSeed,
+          agentSecretSeed: validSeedHex(),
           destinationAddress: KeyPair.random().accountId,
         );
 
@@ -135,13 +137,18 @@ void main() {
       );
     });
 
-    test('rejects an invalid agent seed', () {
+    test('rejects a non-hex agent seed', () {
       final bad = AgentConfig(
         smartAccountContractId: AgentDefaults.nativeTokenContract,
-        credentialId: 'demo-credential',
         agentSecretSeed: 'not-a-seed',
         destinationAddress: KeyPair.random().accountId,
       );
+      expect(bad.validateForLiveRun, throwsA(isA<AgentConfigException>()));
+    });
+
+    test('rejects a wrong-length hex agent seed', () {
+      // Valid hex but 62 characters — one byte short of a 32-byte seed.
+      final bad = completeConfig().copyWith(agentSecretSeed: 'a' * 62);
       expect(bad.validateForLiveRun, throwsA(isA<AgentConfigException>()));
     });
 
