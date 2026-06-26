@@ -107,6 +107,68 @@ const String defaultIndexerUrl =
     'https://smart-account-indexer.sdf-ecosystem.workers.dev';
 
 // ---------------------------------------------------------------------------
+// Coordination Server (agent-signer flow, steps 4 + 5)
+// ---------------------------------------------------------------------------
+//
+// The coordination server brokers policy-rejected smart-account calls between
+// the autonomous reference agent and this demo's approval inbox. The agent
+// posts a rejected call; the inbox polls the pending requests, lets the user
+// approve (re-submit the call under the Default rule) or reject, and reports
+// the outcome back. See `coordination_server/README.md` for the wire contract.
+
+/// Base URL of the coordination server. The approval inbox client targets this
+/// host for all `/requests*` endpoints. The server binds `0.0.0.0:8787` by
+/// default and is reachable from emulators, devices, and browsers on the LAN.
+///
+/// Override via `--dart-define=COORDINATION_URL=<value>` to point the demo at a
+/// server on another host (for example a LAN IP for a physical device).
+const String coordinationServerUrl = String.fromEnvironment(
+  'COORDINATION_URL',
+  defaultValue: 'http://localhost:8787',
+);
+
+/// Local-development bearer token shipped as the default for
+/// [coordinationToken]. A release build must override it via
+/// `--dart-define=COORDINATION_TOKEN`; shipping it would let anyone with the
+/// well-known value drive the approval inbox.
+const String devCoordinationToken = 'dev-token-change-me';
+
+/// Bearer token presented on every coordination `/requests*` call. Must match
+/// the `COORDINATION_TOKEN` the server was started with.
+///
+/// The default matches the server README's local-development token. Override
+/// via `--dart-define=COORDINATION_TOKEN=<value>` for any shared or deployed
+/// environment; never ship the development token to production.
+const String coordinationToken = String.fromEnvironment(
+  'COORDINATION_TOKEN',
+  defaultValue: devCoordinationToken,
+);
+
+/// Returns a human-readable reason the coordination configuration is unsafe to
+/// ship outside a debug build, or null when it is safe.
+///
+/// A release/profile build must not fall back to the development token or talk
+/// to a cleartext (non-HTTPS) endpoint: either would silently ship the
+/// local-development defaults. The approval-inbox client provider calls this in
+/// non-debug builds and refuses to construct a client when it returns non-null.
+/// Debug/demo runs skip the check so localhost development still works.
+String? coordinationConfigShipBlocker({
+  String token = coordinationToken,
+  String url = coordinationServerUrl,
+}) {
+  if (token.isEmpty || token == devCoordinationToken) {
+    return 'the development coordination token is still in use; set '
+        'COORDINATION_TOKEN via --dart-define';
+  }
+  final parsed = Uri.tryParse(url);
+  if (parsed == null || parsed.scheme.toLowerCase() != 'https') {
+    return 'the coordination server URL is not HTTPS; set an https:// '
+        'COORDINATION_URL via --dart-define';
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // WebAuthn
 // ---------------------------------------------------------------------------
 

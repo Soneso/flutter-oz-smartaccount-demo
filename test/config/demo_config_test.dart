@@ -178,5 +178,54 @@ void main() {
         containsAll({'threshold', 'spending_limit', 'weighted_threshold'}),
       );
     });
+
+    // -------------------------------------------------------------------------
+    // Coordination server ship-blocker guard
+    // -------------------------------------------------------------------------
+
+    group('coordinationConfigShipBlocker', () {
+      test('blocks the development token', () {
+        // The default token argument is the development token.
+        final blocker = coordinationConfigShipBlocker(
+          url: 'https://coordination.example.com',
+        );
+        expect(blocker, isNotNull);
+        expect(blocker, contains('development coordination token'));
+      });
+
+      test('blocks an empty token', () {
+        final blocker = coordinationConfigShipBlocker(
+          token: '',
+          url: 'https://coordination.example.com',
+        );
+        expect(blocker, isNotNull);
+      });
+
+      test('blocks a cleartext (non-HTTPS) endpoint', () {
+        // The default URL argument is the cleartext localhost endpoint.
+        final blocker = coordinationConfigShipBlocker(
+          token: 'a-real-secret-token',
+        );
+        expect(blocker, isNotNull);
+        expect(blocker, contains('HTTPS'));
+      });
+
+      test('allows a real token over HTTPS', () {
+        final blocker = coordinationConfigShipBlocker(
+          token: 'a-real-secret-token',
+          url: 'https://coordination.example.com',
+        );
+        expect(blocker, isNull);
+      });
+
+      test('the shipped defaults are unsafe (so a release build is blocked)',
+          () {
+        // The compile-time defaults are the local-dev token + cleartext
+        // localhost; the guard must flag them so they cannot ship silently.
+        expect(coordinationToken, devCoordinationToken);
+        expect(coordinationServerUrl, startsWith('http://'));
+        expect(coordinationConfigShipBlocker(), isNotNull);
+      });
+    });
   });
 }

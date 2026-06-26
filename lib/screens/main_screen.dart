@@ -12,6 +12,8 @@
 ///   grid, and the outlined [Disconnect] button.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,6 +22,7 @@ import '../flows/main_screen_flow.dart';
 import '../navigation/routes.dart';
 import '../state/demo_state.dart';
 import '../state/main_screen_flow_provider.dart';
+import '../state/pending_request_count_provider.dart';
 import '../state/theme_mode_provider.dart';
 import '../theme/spacing.dart';
 import '../widgets/activity_log_card.dart';
@@ -71,17 +74,45 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       _flow.initializeKit().then((_) {
         if (mounted) _flow.refreshBalances();
       });
+      // Load the pending-escalation count once so the inbox bell badge is
+      // populated on the first frame. Refreshes again on demand only (after
+      // inbox actions / pull-to-refresh) — no background polling timer.
+      unawaited(ref.read(pendingRequestCountProvider.notifier).refresh());
     });
+  }
+
+  /// Pull-to-refresh refreshes the balances and the pending-escalation count
+  /// together, so the bell badge tracks the latest server state.
+  Future<void> _onPullToRefresh() async {
+    await Future.wait<void>(<Future<void>>[
+      _flow.refreshBalances(),
+      ref.read(pendingRequestCountProvider.notifier).refresh(),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
     final connectionState = ref.watch(demoStateProvider);
 
+    // Drive the inbox bell badge from the connection state: the inbox is scoped
+    // to the connected smart account, so refresh the count when an account
+    // connects (or changes) and reset it to zero on disconnect.
+    ref.listen<String?>(
+      demoStateProvider.select((s) => s.contractId),
+      (previous, next) {
+        final notifier = ref.read(pendingRequestCountProvider.notifier);
+        if (next == null) {
+          notifier.reset();
+        } else {
+          unawaited(notifier.refresh());
+        }
+      },
+    );
+
     return Scaffold(
       appBar: _buildAppBar(context),
       body: RefreshIndicator(
-        onRefresh: _flow.refreshBalances,
+        onRefresh: _onPullToRefresh,
         child: CustomScrollView(
           slivers: [
             SliverPadding(
@@ -121,6 +152,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         ],
       ),
       actions: const [
+        _ApprovalInboxBell(),
         _ThemeModeToggle(),
         SizedBox(width: 8),
       ],
@@ -193,6 +225,30 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       const ActivityLogCard(),
       const SizedBox(height: 40),
     ];
+  }
+}
+
+/// AppBar action: a bell that opens the approval inbox, badged with the number
+/// of pending agent escalations when greater than zero.
+class _ApprovalInboxBell extends ConsumerWidget {
+  const _ApprovalInboxBell();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(pendingRequestCountProvider);
+    final tooltip = count > 0
+        ? 'Approval inbox ($count pending)'
+        : 'Approval inbox';
+    final icon = Icon(
+      count > 0 ? Icons.notifications_active_outlined : Icons.notifications_none,
+    );
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: () => context.push(AppRoutes.approvalInbox),
+      icon: count > 0
+          ? Badge.count(count: count, child: icon)
+          : icon,
+    );
   }
 }
 

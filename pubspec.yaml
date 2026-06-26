@@ -52,6 +52,11 @@ dependencies:
   reown_core: ^1.3.8
   reown_sign: ^1.3.9
 
+  # HTTP client for the coordination-server (approval inbox) REST calls.
+  # Declared directly because the approval-inbox client references it; the
+  # version matches the transitive resolution already in pubspec.lock.
+  http: ^1.6.0
+
   # State management.
   flutter_riverpod: ^3.3.1
 
