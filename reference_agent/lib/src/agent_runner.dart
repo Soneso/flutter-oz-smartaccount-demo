@@ -220,6 +220,14 @@ class AgentRunner {
       'Starting agent: account=${config.smartAccountContractId}, '
       'token=${config.tokenContractId}, amount=${config.amount}',
     );
+    // Print the agent's own public key as a Stellar G-address (StrKey,
+    // checksummed) so an operator can paste it into the demo's
+    // "Delegate to agent" screen, which registers it as the Ed25519 external
+    // signer this agent then signs with.
+    _logger.info(
+      'Agent public key (paste into Delegate-to-agent): '
+      '${_agentKeypair.accountId}',
+    );
 
     final smartAccount = await _session.connect();
     _logger.info('Connected to smart account $smartAccount');

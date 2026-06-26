@@ -203,6 +203,36 @@ void main() {
         Uint8List.fromList(agentKeypair.publicKey)), isFalse);
   });
 
+  test('logs the agent public key as a pasteable G-address on startup',
+      () async {
+    final contractCall = FakeContractCall(
+      result: const OZTransactionResult(success: true, hash: 'TXHASH123'),
+    );
+    final coordination =
+        FakeCoordinationClient(pollResponses: const <CoordinationRequest>[]);
+    final logger = RecordingLogger();
+
+    final runner = buildRunner(
+      contractCall: contractCall,
+      coordination: coordination,
+      session: FakeWalletSession(smartAccount),
+      logger: logger,
+    );
+
+    await runner.run();
+
+    // The agent prints its own public key as a Stellar G-address so an
+    // operator can paste it into the demo's Delegate-to-agent screen. The
+    // emitted value must match the agent keypair's account id exactly.
+    final startupLine = logger.messages.firstWhere(
+      (m) => m.contains('Delegate-to-agent'),
+      orElse: () => '',
+    );
+    expect(startupLine, isNotEmpty);
+    expect(startupLine, contains(agentKeypair.accountId));
+    expect(agentKeypair.accountId, startsWith('G'));
+  });
+
   test('non-policy failure returns AgentCallFailed without escalating', () async {
     final contractCall = FakeContractCall(
       result: const OZTransactionResult(
