@@ -386,6 +386,20 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
           }
         },
       ),
+      const SizedBox(height: 8),
+
+      // Delegate to agent — composes one scoped, spend-capped, time-bounded
+      // context rule that registers an autonomous agent as an Ed25519 external
+      // signer. Lives alongside "Add Rule" as a guided shortcut.
+      _DelegateToAgentButton(
+        enabled: !_isLoading,
+        onPressed: () async {
+          await context.push<void>(AppRoutes.delegateToAgent);
+          if (!mounted) return;
+          // Refresh on return so a newly delegated rule appears immediately.
+          await _loadRules();
+        },
+      ),
       const SizedBox(height: 12),
 
       // Error card.
@@ -537,6 +551,32 @@ class _ActionRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// _DelegateToAgentButton
+// ---------------------------------------------------------------------------
+
+class _DelegateToAgentButton extends StatelessWidget {
+  const _DelegateToAgentButton({
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final bool enabled;
+  final Future<void> Function() onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: enabled ? () => unawaited(onPressed()) : null,
+        icon: const Icon(Icons.smart_toy_outlined, size: 18),
+        label: const Text('Delegate to Agent'),
+      ),
     );
   }
 }

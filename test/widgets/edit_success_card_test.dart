@@ -104,7 +104,6 @@ void main() {
       authGuardMessage: null,
       error: 'rejected by contract',
       failedStep: 'Updating rule name',
-      transactionHashes: [],
     );
     await tester.pumpWidget(_wrap(EditSuccessCard(
       result: result,

@@ -1,0 +1,31 @@
+name: reference_agent
+description: >-
+  Autonomous reference agent for the OpenZeppelin smart-account demo. Connects
+  to an existing smart account headlessly, signs scoped contract calls as an
+  Ed25519 external signer through the verifier-contract path, classifies the
+  on-chain outcome, and escalates policy rejections to the coordination server.
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+  flutter: ">=3.35.0"
+
+dependencies:
+  # The agent runs headlessly under `flutter test`: the stellar_flutter_sdk
+  # barrel transitively imports package:flutter (dart:ui), so a plain
+  # `dart run` cannot resolve. Declaring the Flutter SDK makes the run
+  # mechanism explicit.
+  flutter:
+    sdk: flutter
+
+  # Stellar SDK (published on pub.dev).
+  stellar_flutter_sdk: ^3.2.1
+
+  # HTTP client for the coordination-server REST contract.
+  http: ^1.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

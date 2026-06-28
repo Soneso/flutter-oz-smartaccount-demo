@@ -1,0 +1,8 @@
+# Flutter / Dart
+.dart_tool/
+build/
+.flutter-plugins-dependencies
+
+# Local agent config / secrets (never commit a real agent seed)
+agent_config.json
+*.env

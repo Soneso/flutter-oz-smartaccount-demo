@@ -44,7 +44,7 @@ Future<void> _pumpDialog(
 void main() {
   group('RemoveContextRuleDialog — content', () {
     testWidgets('title is "Remove Context Rule"', (tester) async {
-      final rule = makeRule(id: 1, name: 'my-rule');
+      final rule = makeRule(name: 'my-rule');
       await _pumpDialog(tester, rule: rule, canRemove: true);
 
       expect(find.text('Remove Context Rule'), findsOneWidget);
@@ -59,7 +59,7 @@ void main() {
     });
 
     testWidgets('message contains authorization warning', (tester) async {
-      final rule = makeRule(id: 1, name: 'r');
+      final rule = makeRule(name: 'r');
       await _pumpDialog(tester, rule: rule, canRemove: true);
 
       expect(
@@ -69,14 +69,14 @@ void main() {
     });
 
     testWidgets('message contains "cannot be undone"', (tester) async {
-      final rule = makeRule(id: 1, name: 'r');
+      final rule = makeRule(name: 'r');
       await _pumpDialog(tester, rule: rule, canRemove: true);
 
       expect(find.textContaining('cannot be undone'), findsOneWidget);
     });
 
     testWidgets('shows "Unnamed Rule" for empty rule name', (tester) async {
-      final rule = makeRule(id: 1, name: '');
+      final rule = makeRule(name: '');
       await _pumpDialog(tester, rule: rule, canRemove: true);
 
       expect(find.textContaining('"Unnamed Rule"'), findsOneWidget);
@@ -85,7 +85,7 @@ void main() {
 
   group('RemoveContextRuleDialog — canRemove = true', () {
     testWidgets('shows enabled "Remove" button', (tester) async {
-      final rule = makeRule(id: 1, name: 'r');
+      final rule = makeRule(name: 'r');
       await _pumpDialog(tester, rule: rule, canRemove: true);
 
       final button = tester.widget<FilledButton>(
@@ -98,7 +98,7 @@ void main() {
     });
 
     testWidgets('shows "Cancel" button', (tester) async {
-      final rule = makeRule(id: 1, name: 'r');
+      final rule = makeRule(name: 'r');
       await _pumpDialog(tester, rule: rule, canRemove: true);
 
       expect(find.text('Cancel'), findsOneWidget);
@@ -114,7 +114,7 @@ void main() {
               onPressed: () async {
                 result = await RemoveContextRuleDialog.show(
                   context: context,
-                  rule: makeRule(id: 1, name: 'r'),
+                  rule: makeRule(name: 'r'),
                   canRemove: true,
                 );
               },
@@ -140,7 +140,7 @@ void main() {
               onPressed: () async {
                 result = await RemoveContextRuleDialog.show(
                   context: context,
-                  rule: makeRule(id: 1, name: 'r'),
+                  rule: makeRule(name: 'r'),
                   canRemove: true,
                 );
               },
@@ -160,7 +160,7 @@ void main() {
 
   group('RemoveContextRuleDialog — canRemove = false', () {
     testWidgets('shows disabled "Last Rule" button', (tester) async {
-      final rule = makeRule(id: 1, name: 'r');
+      final rule = makeRule(name: 'r');
       await _pumpDialog(tester, rule: rule, canRemove: false);
 
       final button = tester.widget<FilledButton>(
@@ -173,7 +173,7 @@ void main() {
     });
 
     testWidgets('shows "Cancel" button', (tester) async {
-      final rule = makeRule(id: 1, name: 'r');
+      final rule = makeRule(name: 'r');
       await _pumpDialog(tester, rule: rule, canRemove: false);
 
       expect(find.text('Cancel'), findsOneWidget);

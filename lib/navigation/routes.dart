@@ -7,9 +7,11 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import '../screens/approval_inbox_screen.dart';
 import '../screens/approve_screen.dart';
 import '../screens/context_rule_builder_screen.dart';
 import '../screens/context_rules_screen.dart';
+import '../screens/delegate_to_agent_screen.dart';
 import '../screens/known_signers_screen.dart';
 import '../screens/main_screen.dart';
 import '../screens/transfer_screen.dart';
@@ -37,11 +39,19 @@ abstract final class AppRoutes {
   /// Query-parameter name used to switch the builder route into edit mode.
   static const String editRuleIdParam = 'editRuleId';
 
+  /// Delegate to agent — register an autonomous agent as a scoped, spend-capped
+  /// Ed25519 external signer via a single context rule.
+  static const String delegateToAgent = '/delegate-to-agent';
+
   /// Account Signers — read-only list of all signers across context rules.
   static const String accountSigners = '/account-signers';
 
   /// Approve — token spending allowance for another address.
   static const String approve = '/approve';
+
+  /// Approval Inbox — pending agent escalations (steps 4 + 5 of the
+  /// agent-signer flow). Reached from the badged bell on the main screen.
+  static const String approvalInbox = '/approval-inbox';
 }
 
 // ---------------------------------------------------------------------------
@@ -84,12 +94,20 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: AppRoutes.delegateToAgent,
+      builder: (context, state) => const DelegateToAgentScreen(),
+    ),
+    GoRoute(
       path: AppRoutes.accountSigners,
       builder: (context, state) => const KnownSignersScreen(),
     ),
     GoRoute(
       path: AppRoutes.approve,
       builder: (context, state) => const ApproveScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.approvalInbox,
+      builder: (context, state) => const ApprovalInboxScreen(),
     ),
   ],
 );

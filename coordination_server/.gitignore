@@ -1,0 +1,6 @@
+# Dart
+.dart_tool/
+build/
+
+# Runtime store file (created by the server when COORDINATION_STORE is set)
+*.store.json

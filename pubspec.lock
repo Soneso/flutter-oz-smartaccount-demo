@@ -385,7 +385,7 @@ packages:
     source: hosted
     version: "17.2.3"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -865,10 +865,10 @@ packages:
     dependency: "direct main"
     description:
       name: stellar_flutter_sdk
-      sha256: dee28787a02bf3027688b4b1e27bbe077f2cd5e5ec3d274219a7fa08b72a734e
+      sha256: ff7a6d347e2d1ec40b06e672f691d5696c41b3810a9828f3b08cce4f26d0309a
       url: "https://pub.dev"
     source: hosted
-    version: "3.2.0"
+    version: "3.2.1"
   stream_channel:
     dependency: transitive
     description:

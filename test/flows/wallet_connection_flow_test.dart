@@ -189,7 +189,7 @@ void main() {
       deps.walletOps.authenticateResult =
           WalletConnectionFixtures.authenticateResult();
       deps.walletOps.connectResult = WalletConnectionFixtures.connectedResult(
-        contractId: address,
+        
       );
       deps.credentialOps.isDeployedResult = true;
 

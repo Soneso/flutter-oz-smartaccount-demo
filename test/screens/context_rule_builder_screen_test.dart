@@ -277,7 +277,7 @@ void main() {
 
         final mgr = MockContextRuleFlowManager()
           ..rules = const []
-          ..addResult = OZTransactionResult(success: true, hash: 'abc123def456');
+          ..addResult = const OZTransactionResult(success: true, hash: 'abc123def456');
         final flow = _makeFlow(manager: mgr);
         await tester.pumpWidget(_wrap(flow));
         await tester.pump();
@@ -335,7 +335,6 @@ void main() {
         final mgr = MockContextRuleFlowManager()
           ..rules = [
             makeRule(
-              id: 1,
               name: 'rule-a',
               signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
             ),
@@ -345,7 +344,7 @@ void main() {
               signers: [OZDelegatedSigner(fixtureDelegatedAddress2)],
             ),
           ]
-          ..addResult = OZTransactionResult(success: true, hash: 'multi-h');
+          ..addResult = const OZTransactionResult(success: true, hash: 'multi-h');
         final flow = _makeFlow(manager: mgr);
         await tester.pumpWidget(_wrap(flow));
         await tester.pump();
@@ -404,7 +403,7 @@ void main() {
 
         final mgr = MockContextRuleFlowManager()
           ..rules = const []
-          ..addResult = OZTransactionResult(
+          ..addResult = const OZTransactionResult(
             success: false,
             error: 'on-chain rejected',
           );
@@ -531,7 +530,7 @@ void main() {
         });
 
         final mgr = MockContextRuleFlowManager()
-          ..rules = [makeRule(id: 1, name: 'Ready')];
+          ..rules = [makeRule(name: 'Ready')];
         final flow = _makeFlow(manager: mgr);
         await tester.pumpWidget(_wrap(flow, editRuleId: 1));
         await tester.pumpAndSettle();

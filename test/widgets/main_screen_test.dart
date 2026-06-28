@@ -16,8 +16,12 @@ import 'package:go_router/go_router.dart';
 import 'package:smart_account_demo/flows/main_screen_flow.dart';
 import 'package:smart_account_demo/screens/main_screen.dart';
 import 'package:smart_account_demo/state/activity_log_state.dart';
+import 'package:smart_account_demo/state/coordination_client_provider.dart';
 import 'package:smart_account_demo/state/demo_state.dart';
 import 'package:smart_account_demo/state/main_screen_flow_provider.dart';
+import 'package:smart_account_demo/state/pending_request_count_provider.dart';
+
+import '../flows/approval_inbox_test_support.dart';
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -271,6 +275,129 @@ void main() {
       await tester.pumpWidget(_wrap(_connectedNotDeployed()));
       await tester.pump();
       expect(find.text('Disconnect'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — inbox bell badge wiring', () {
+    testWidgets(
+        'refreshes the account-scoped count on connect and resets it on '
+        'disconnect', (tester) async {
+      // buildRequest defaults to smartAccount == fixtureSmartAccount.
+      final fake = FakeCoordinationClient(
+        pending: [
+          buildRequest(id: 'a'),
+          buildRequest(id: 'b'),
+        ],
+      );
+      final container = ProviderContainer(
+        overrides: [
+          demoStateProvider.overrideWith(DemoStateNotifier.new),
+          activityLogProvider.overrideWith(ActivityLogNotifier.new),
+          mainScreenFlowProvider.overrideWithValue(
+            _NoOpMainScreenFlow(
+              demoState: DemoStateNotifier(),
+              activityLog: ActivityLogNotifier(),
+            ),
+          ),
+          coordinationClientProvider.overrideWithValue(fake),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(path: '/', builder: (context, state) => const MainScreen()),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            theme: ThemeData.light(useMaterial3: true),
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Disconnected: nothing to scope to, no badge.
+      expect(container.read(pendingRequestCountProvider), 0);
+
+      // Connect: the contractId listener refreshes the account-scoped count.
+      container.read(demoStateProvider.notifier).setConnected(
+            contractId: fixtureSmartAccount,
+            credentialId: 'cred',
+            isDeployed: true,
+          );
+      await tester.pumpAndSettle();
+      expect(container.read(pendingRequestCountProvider), 2);
+
+      // Disconnect: the listener resets the badge.
+      container.read(demoStateProvider.notifier).setDisconnected();
+      await tester.pumpAndSettle();
+      expect(container.read(pendingRequestCountProvider), 0);
+    });
+
+    testWidgets(
+        'lights the badge for an escalation that arrives while the main screen '
+        'is open, via the periodic refresh', (tester) async {
+      // Starts empty: the escalation arrives only after the screen is built and
+      // connected, so neither the first load nor the connect listener sees it.
+      final fake = FakeCoordinationClient();
+      final container = ProviderContainer(
+        overrides: [
+          demoStateProvider.overrideWith(DemoStateNotifier.new),
+          activityLogProvider.overrideWith(ActivityLogNotifier.new),
+          mainScreenFlowProvider.overrideWithValue(
+            _NoOpMainScreenFlow(
+              demoState: DemoStateNotifier(),
+              activityLog: ActivityLogNotifier(),
+            ),
+          ),
+          coordinationClientProvider.overrideWithValue(fake),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(path: '/', builder: (context, state) => const MainScreen()),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            theme: ThemeData.light(useMaterial3: true),
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      container.read(demoStateProvider.notifier).setConnected(
+            contractId: fixtureSmartAccount,
+            credentialId: 'cred',
+            isDeployed: true,
+          );
+      await tester.pumpAndSettle();
+      expect(container.read(pendingRequestCountProvider), 0);
+
+      // The agent escalates while the user is sitting on the main screen. No
+      // connect/disconnect, no inbox action, no pull-to-refresh occurs.
+      fake.pending = [buildRequest(id: 'late')];
+      await tester.pump();
+      expect(container.read(pendingRequestCountProvider), 0);
+
+      // The periodic refresh picks it up without any user action and lights the
+      // badge. (The widget's timer is cancelled when the tree is disposed.)
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pump();
+      expect(container.read(pendingRequestCountProvider), 1);
     });
   });
 }

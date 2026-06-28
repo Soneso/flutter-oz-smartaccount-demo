@@ -10,8 +10,6 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:smart_account_demo/flows/context_rule_edit_types.dart'
-    show PolicyWeightedEntry;
 import 'package:smart_account_demo/flows/context_rule_flow.dart';
 import 'package:smart_account_demo/flows/signer_info.dart'
     show SignerInfo, SignerKind;

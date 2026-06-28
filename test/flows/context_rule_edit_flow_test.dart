@@ -23,13 +23,6 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_account_demo/config/demo_config.dart' show PolicyInfo;
-import 'package:smart_account_demo/flows/context_rule_edit_types.dart';
-import 'package:smart_account_demo/flows/context_rule_edit_types.dart'
-    show
-        PolicyInstallSpecSimpleThreshold,
-        PolicyInstallSpecSpendingLimit,
-        PolicyInstallSpecWeightedThreshold,
-        PolicyWeightedEntry;
 import 'package:smart_account_demo/flows/context_rule_flow.dart';
 import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 
@@ -40,7 +33,7 @@ void main() {
     test('returns the matching rule by ID', () async {
       final mgr = MockContextRuleFlowManager()
         ..rules = [
-          makeRule(id: 1, name: 'First'),
+          makeRule(name: 'First'),
           makeRule(id: 2, name: 'Second'),
         ];
       final deps = ContextRuleFixtures.makeFlowWithDeps(manager: mgr);
@@ -53,7 +46,7 @@ void main() {
 
     test('throws DemoError when no rule with the given ID exists', () async {
       final mgr = MockContextRuleFlowManager()
-        ..rules = [makeRule(id: 1, name: 'Only')];
+        ..rules = [makeRule(name: 'Only')];
       final deps = ContextRuleFixtures.makeFlowWithDeps(manager: mgr);
 
       await expectLater(
@@ -227,15 +220,15 @@ void main() {
         'add policy → expiry', () async {
       final mgr = MockContextRuleFlowManager()
         ..editResults['updateName'] =
-            OZTransactionResult(success: true, hash: 'h-name')
+            const OZTransactionResult(success: true, hash: 'h-name')
         ..editResults['removeSigner'] =
-            OZTransactionResult(success: true, hash: 'h-rms')
+            const OZTransactionResult(success: true, hash: 'h-rms')
         ..editResults['addDelegated'] =
-            OZTransactionResult(success: true, hash: 'h-add-d')
+            const OZTransactionResult(success: true, hash: 'h-add-d')
         ..editResults['addSimpleThreshold'] =
-            OZTransactionResult(success: true, hash: 'h-add-p')
+            const OZTransactionResult(success: true, hash: 'h-add-p')
         ..editResults['updateValidUntil'] =
-            OZTransactionResult(success: true, hash: 'h-exp');
+            const OZTransactionResult(success: true, hash: 'h-exp');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -252,8 +245,8 @@ void main() {
         onChainId: null,
         isOriginal: false,
       );
-      final newPolicy = EditPolicyEntry(
-        info: const PolicyInfo(
+      const newPolicy = EditPolicyEntry(
+        info: PolicyInfo(
           type: 'threshold',
           name: 'Threshold',
           description: '',
@@ -261,7 +254,7 @@ void main() {
         ),
         label: 'Threshold: 2-of-N',
         address: 'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC',
-        installSpec: const PolicyInstallSpecSimpleThreshold(threshold: 2),
+        installSpec: PolicyInstallSpecSimpleThreshold(threshold: 2),
         onChainId: null,
         isOriginal: false,
       );
@@ -314,7 +307,7 @@ void main() {
         () async {
       final mgr = MockContextRuleFlowManager()
         ..editResults['addDelegated'] =
-            OZTransactionResult(success: true, hash: 'h-sig');
+            const OZTransactionResult(success: true, hash: 'h-sig');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -326,8 +319,8 @@ void main() {
         onChainId: null,
         isOriginal: false,
       );
-      final newPolicy = EditPolicyEntry(
-        info: const PolicyInfo(
+      const newPolicy = EditPolicyEntry(
+        info: PolicyInfo(
           type: 'threshold',
           name: 'Threshold',
           description: '',
@@ -335,7 +328,7 @@ void main() {
         ),
         label: 'Threshold: 2-of-N',
         address: 'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC',
-        installSpec: const PolicyInstallSpecSimpleThreshold(threshold: 2),
+        installSpec: PolicyInstallSpecSimpleThreshold(threshold: 2),
         onChainId: null,
         isOriginal: false,
       );
@@ -371,7 +364,7 @@ void main() {
     test('stops on first non-successful OZTransactionResult and surfaces step',
         () async {
       final mgr = MockContextRuleFlowManager()
-        ..editResults['updateName'] = OZTransactionResult(
+        ..editResults['updateName'] = const OZTransactionResult(
           success: false,
           error: 'rejected',
         );
@@ -489,7 +482,7 @@ void main() {
     test('new simple-threshold policy calls addSimpleThresholdToRule', () async {
       final mgr = MockContextRuleFlowManager()
         ..editResults['addSimpleThreshold'] =
-            OZTransactionResult(success: true, hash: 'h-thresh');
+            const OZTransactionResult(success: true, hash: 'h-thresh');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -498,27 +491,27 @@ void main() {
 
       const policyAddress =
           'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC';
-      final newPolicy = EditPolicyEntry(
-        info: const PolicyInfo(
+      const newPolicy = EditPolicyEntry(
+        info: PolicyInfo(
             type: 'threshold',
             name: 'Threshold',
             description: '',
             address: policyAddress),
         label: 'Threshold: 2-of-N',
         address: policyAddress,
-        installSpec: const PolicyInstallSpecSimpleThreshold(threshold: 2),
+        installSpec: PolicyInstallSpecSimpleThreshold(threshold: 2),
         onChainId: null,
         isOriginal: false,
       );
-      final diff = ContextRuleEditDiff(
+      const diff = ContextRuleEditDiff(
         ruleId: 10,
         nameChanged: false,
         newName: null,
-        newSigners: const <EditSignerEntry>[],
-        removedSigners: const <EditSignerEntry>[],
+        newSigners: <EditSignerEntry>[],
+        removedSigners: <EditSignerEntry>[],
         newPolicies: [newPolicy],
-        removedPolicies: const <EditPolicyEntry>[],
-        modifiedPolicies: const <EditPolicyEntry>[],
+        removedPolicies: <EditPolicyEntry>[],
+        modifiedPolicies: <EditPolicyEntry>[],
         expiryChanged: false,
         newExpiry: null,
       );
@@ -541,7 +534,7 @@ void main() {
     test('new spending-limit policy calls addSpendingLimitToRule', () async {
       final mgr = MockContextRuleFlowManager()
         ..editResults['addSpendingLimit'] =
-            OZTransactionResult(success: true, hash: 'h-sl');
+            const OZTransactionResult(success: true, hash: 'h-sl');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -550,15 +543,15 @@ void main() {
 
       const policyAddress =
           'CBQE7L3UNP5IR4I7IBKLS7NV256WHR5TTH26HTMUIK7WXJC6J64RSE2L';
-      final newPolicy = EditPolicyEntry(
-        info: const PolicyInfo(
+      const newPolicy = EditPolicyEntry(
+        info: PolicyInfo(
             type: 'spending_limit',
             name: 'Spending Limit',
             description: '',
             address: policyAddress),
         label: 'Limit: 50 / 1 day(s)',
         address: policyAddress,
-        installSpec: const PolicyInstallSpecSpendingLimit(
+        installSpec: PolicyInstallSpecSpendingLimit(
           amount: '50',
           decimals: 2,
           periodLedgers: 17280,
@@ -566,15 +559,15 @@ void main() {
         onChainId: null,
         isOriginal: false,
       );
-      final diff = ContextRuleEditDiff(
+      const diff = ContextRuleEditDiff(
         ruleId: 11,
         nameChanged: false,
         newName: null,
-        newSigners: const <EditSignerEntry>[],
-        removedSigners: const <EditSignerEntry>[],
+        newSigners: <EditSignerEntry>[],
+        removedSigners: <EditSignerEntry>[],
         newPolicies: [newPolicy],
-        removedPolicies: const <EditPolicyEntry>[],
-        modifiedPolicies: const <EditPolicyEntry>[],
+        removedPolicies: <EditPolicyEntry>[],
+        modifiedPolicies: <EditPolicyEntry>[],
         expiryChanged: false,
         newExpiry: null,
       );
@@ -599,7 +592,7 @@ void main() {
         () async {
       final mgr = MockContextRuleFlowManager()
         ..editResults['addWeightedThreshold'] =
-            OZTransactionResult(success: true, hash: 'h-wt');
+            const OZTransactionResult(success: true, hash: 'h-wt');
 
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
@@ -684,7 +677,6 @@ void main() {
       final params = await deps.flow.readPolicyParams(
         policyAddress: policyAddress,
         ruleId: 1,
-        guardedToken: null, // default rule -> native decimals
       );
 
       expect(params, isNotNull);
@@ -758,10 +750,9 @@ void main() {
         () async {
       final mgr = MockContextRuleFlowManager()
         ..editResults['addEd25519'] =
-            OZTransactionResult(success: true, hash: 'h-ed');
+            const OZTransactionResult(success: true, hash: 'h-ed');
       final env = MockBuilderEnvironment(
-        ed25519VerifierAddress:
-            'CAW2Z46INPO5VIJEILMYSSEOLBVJIIII5GOE3TN5EUURSRM2FJCF7AJ6',
+        
       );
       final deps = ContextRuleFixtures.makeFlowWithDeps(
         manager: mgr,
