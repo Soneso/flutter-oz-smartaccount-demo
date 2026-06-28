@@ -1,6 +1,6 @@
 # OpenZeppelin Smart Account Demo - Flutter Stellar SDK
 
-A Flutter application for testing the OpenZeppelin smart-account support in the Flutter Stellar SDK with WebAuthn passkey authentication on Stellar testnet. The app covers wallet creation, token transfers, multi-signer authorization, and on-chain context rule management.
+A Flutter application for testing the OpenZeppelin smart-account support in the Flutter Stellar SDK with WebAuthn passkey authentication on Stellar testnet. The app covers wallet creation, token transfers, multi-signer authorization, on-chain context rule management, and an agent-signer flow that delegates scoped, spend-capped authority to an autonomous agent with human approval for over-limit calls.
 
 The primary purpose of this app is to test and validate the SDK's smart-account support. It is not intended as a production application template.
 
@@ -8,7 +8,7 @@ Supported platforms: iOS 16.0+, Android (API 28+), and Web (any modern WebAuthn-
 
 ## Features
 
-The demo includes 8 screens:
+The demo includes 10 screens:
 
 ### 1. Main Dashboard
 
@@ -46,6 +46,14 @@ Displays all unique signers registered across all context rules. Each signer ent
 
 Grants a SEP-41 token spending allowance that delegates spending authority over the smart account's tokens to another address. This screen demonstrates an arbitrary contract call: unlike Transfer (which uses the dedicated transfer helper), Approve invokes the token's `approve` function through the generic contract-call path, with both single-signer and multi-signer support.
 
+### 9. Delegate to an Agent
+
+Registers an autonomous agent as a scoped Ed25519 signer in a single context rule: one token contract, a spending cap, and an expiry. The agent can then sign calls to that token, up to the cap, until the rule expires. This is the delegation step of the agent-signer flow.
+
+### 10. Approval Inbox
+
+Lists the policy-rejected calls the agent escalated to the coordination server, scoped to the connected account. Each card shows the decoded call (recipient and on-chain amount) and lets the user approve or reject it; on approval, the call is re-submitted under the user's own authority and the agent learns the outcome. See [documentation/agent-flow.md](documentation/agent-flow.md) for the end-to-end runbook.
+
 ## Architecture
 
 ```
@@ -54,6 +62,7 @@ flutter-oz-smartaccount-demo/
 │   ├── main.dart                # Entry point: providers, platform deps, runApp
 │   ├── config/                  # Network, contracts, RP config, knownPolicies
 │   ├── flows/                   # Primary SDK consumer (most SDK calls live here)
+│   ├── services/                # Coordination-server HTTP client (agent-signer flow)
 │   ├── screens/                 # User-facing ConsumerStatefulWidget screens
 │   ├── widgets/                 # Reusable Material widgets (cards, sheets, forms)
 │   ├── state/                   # Riverpod notifiers and providers (DemoState, ActivityLogState)
@@ -66,7 +75,10 @@ flutter-oz-smartaccount-demo/
 ├── android/                     # Android Gradle project (manifest, build.gradle.kts)
 ├── web/                         # Web entry (index.html, manifest.json, icons)
 ├── test/                        # Widget, flow, util tests
-├── tool/                        # Helper scripts (web dev server, agent-browser harnesses)
+├── coordination_server/         # Standalone agent-signer coordination service (Dart)
+├── reference_agent/             # Standalone delegated-signer agent (Dart)
+├── documentation/               # Agent-flow runbook and component docs
+├── tool/                        # Helper scripts (web dev server, coordination server, agent-browser harnesses)
 └── pubspec.yaml
 ```
 
@@ -173,6 +185,8 @@ All configuration lives in `lib/config/demo_config.dart`.
 DEMO token settings (`demoToken*`) control the deterministic deployment and minting of a custom Soroban token used for testing transfers. The token admin seed is intentionally public; the demo is testnet-only and the admin key has no monetary value.
 
 Known policy contracts (threshold, spending limit, weighted threshold) are defined in `knownPolicies`.
+
+The agent-signer flow's coordination server is configured by `coordinationServerUrl` and `coordinationToken`, overridable at build time with `--dart-define=COORDINATION_URL` and `--dart-define=COORDINATION_TOKEN`.
 
 ## External Wallet Connection
 
