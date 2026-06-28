@@ -30,7 +30,6 @@ import '../flows/delegate_to_agent_flow.dart';
 import '../navigation/routes.dart';
 import '../state/delegate_to_agent_flow_provider.dart';
 import '../state/demo_state.dart';
-import '../theme/app_theme.dart' show snackBarDefaultDuration;
 import '../theme/spacing.dart';
 import '../token/demo_token_service.dart';
 import '../util/clipboard.dart';
@@ -725,7 +724,14 @@ class _HashWithCopy extends StatelessWidget {
           const SizedBox(width: 4),
           IconButton(
             tooltip: 'Copy transaction hash',
-            onPressed: () => unawaited(_handleCopy(context)),
+            onPressed: () => unawaited(
+              copyAndToast(
+                context,
+                hash,
+                message: 'Transaction hash copied',
+                announce: true,
+              ),
+            ),
             visualDensity: VisualDensity.compact,
             icon: Icon(
               Icons.copy_outlined,
@@ -735,21 +741,6 @@ class _HashWithCopy extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Future<void> _handleCopy(BuildContext context) async {
-    await copyTxHash(hash);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Transaction hash copied'),
-        duration: snackBarDefaultDuration,
-      ),
-    );
-    await SemanticsService.announce(
-      'Transaction hash copied',
-      Directionality.of(context),
     );
   }
 }

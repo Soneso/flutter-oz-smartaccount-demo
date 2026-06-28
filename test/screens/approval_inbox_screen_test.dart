@@ -12,6 +12,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MethodCall, SystemChannels;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_account_demo/flows/approval_inbox_flow.dart';
@@ -287,6 +288,158 @@ void main() {
       expect(deps.coordination.lastRejectedId, 'req-reject');
       expect(deps.coordination.lastRejectedNote, 'nope');
       expect(find.byType(EmptyStateCard), findsOneWidget);
+    });
+  });
+
+  group('ApprovalInboxScreen — approved results', () {
+    testWidgets(
+        'a successful approve shows a persistent copyable hash with an '
+        'explorer link', (tester) async {
+      final request = buildRequest(id: 'req-approved');
+      final deps = makeInboxFlow(
+        coordination: FakeCoordinationClient(
+          pending: <CoordinationRequest>[request],
+        ),
+      );
+      deps.contractCall.result =
+          const OZTransactionResult(success: true, hash: 'FULLTXHASH1234567890');
+
+      await tester.pumpWidget(_wrap(deps));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(LoadingButton, 'Approve'));
+      await tester.pumpAndSettle();
+
+      // The Approved section persists the full hash as selectable text (its
+      // own SelectableText, with the pending card now gone) plus a Copy control
+      // and a "View on Explorer" affordance.
+      expect(find.text('Approved'), findsOneWidget);
+      expect(find.byType(SelectableText), findsOneWidget);
+      // The FULL hash is on screen (selectable for copy), never truncated.
+      final selectable =
+          tester.widget<SelectableText>(find.byType(SelectableText));
+      expect(selectable.data, 'FULLTXHASH1234567890');
+      expect(find.text('Copy'), findsOneWidget);
+      expect(find.text('View on Explorer'), findsOneWidget);
+
+      // The pending card was removed; only the persistent result remains.
+      expect(find.byType(EmptyStateCard), findsOneWidget);
+
+      // Tapping Copy writes the FULL hash (not a truncated form) to the system
+      // clipboard channel.
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (MethodCall call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      await tester.tap(find.text('Copy'));
+      await tester.pump();
+      expect(copied, 'FULLTXHASH1234567890');
+      tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    testWidgets(
+        'a confirmed-on-chain approval whose report failed persists the '
+        'copyable hash while the card offers Retry report', (tester) async {
+      // The card grows once it switches to "Retry report"; give the test a
+      // viewport tall enough that both it and the Approved section fit.
+      tester.view.physicalSize = const Size(1200, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final request = buildRequest(id: 'req-confirmed-hash');
+      final fake = FakeCoordinationClient(
+        pending: <CoordinationRequest>[request],
+        approveError:
+            const CoordinationException('report failed', statusCode: 500),
+      );
+      final deps = makeInboxFlow(coordination: fake);
+      deps.contractCall.result =
+          const OZTransactionResult(success: true, hash: 'FULLTXHASHCONFIRMED1');
+
+      await tester.pumpWidget(_wrap(deps));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(LoadingButton, 'Approve'));
+      await tester.pumpAndSettle();
+
+      // The report failed, so the card switched to Retry report and never
+      // re-submits.
+      expect(find.widgetWithText(LoadingButton, 'Retry report'), findsOneWidget);
+      expect(deps.contractCall.callCount, 1);
+
+      // The confirmed hash is persisted in the Approved section as selectable
+      // text (the full hash) with Copy and explorer affordances, rather than
+      // living only in the transient error snackbar. The still-present
+      // "Retry report" card also renders monospace values as SelectableText, so
+      // match the persisted hash by its exact data.
+      expect(find.text('Approved'), findsOneWidget);
+      final hashFinder = find.byWidgetPredicate(
+        (w) => w is SelectableText && w.data == 'FULLTXHASHCONFIRMED1',
+      );
+      expect(hashFinder, findsOneWidget);
+      expect(find.text('Copy'), findsOneWidget);
+      expect(find.text('View on Explorer'), findsOneWidget);
+
+      // A successful retry-report replaces the entry (no duplicate) and removes
+      // the pending card.
+      fake.approveError = null;
+      await tester.tap(find.widgetWithText(LoadingButton, 'Retry report'));
+      await tester.pumpAndSettle();
+
+      expect(deps.contractCall.callCount, 1);
+      expect(deps.coordination.lastApprovedResultHash, 'FULLTXHASHCONFIRMED1');
+      // Still exactly one persisted result (deduped by request id); with the
+      // pending card removed it is now the only SelectableText on screen.
+      expect(hashFinder, findsOneWidget);
+      expect(find.byType(SelectableText), findsOneWidget);
+      expect(find.byType(EmptyStateCard), findsOneWidget);
+    });
+
+    testWidgets(
+        'a confirmed-on-chain approval without a hash degrades gracefully',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final request = buildRequest(id: 'req-nohash');
+      final deps = makeInboxFlow(
+        coordination: FakeCoordinationClient(
+          pending: <CoordinationRequest>[request],
+        ),
+      );
+      // Confirmed on-chain but the SDK returned no transaction hash.
+      deps.contractCall.result =
+          const OZTransactionResult(success: true, hash: '');
+
+      await tester.pumpWidget(_wrap(deps));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(LoadingButton, 'Approve'));
+      await tester.pumpAndSettle();
+
+      // The Approved section records the outcome with a plain notice and no
+      // copy/explorer control there is nothing to copy.
+      expect(find.text('Approved'), findsOneWidget);
+      expect(
+        find.textContaining('Confirmed on-chain (no transaction hash returned)'),
+        findsOneWidget,
+      );
+      expect(find.text('Copy'), findsNothing);
+      expect(find.text('View on Explorer'), findsNothing);
     });
   });
 

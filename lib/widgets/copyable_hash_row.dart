@@ -8,9 +8,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 
-import '../theme/app_theme.dart' show snackBarDefaultDuration;
 import '../util/clipboard.dart';
 
 /// A row that displays a truncated [hash] alongside a [Copy] button.
@@ -77,7 +75,12 @@ class CopyableHashRow extends StatelessWidget {
             excludeSemantics: true,
             child: OutlinedButton(
               onPressed: () {
-                unawaited(_copy(context));
+                unawaited(copyAndToast(
+                  context,
+                  hash,
+                  message: snackbarMessage,
+                  announce: true,
+                ));
               },
               style: color != null
                   ? OutlinedButton.styleFrom(
@@ -99,21 +102,6 @@ class CopyableHashRow extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Future<void> _copy(BuildContext context) async {
-    await copyTxHash(hash);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(snackbarMessage),
-        duration: snackBarDefaultDuration,
-      ),
-    );
-    await SemanticsService.announce(
-      snackbarMessage,
-      Directionality.of(context),
     );
   }
 }

@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart' show snackBarDefaultDuration;
@@ -38,11 +39,17 @@ Future<void> copyTxHash(String hash) => copyToClipboard(hash);
 /// The snackbar is dispatched via [ScaffoldMessenger.of] using
 /// [snackBarDefaultDuration]. The call is a no-op if the [BuildContext] has
 /// been unmounted before the clipboard write resolves.
+///
+/// When [announce] is true the [message] is also routed to assistive
+/// technologies via [SemanticsService.announce] after the snackbar is shown,
+/// so screen-reader users hear the confirmation that the visual snackbar
+/// conveys.
 Future<void> copyAndToast(
   BuildContext context,
   String value, {
   String message = 'Copied',
   bool sensitive = false,
+  bool announce = false,
 }) async {
   await copyToClipboard(value, markSensitive: sensitive);
   if (!context.mounted) return;
@@ -52,6 +59,9 @@ Future<void> copyAndToast(
       duration: snackBarDefaultDuration,
     ),
   );
+  if (announce) {
+    await SemanticsService.announce(message, Directionality.of(context));
+  }
 }
 
 /// Copies a credential ID fragment to the clipboard.

@@ -30,7 +30,9 @@ import '../state/demo_state.dart';
 import '../state/pending_request_count_provider.dart';
 import '../theme/app_theme.dart' show snackBarDefaultDuration;
 import '../theme/spacing.dart';
+import '../util/clipboard.dart' show copyAndToast;
 import '../util/format_utils.dart' show truncateAddress;
+import '../util/url_opener.dart' show openTxInExplorer;
 import '../widgets/empty_state_card.dart';
 import '../widgets/error_card.dart';
 import '../widgets/key_value_row.dart';
@@ -78,6 +80,13 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
   /// outstanding: their card shows "Retry report" instead of "Approve" so the
   /// call is never re-submitted.
   final Set<String> _reportPending = <String>{};
+
+  /// Session-scoped list of approved escalations, newest first. Each entry
+  /// carries the full on-chain transaction hash so it stays selectable,
+  /// copyable, and linkable to an explorer after the confirmation toast has
+  /// dismissed. Confirmed-on-chain results that returned no hash are recorded
+  /// with an empty [_ApprovedResult.hash] and degrade to a plain notice.
+  final List<_ApprovedResult> _approved = <_ApprovedResult>[];
 
   // -------------------------------------------------------------------------
   // Lifecycle
@@ -175,15 +184,23 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
     }
     if (!mounted) return;
     if (result.success) {
+      _recordApproved(request, result.hash ?? '');
       _removeResolved(request.id);
-      _showSnack('Approved. Transaction ${truncateAddress(result.hash ?? '')}');
+      _showSnack('Approved. Transaction hash shown below.');
       unawaited(SemanticsService.announce(
         'Approval submitted',
         Directionality.of(context),
       ));
     } else if (result.confirmedOnChain) {
-      // The transaction confirmed on-chain but reporting it back failed: switch
-      // this card to "Retry report" so the call is never re-submitted.
+      // The transaction confirmed on-chain but reporting it back failed.
+      // Persist the outcome regardless of whether a hash is present: when a
+      // hash exists it stays copyable/linkable below instead of living only in
+      // the transient error snackbar; when it is empty the entry degrades to a
+      // plain notice with no copy/explorer affordance. A later successful
+      // retry-report replaces this entry (deduped by request id), so no
+      // duplicate appears.
+      _recordApproved(request, result.hash ?? '');
+      // Switch this card to "Retry report" so the call is never re-submitted.
       setState(() => _reportPending.add(request.id));
       _showSnack(result.error ??
           'Transaction confirmed on-chain, but reporting it back failed. '
@@ -215,8 +232,9 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
     }
     if (!mounted) return;
     if (result.success) {
+      _recordApproved(request, result.hash ?? '');
       _removeResolved(request.id);
-      _showSnack('Reported. Transaction ${truncateAddress(result.hash ?? '')}');
+      _showSnack('Reported. Transaction hash shown below.');
     } else {
       _showSnack(result.error ?? 'Reporting failed.');
     }
@@ -252,6 +270,48 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
       _showSnack('Rejected.');
     } else {
       _showSnack(result.error ?? 'Rejection failed.');
+    }
+  }
+
+  /// Appends an approved result to the persistent session list (newest first).
+  ///
+  /// [hash] is the full on-chain transaction hash, or empty when the
+  /// transaction confirmed on-chain without returning a reportable hash. A
+  /// short context label is derived from the same decoded recipient/amount the
+  /// card already showed, when cheaply available. Re-recording the same request
+  /// id replaces the prior entry so a retry-report does not duplicate it.
+  void _recordApproved(CoordinationRequest request, String hash) {
+    final entry = _ApprovedResult(
+      requestId: request.id,
+      hash: hash,
+      contextLabel: _contextLabelFor(request),
+    );
+    setState(() {
+      _approved
+        ..removeWhere((e) => e.requestId == request.id)
+        ..insert(0, entry);
+    });
+  }
+
+  /// Derives a short, human-readable context label from the request's decoded
+  /// consent data (the recipient/amount the card already displayed), or null
+  /// when no cheap label is available.
+  String? _contextLabelFor(CoordinationRequest request) {
+    final decoded = _resolveFlow().decodeCall(request);
+    switch (decoded.kind) {
+      case DecodedCallKind.transfer:
+      case DecodedCallKind.approve:
+        final amount = decoded.amount;
+        final recipient = decoded.recipient;
+        if (amount != null && recipient != null) {
+          final verb =
+              decoded.kind == DecodedCallKind.approve ? 'Approve' : 'Transfer';
+          return '$verb $amount to ${truncateAddress(recipient)}';
+        }
+        return request.targetFn;
+      case DecodedCallKind.unknown:
+      case DecodedCallKind.undecodable:
+        return '${request.targetFn} on ${truncateAddress(request.target)}';
     }
   }
 
@@ -329,6 +389,10 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
             else
               const _NotConnectedNote(),
             const SizedBox(height: 12),
+            if (_approved.isNotEmpty) ...[
+              _ApprovedResultsCard(results: _approved),
+              const SizedBox(height: 12),
+            ],
             ..._buildContent(),
             const SizedBox(height: 40),
           ],
@@ -541,6 +605,219 @@ class _NotConnectedNote extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// _ApprovedResult
+// ---------------------------------------------------------------------------
+
+/// A single approved escalation recorded for the session.
+///
+/// [hash] is the full on-chain transaction hash; an empty string marks a
+/// transaction that confirmed on-chain without returning a reportable hash.
+/// [contextLabel] is a short, optional description (the decoded recipient and
+/// amount already shown on the card) for identifying the result at a glance.
+final class _ApprovedResult {
+  const _ApprovedResult({
+    required this.requestId,
+    required this.hash,
+    this.contextLabel,
+  });
+
+  final String requestId;
+  final String hash;
+  final String? contextLabel;
+
+  /// Whether a reportable on-chain transaction hash is available.
+  bool get hasHash => hash.isNotEmpty;
+}
+
+// ---------------------------------------------------------------------------
+// _ApprovedResultsCard
+// ---------------------------------------------------------------------------
+
+/// Persistent card listing the session's approved escalations.
+///
+/// Each entry keeps the full transaction hash on screen — selectable, copyable,
+/// and linkable to the testnet explorer — so the hash no longer depends on the
+/// transient confirmation toast. Results that confirmed on-chain without a hash
+/// degrade to a plain notice with no copy or explorer control.
+class _ApprovedResultsCard extends StatelessWidget {
+  const _ApprovedResultsCard({required this.results});
+
+  final List<_ApprovedResult> results;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final children = <Widget>[];
+    for (var i = 0; i < results.length; i++) {
+      if (i > 0) {
+        children.add(Divider(
+          height: 24,
+          color: colorScheme.outlineVariant,
+        ));
+      }
+      children.add(_ApprovedResultTile(result: results[i]));
+    }
+
+    return Card(
+      elevation: 0,
+      color: colorScheme.primaryContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: kCardPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Semantics(
+              header: true,
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_outline,
+                      size: 18, color: colorScheme.onPrimaryContainer),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Approved',
+                    style: textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One approved-result row inside [_ApprovedResultsCard].
+class _ApprovedResultTile extends StatelessWidget {
+  const _ApprovedResultTile({required this.result});
+
+  final _ApprovedResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final onContainer = colorScheme.onPrimaryContainer;
+
+    final label = result.contextLabel;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (label != null && label.isNotEmpty) ...[
+          Text(
+            label,
+            style: textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: onContainer,
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
+        if (result.hasHash)
+          _ApprovedHashContent(hash: result.hash, color: onContainer)
+        else
+          Text(
+            'Confirmed on-chain (no transaction hash returned).',
+            style: textTheme.bodySmall?.copyWith(color: onContainer),
+          ),
+      ],
+    );
+  }
+}
+
+/// Renders the full transaction hash as selectable text plus a copy control and
+/// a "View on Explorer" affordance.
+class _ApprovedHashContent extends StatelessWidget {
+  const _ApprovedHashContent({required this.hash, required this.color});
+
+  final String hash;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Transaction hash',
+          style: textTheme.labelSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.4,
+          ),
+        ),
+        const SizedBox(height: 4),
+        // SelectableText keeps the full hash selectable/copyable directly; the
+        // explicit Copy button writes the same full hash to the clipboard.
+        SelectableText(
+          hash,
+          style: textTheme.bodySmall?.copyWith(
+            fontFamily: 'monospace',
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Semantics(
+              button: true,
+              label: 'Copy transaction hash',
+              value: hash,
+              excludeSemantics: true,
+              child: OutlinedButton.icon(
+                onPressed: () => unawaited(copyAndToast(
+                  context,
+                  hash,
+                  message: 'Transaction hash copied',
+                  announce: true,
+                )),
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  side: BorderSide(color: color.withAlpha(80)),
+                  foregroundColor: color,
+                ),
+                icon: const Icon(Icons.copy_outlined, size: 16),
+                label: const Text('Copy', style: TextStyle(fontSize: 12)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton.icon(
+              onPressed: () => unawaited(openTxInExplorer(hash)),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: color,
+              ),
+              icon: const Icon(Icons.open_in_new, size: 16),
+              label:
+                  const Text('View on Explorer', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
