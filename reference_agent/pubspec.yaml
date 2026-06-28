@@ -19,9 +19,8 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Local path dependency on the Stellar Flutter SDK under verification.
-  stellar_flutter_sdk:
-    path: ../../stellar_flutter_sdk
+  # Stellar SDK (published on pub.dev).
+  stellar_flutter_sdk: ^3.2.1
 
   # HTTP client for the coordination-server REST contract.
   http: ^1.6.0

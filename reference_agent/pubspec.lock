@@ -272,10 +272,11 @@ packages:
   stellar_flutter_sdk:
     dependency: "direct main"
     description:
-      path: "../../stellar_flutter_sdk"
-      relative: true
-    source: path
-    version: "3.2.0"
+      name: stellar_flutter_sdk
+      sha256: ff7a6d347e2d1ec40b06e672f691d5696c41b3810a9828f3b08cce4f26d0309a
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.2.1"
   stream_channel:
     dependency: transitive
     description:
