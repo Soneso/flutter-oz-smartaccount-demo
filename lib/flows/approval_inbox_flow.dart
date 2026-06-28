@@ -109,9 +109,11 @@ final class DecodedArgument {
 ///
 /// These values come from decoding the opaque base64 `XdrSCVal` arguments that
 /// are actually re-submitted on-chain, NOT from the server-supplied,
-/// display-only `amount` string. The card the user approves renders THESE
-/// values so the displayed call matches the executed call exactly. A
-/// buggy/malicious relay cannot show one amount while the args drain a wallet.
+/// display-only `amount` string, so a buggy/malicious relay cannot show one
+/// amount while the args drain a wallet. [amountBaseUnits] is the exact value
+/// that re-submits; the human-readable [amount] is formatted at the demo
+/// token's fixed decimal scale and assumes the single-token demo (a target
+/// token with different decimals would render a misscaled [amount]).
 final class DecodedCall {
   /// Constructs decoded consent data.
   const DecodedCall({
@@ -137,7 +139,8 @@ final class DecodedCall {
   /// Raw decoded on-chain amount in base units (the i128), or null.
   final BigInt? amountBaseUnits;
 
-  /// [amountBaseUnits] formatted at the token's decimal scale, or null.
+  /// [amountBaseUnits] formatted for display at the demo token's fixed decimal
+  /// scale (the single-token demo assumption), or null.
   final String? amount;
 
   /// Full decoded argument list, populated when [kind] is

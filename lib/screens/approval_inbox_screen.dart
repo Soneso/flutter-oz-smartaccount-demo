@@ -67,9 +67,10 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
   String? _loadError;
   List<CoordinationRequest> _pending = const <CoordinationRequest>[];
 
-  /// IDs of requests with an approve/reject/report action in flight, so the
-  /// active card shows its spinner.
-  final Set<String> _busyIds = <String>{};
+  /// The in-flight action per request id, so the active card shows the spinner
+  /// only on the button whose action is running (approve, reject, or report),
+  /// not on every action button.
+  final Map<String, _InboxAction> _busyAction = <String, _InboxAction>{};
 
   /// True while any approve/reject/report action is in flight. All cards'
   /// actions are disabled during that window so a second card cannot start a
@@ -164,7 +165,7 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
     }
     setState(() {
       _actionInFlight = true;
-      _busyIds.add(request.id);
+      _busyAction[request.id] = _InboxAction.approve;
     });
     ApprovalResult result;
     try {
@@ -178,7 +179,7 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
       if (mounted) {
         setState(() {
           _actionInFlight = false;
-          _busyIds.remove(request.id);
+          _busyAction.remove(request.id);
         });
       }
     }
@@ -217,7 +218,7 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
     }
     setState(() {
       _actionInFlight = true;
-      _busyIds.add(request.id);
+      _busyAction[request.id] = _InboxAction.retryReport;
     });
     ApprovalResult result;
     try {
@@ -226,7 +227,7 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
       if (mounted) {
         setState(() {
           _actionInFlight = false;
-          _busyIds.remove(request.id);
+          _busyAction.remove(request.id);
         });
       }
     }
@@ -251,7 +252,7 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
 
     setState(() {
       _actionInFlight = true;
-      _busyIds.add(request.id);
+      _busyAction[request.id] = _InboxAction.reject;
     });
     RejectionResult result;
     try {
@@ -260,7 +261,7 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
       if (mounted) {
         setState(() {
           _actionInFlight = false;
-          _busyIds.remove(request.id);
+          _busyAction.remove(request.id);
         });
       }
     }
@@ -439,7 +440,7 @@ class _ApprovalInboxScreenState extends ConsumerState<ApprovalInboxScreen> {
       cards.add(_RequestCard(
         request: request,
         decoded: flow.decodeCall(request),
-        busy: _busyIds.contains(request.id),
+        loadingAction: _busyAction[request.id],
         enabled: !_actionInFlight,
         needsReport: _reportPending.contains(request.id),
         onApprove: () => _approve(request),
@@ -823,6 +824,14 @@ class _ApprovedHashContent extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// _InboxAction
+// ---------------------------------------------------------------------------
+
+/// The action currently running on a request card, so only the button whose
+/// action is in flight shows a spinner (not every action button).
+enum _InboxAction { approve, reject, retryReport }
+
+// ---------------------------------------------------------------------------
 // _RequestCard
 // ---------------------------------------------------------------------------
 
@@ -832,7 +841,7 @@ class _RequestCard extends StatelessWidget {
   const _RequestCard({
     required this.request,
     required this.decoded,
-    required this.busy,
+    required this.loadingAction,
     required this.enabled,
     required this.needsReport,
     required this.onApprove,
@@ -842,7 +851,7 @@ class _RequestCard extends StatelessWidget {
 
   final CoordinationRequest request;
   final DecodedCall decoded;
-  final bool busy;
+  final _InboxAction? loadingAction;
   final bool enabled;
   final bool needsReport;
   final Future<void> Function() onApprove;
@@ -986,7 +995,7 @@ class _RequestCard extends StatelessWidget {
           child: LoadingButton(
             label: 'Approve',
             loadingLabel: 'Approving...',
-            isLoading: busy,
+            isLoading: loadingAction == _InboxAction.approve,
             enabled: canApprove,
             action: onApprove,
           ),
@@ -996,7 +1005,7 @@ class _RequestCard extends StatelessWidget {
           child: LoadingButton(
             label: 'Reject',
             style: LoadingButtonStyle.outlined,
-            isLoading: busy,
+            isLoading: loadingAction == _InboxAction.reject,
             enabled: enabled,
             action: onReject,
           ),
@@ -1032,7 +1041,7 @@ class _RequestCard extends StatelessWidget {
         LoadingButton(
           label: 'Retry report',
           loadingLabel: 'Reporting...',
-          isLoading: busy,
+          isLoading: loadingAction == _InboxAction.retryReport,
           enabled: enabled,
           action: onRetryReport,
         ),

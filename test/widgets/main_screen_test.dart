@@ -339,5 +339,65 @@ void main() {
       await tester.pumpAndSettle();
       expect(container.read(pendingRequestCountProvider), 0);
     });
+
+    testWidgets(
+        'lights the badge for an escalation that arrives while the main screen '
+        'is open, via the periodic refresh', (tester) async {
+      // Starts empty: the escalation arrives only after the screen is built and
+      // connected, so neither the first load nor the connect listener sees it.
+      final fake = FakeCoordinationClient();
+      final container = ProviderContainer(
+        overrides: [
+          demoStateProvider.overrideWith(DemoStateNotifier.new),
+          activityLogProvider.overrideWith(ActivityLogNotifier.new),
+          mainScreenFlowProvider.overrideWithValue(
+            _NoOpMainScreenFlow(
+              demoState: DemoStateNotifier(),
+              activityLog: ActivityLogNotifier(),
+            ),
+          ),
+          coordinationClientProvider.overrideWithValue(fake),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(path: '/', builder: (context, state) => const MainScreen()),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            theme: ThemeData.light(useMaterial3: true),
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      container.read(demoStateProvider.notifier).setConnected(
+            contractId: fixtureSmartAccount,
+            credentialId: 'cred',
+            isDeployed: true,
+          );
+      await tester.pumpAndSettle();
+      expect(container.read(pendingRequestCountProvider), 0);
+
+      // The agent escalates while the user is sitting on the main screen. No
+      // connect/disconnect, no inbox action, no pull-to-refresh occurs.
+      fake.pending = [buildRequest(id: 'late')];
+      await tester.pump();
+      expect(container.read(pendingRequestCountProvider), 0);
+
+      // The periodic refresh picks it up without any user action and lights the
+      // badge. (The widget's timer is cancelled when the tree is disposed.)
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pump();
+      expect(container.read(pendingRequestCountProvider), 1);
+    });
   });
 }

@@ -80,7 +80,11 @@ void main() {
 
       expect(find.widgetWithText(TextField, 'Agent Ed25519 Public Key (hex)'),
           findsOneWidget);
-      expect(find.widgetWithText(TextField, 'Token Contract'), findsOneWidget);
+      // Token Contract is a dropdown (mirrors the context-rule contract
+      // selector) defaulting to the demo token, not a free-text field.
+      expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+      expect(find.text('Token Contract'), findsOneWidget);
+      expect(find.text('Demo Token Contract'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'Spending Limit'), findsOneWidget);
       expect(find.text('Spending Limit Period'), findsOneWidget);
       expect(find.text('Rule Expires In'), findsOneWidget);
@@ -139,6 +143,13 @@ void main() {
       expect(manager.lastAddedSelectedSigners, isEmpty);
       expect(find.text('Agent Authorised'), findsOneWidget);
       expect(find.text('Done'), findsOneWidget);
+      // The result card exposes the scoped token contract with a copy
+      // affordance so it can be passed to the reference agent.
+      expect(find.text('Token Contract'), findsOneWidget);
+      expect(
+        find.byTooltip('Copy token contract address'),
+        findsOneWidget,
+      );
     });
   });
 }

@@ -21,8 +21,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_account_demo/flows/transfer_flow.dart';
+import 'package:smart_account_demo/util/format_utils.dart' show bytesToHex;
 import 'package:smart_account_demo/wallet/wallet_connector.dart';
 import 'package:smart_account_demo/widgets/signer_picker_sheet.dart';
+import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart'
+    show OZExternalSigner;
 
 /// Chip / subtitle text the picker derives from [defaultWalletConnectLabel].
 /// Mirrors the runtime "strip Connect " logic in the picker.
@@ -1106,6 +1109,63 @@ void main() {
         await tester.pump(const Duration(milliseconds: 10));
 
         expect(connector.disconnectCallCount, equals(1));
+      },
+    );
+  });
+
+  group('SignerPickerSheet — Ed25519 row keys', () {
+    testWidgets(
+      'two Ed25519 signers sharing one verifier render with unique keys',
+      (tester) async {
+        _useLargeSurface(tester);
+
+        // Distinct 32-byte public keys behind the SAME verifier contract. An
+        // account shares one Ed25519 verifier across all of its Ed25519
+        // signers, so the rows must key on the public key as well; keying on
+        // the verifier address alone would collide and throw a duplicate-key
+        // error.
+        final key1 = Uint8List.fromList(List<int>.filled(32, 1));
+        final key2 = Uint8List.fromList(List<int>.filled(32, 2));
+        final signerA = SignerInfo(
+          displayLabel: 'Agent A',
+          address: _ed25519VerifierAddress,
+          kind: SignerKind.ed25519,
+          isConnectedCredential: false,
+          rawSigner: OZExternalSigner(_ed25519VerifierAddress, key1),
+        );
+        final signerB = SignerInfo(
+          displayLabel: 'Agent B',
+          address: _ed25519VerifierAddress,
+          kind: SignerKind.ed25519,
+          isConnectedCredential: false,
+          rawSigner: OZExternalSigner(_ed25519VerifierAddress, key2),
+        );
+
+        await tester.pumpWidget(
+          _wrap(
+            SignerPickerSheet(
+              availableSigners: [signerA, signerB],
+              connectedCredentialId: null,
+              ed25519SigningEnabled: true,
+              onConfirm: (signers, keypairs, ed25519Secrets) {},
+              onCancel: () {},
+              validateDelegatedSecret: _noOpValidator,
+              validateEd25519Secret: _noOpEd25519Validator,
+            ),
+          ),
+        );
+
+        expect(tester.takeException(), isNull);
+        expect(
+          find.byKey(ValueKey<String>(
+              'ed25519-row-$_ed25519VerifierAddress-${bytesToHex(key1)}')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(ValueKey<String>(
+              'ed25519-row-$_ed25519VerifierAddress-${bytesToHex(key2)}')),
+          findsOneWidget,
+        );
       },
     );
   });

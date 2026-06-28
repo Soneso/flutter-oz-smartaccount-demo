@@ -58,6 +58,16 @@ class MainScreen extends ConsumerStatefulWidget {
 class _MainScreenState extends ConsumerState<MainScreen> {
   late final MainScreenFlow _flow;
 
+  /// Periodically refreshes the account-scoped pending-escalation count while
+  /// the main screen is visible, so the inbox bell badge lights up when the
+  /// agent escalates a call without the user having to pull-to-refresh. Owned
+  /// by the widget and cancelled in [dispose]; the count provider holds no
+  /// timer of its own.
+  Timer? _badgeRefreshTimer;
+
+  /// How often the bell badge is refreshed while the main screen is mounted.
+  static const Duration _badgeRefreshInterval = Duration(seconds: 5);
+
   @override
   void initState() {
     super.initState();
@@ -74,9 +84,27 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       _flow.initializeKit().then((_) {
         if (mounted) _flow.refreshBalances();
       });
-      // Load the pending-escalation count once so the inbox bell badge is
-      // populated on the first frame. Refreshes again on demand only (after
-      // inbox actions / pull-to-refresh) — no background polling timer.
+      // Load the pending-escalation count immediately so the inbox bell badge
+      // is populated on the first frame; the periodic timer started below keeps
+      // it live while the main screen is visible.
+      unawaited(ref.read(pendingRequestCountProvider.notifier).refresh());
+    });
+    _startBadgeRefreshTimer();
+  }
+
+  @override
+  void dispose() {
+    _badgeRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Starts the periodic bell-badge refresh. Each tick reloads the
+  /// account-scoped pending count, but only while a wallet is connected — the
+  /// inbox is account-scoped, so a disconnected app has nothing to surface.
+  void _startBadgeRefreshTimer() {
+    _badgeRefreshTimer = Timer.periodic(_badgeRefreshInterval, (_) {
+      if (!mounted) return;
+      if (ref.read(demoStateProvider).contractId == null) return;
       unawaited(ref.read(pendingRequestCountProvider.notifier).refresh());
     });
   }

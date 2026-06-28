@@ -141,13 +141,13 @@ rejects the call. The agent escalates the rejection and polls:
 
 ```sh
 cd reference_agent
-AGENT_RUN_LIVE=true \
-AGENT_SMART_ACCOUNT=C...           # account "Contract address" from step 2 \
-AGENT_SECRET_SEED=<64-hex>         # the agent seed from step 1 \
-AGENT_DESTINATION=G...             # transfer recipient \
-AGENT_AMOUNT=1000                  # MUST exceed the delegated cap \
-AGENT_COORDINATION_URL=http://localhost:8787 \
-AGENT_COORDINATION_TOKEN=dev-token-change-me \
+export AGENT_RUN_LIVE=true
+export AGENT_SMART_ACCOUNT=C...        # account "Contract address" from step 2
+export AGENT_SECRET_SEED=<64-hex>      # the agent seed from step 1
+export AGENT_DESTINATION=G...          # transfer recipient
+export AGENT_AMOUNT=1000               # MUST exceed the delegated cap
+export AGENT_COORDINATION_URL=http://localhost:8787
+export AGENT_COORDINATION_TOKEN=dev-token-change-me
 flutter test test/agent_live_run_test.dart
 ```
 

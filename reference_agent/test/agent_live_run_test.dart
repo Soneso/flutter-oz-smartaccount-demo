@@ -18,7 +18,8 @@
 //   flutter test test/agent_live_run_test.dart
 //
 // A live run requires a smart account that already has the agent's Ed25519 key
-// registered as a scoped signer (the step-2 delegation flow, built next).
+// registered as a scoped signer via the Delegate-to-agent flow
+// (lib/flows/delegate_to_agent_flow.dart).
 // Without AGENT_RUN_LIVE and a complete config this test is skipped, so the
 // default `flutter test` run never touches the network.
 

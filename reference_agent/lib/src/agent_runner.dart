@@ -306,7 +306,21 @@ class AgentRunner {
     for (var attempt = 1; attempt <= config.pollMaxAttempts; attempt++) {
       await _sleep(config.pollInterval);
 
-      final current = await _coordination.getRequest(requestId);
+      final CoordinationRequest current;
+      try {
+        current = await _coordination.getRequest(requestId);
+      } on CoordinationException catch (e) {
+        // The escalation request is already created and still live on the
+        // server; a transient 5xx or network blip on a single poll does not
+        // invalidate it. Log and retry on the next tick so the request
+        // survives across the poll window.
+        _logger.info(
+          'Transient error polling escalation $requestId '
+          '(attempt $attempt/${config.pollMaxAttempts}): ${e.message}. '
+          'Retrying.',
+        );
+        continue;
+      }
       switch (current.status) {
         case CoordinationRequest.statusApproved:
           final resultHash = current.resultHash ?? '';

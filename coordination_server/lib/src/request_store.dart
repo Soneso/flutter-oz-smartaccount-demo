@@ -170,6 +170,13 @@ class RequestStore {
   ///
   /// The snapshot string is captured synchronously, so the persisted file
   /// reflects the state at call time and queued writes apply in call order.
+  ///
+  /// The returned future is what the caller awaits and carries any write
+  /// failure so it can surface as a request error. The write queue tracks the
+  /// same write through a copy whose error is swallowed: a failed write keeps
+  /// the queue ordered for later flushes and never leaves a listener-less error
+  /// future behind, which in the root zone would otherwise escape as an
+  /// unhandled async error and terminate the process.
   Future<void> _flush() {
     final path = _storePath;
     if (path == null) {
@@ -178,24 +185,12 @@ class RequestStore {
     final snapshot = jsonEncode(
       _order.map((id) => _byId[id]!.toJson()).toList(growable: false),
     );
-    final previous = _writeQueue;
-    final completer = Completer<void>();
-    _writeQueue = completer.future;
-    return Future<void>(() async {
-      try {
-        await previous;
-      } catch (_) {
-        // A failed earlier write must not stall later ones; its awaiter
-        // already received the error.
-      }
-      try {
-        await _writeAtomically(path, snapshot);
-        completer.complete();
-      } catch (error, stackTrace) {
-        completer.completeError(error, stackTrace);
-        rethrow;
-      }
-    });
+    final result = _writeQueue.then(
+      (_) => _writeAtomically(path, snapshot),
+      onError: (_) => _writeAtomically(path, snapshot),
+    );
+    _writeQueue = result.then((_) {}, onError: (_) {});
+    return result;
   }
 
   Future<void> _writeAtomically(String path, String contents) async {

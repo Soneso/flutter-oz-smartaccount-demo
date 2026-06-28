@@ -1,10 +1,11 @@
 /// Riverpod provider exposing the number of pending agent escalations.
 ///
-/// Drives the badge on the main screen's approval-inbox bell. The count is
-/// refreshed on demand only — [PendingRequestCountNotifier.refresh] is called
-/// when the main screen first builds and after every approve/reject action in
-/// the inbox. There is no background timer, so the provider never leaks a
-/// periodic poll: callers refresh at the points where the count can change.
+/// Drives the badge on the main screen's approval-inbox bell.
+/// [PendingRequestCountNotifier.refresh] is called when the main screen first
+/// builds, after every approve/reject action in the inbox, on pull-to-refresh,
+/// and on a short periodic tick the main screen runs while it is visible. The
+/// provider itself owns no timer — the main screen owns the periodic refresh
+/// and cancels it on dispose — so the provider never leaks a background poll.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

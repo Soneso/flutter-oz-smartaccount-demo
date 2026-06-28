@@ -270,5 +270,60 @@ void main() {
       await reader.load();
       expect(reader.list().length, 3);
     });
+
+    test('a persistence failure surfaces to the caller without crashing',
+        () async {
+      // A regular file standing where the store directory would be makes the
+      // atomic write fail when it tries to materialize the parent directory.
+      final blocker = File('${tempDir.path}/blocker')..writeAsStringSync('x');
+      final store = RequestStore(storePath: '${blocker.path}/store.json');
+
+      await expectLater(
+        store.create(_input()),
+        throwsA(isA<FileSystemException>()),
+      );
+
+      // Let any listener-less error future settle. If the write queue left one
+      // dangling, the test zone would report an unhandled exception here and
+      // fail the test instead of completing.
+      await Future<void>.delayed(Duration.zero);
+
+      // The isolate is still alive: a store backed by a writable path keeps
+      // working after the failed write.
+      final good = RequestStore(storePath: '${tempDir.path}/good.json');
+      final created = await good.create(_input());
+      expect(good.getById(created.id), isNotNull);
+      expect(File('${tempDir.path}/good.json').existsSync(), isTrue);
+    });
+
+    test('write ordering survives a failed write in the queue', () async {
+      // The store path is initially blocked by a regular file, so the first
+      // write fails; clearing the blocker lets the next write through.
+      final blocker = File('${tempDir.path}/blocker')..writeAsStringSync('x');
+      final path = '${blocker.path}/store.json';
+      var counter = 0;
+      final store = RequestStore(
+        storePath: path,
+        idGenerator: () => 'id-${counter++}',
+      );
+
+      // The first write fails on the blocked path. The in-memory mutation
+      // still succeeds; only persistence fails.
+      await expectLater(
+        store.create(_input()),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(store.getById('id-0'), isNotNull);
+
+      // Unblock the path so subsequent queued writes can complete.
+      blocker.deleteSync();
+      final b = await store.create(_input());
+
+      // The persisted snapshot reflects both records in insertion order, so a
+      // failure earlier in the queue did not corrupt or reorder later writes.
+      final reader = RequestStore(storePath: path);
+      await reader.load();
+      expect(reader.list().map((r) => r.id).toList(), <String>[b.id, 'id-0']);
+    });
   });
 }

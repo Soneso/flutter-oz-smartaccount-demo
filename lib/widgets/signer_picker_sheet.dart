@@ -19,6 +19,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../flows/signer_info.dart' show Ed25519SignerIdentity, SignerInfo, SignerKind;
+import '../util/format_utils.dart' show bytesToHex;
 import '../util/selected_signer_builder.dart' show SelectedSignerBuilder;
 import '../util/semantic_colors.dart';
 import '../util/signer_type_label.dart';
@@ -746,7 +747,11 @@ class _SignerPickerSheetState extends State<SignerPickerSheet> {
           publicKey: publicKey,
         );
         return _Ed25519SignerRow(
-          key: ValueKey<String>('ed25519-row-${signer.address}'),
+          // Key on both the verifier address and the public key: an account
+          // shares one Ed25519 verifier across all of its Ed25519 signers, so
+          // the verifier address alone is not unique among sibling rows.
+          key: ValueKey<String>(
+              'ed25519-row-${signer.address}-${bytesToHex(publicKey)}'),
           signer: signer,
           publicKey: publicKey,
           validateEd25519Secret: widget.validateEd25519Secret,

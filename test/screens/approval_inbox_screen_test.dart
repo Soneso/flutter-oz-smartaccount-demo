@@ -259,6 +259,54 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets(
+        'while approving, only the Approve button spins (Reject does not)',
+        (tester) async {
+      final fake = FakeCoordinationClient(
+        pending: <CoordinationRequest>[buildRequest(id: 'r1')],
+      );
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final activityLog = container.read(activityLogProvider.notifier);
+      final blocking = _BlockingContractCall();
+      final flow = ApprovalInboxFlow(
+        coordination: fake,
+        activityLog: activityLog,
+        resolveContractCall: () => blocking,
+        resolveConnectedAccount: () => fixtureSmartAccount,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            demoStateProvider.overrideWith(
+              () => _ConnectedDemoStateNotifier(isConnected: true),
+            ),
+            activityLogProvider.overrideWith(ActivityLogNotifier.new),
+            coordinationClientProvider.overrideWithValue(fake),
+          ],
+          child: MaterialApp(home: ApprovalInboxScreen(flow: flow)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Start approving; the call blocks inside contractCall.
+      await tester.tap(find.widgetWithText(LoadingButton, 'Approve'));
+      await tester.pump();
+
+      // The Approve button is in its loading state...
+      expect(find.text('Approving...'), findsOneWidget);
+      // ...and the Reject button is NOT: it still renders its idle label.
+      // (A spinning Reject would show a bare indicator with no 'Reject' text.)
+      expect(find.widgetWithText(LoadingButton, 'Reject'), findsOneWidget);
+      // Exactly one spinner on screen, inside the Approve button.
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      blocking.completer
+          .complete(const OZTransactionResult(success: true, hash: 'H'));
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('reject opens the note dialog and reports the rejection',
         (tester) async {
       final request = buildRequest(id: 'req-reject');

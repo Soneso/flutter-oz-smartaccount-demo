@@ -7,7 +7,8 @@ import 'package:stellar_flutter_sdk/stellar_flutter_sdk.dart';
 /// A call either confirmed on-chain ([CallSucceeded]), was rejected by the
 /// smart-account contract with a parseable error code ([CallRejected]), or
 /// failed for a non-contract reason such as a network error ([CallFailed]).
-/// Only a [CallRejected] is a policy decision that the agent escalates.
+/// A [CallRejected] covers any parseable on-chain contract error code, which
+/// the agent escalates for human review.
 sealed class CallOutcome {
   const CallOutcome();
 }
