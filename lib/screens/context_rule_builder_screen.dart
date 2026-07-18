@@ -809,13 +809,11 @@ class _ContextRuleBuilderScreenState
       // Multi-signer detection: edit-mode uses the original on-chain signer
       // set (not the diff) to determine multi-signer routing — the rule's
       // current authorization context is what authorises the per-op
-      // transactions.
+      // transactions. Count is the only criterion: a rule without a
+      // threshold policy requires all of its signers, so a multi-signer
+      // rule needs the picker even when every signer is a passkey.
       final onChainSigners = _originalSignerEntries.map((e) => e.signer).toList();
-      final needsMultiSigner = onChainSigners.length > 1 &&
-          onChainSigners.any((s) =>
-              s is OZDelegatedSigner ||
-              (s is OZExternalSigner &&
-                  getCredentialIdStringFromSigner(s) == null));
+      final needsMultiSigner = onChainSigners.length > 1;
 
       if (needsMultiSigner) {
         await _openMultiSignerPickerForEdit(flow: flow, diff: diff);

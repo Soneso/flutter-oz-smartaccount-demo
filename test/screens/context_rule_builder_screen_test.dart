@@ -4,6 +4,9 @@
 /// successful submission with hash, error display.
 library;
 
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -581,6 +584,63 @@ void main() {
         expect(find.textContaining('Pending changes: name update'),
             findsOneWidget);
         expect(find.text('1 passkey prompt(s) required'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'edit submit on a multi-passkey rule opens the signer picker '
+      'instead of submitting single-signer',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        // A rule whose signers are BOTH passkeys: without a threshold policy
+        // it authorizes N-of-N, so an edit needs every signer — the picker
+        // must open even though no delegated or Ed25519 signer is present.
+        const verifier =
+            'CB26VN37RCVNTHJZDEPK6IRO2MMTS3Z2IEO5JD5BINY2OOJ5KKJG7NKY';
+        Uint8List passkeyKeyData(String credential) => Uint8List.fromList(
+            <int>[
+              ...List<int>.generate(65, (i) => i + 1),
+              ...utf8.encode(credential),
+            ]);
+        final rule = OZParsedContextRule(
+          id: 0,
+          contextType: const OZContextRuleTypeDefault(),
+          name: 'multisig',
+          signers: [
+            OZExternalSigner(verifier, passkeyKeyData('cred-a')),
+            OZExternalSigner(verifier, passkeyKeyData('cred-b')),
+          ],
+          signerIds: const [10, 11],
+          policies: const <String>[],
+          policyIds: const [],
+        );
+        final mgr = MockContextRuleFlowManager()..rules = [rule];
+        final flow = _makeFlow(manager: mgr);
+        await tester.pumpWidget(_wrap(flow, editRuleId: 0));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Rule Name'),
+          'Renamed',
+        );
+        await tester.pumpAndSettle();
+
+        await tester.ensureVisible(find.text('Apply Changes'));
+        await tester.tap(find.text('Apply Changes'));
+        // The sheet animates in and may contain indefinitely animating
+        // children, so fixed pumps are used instead of pumpAndSettle.
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+
+        // The signer picker sheet opens and nothing was submitted directly.
+        expect(find.text('Select Signers'), findsOneWidget);
+        expect(mgr.editCalls, isEmpty);
       },
     );
   });
