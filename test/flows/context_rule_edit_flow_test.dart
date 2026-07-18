@@ -19,6 +19,7 @@
 /// 8. ContextRuleEditDiff.isEmpty matches "no changes at all".
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -299,6 +300,62 @@ void main() {
       // The simple-threshold policy is dispatched via addSimpleThreshold.
       expect(mgr.editCalls.map((c) => c.op).toList(),
           ['updateName', 'removeSigner', 'addSimpleThreshold']);
+    });
+
+    test('adds a passkey signer by slicing raw keyData bytes', () async {
+      final mgr = MockContextRuleFlowManager()
+        ..editResults['addPasskey'] =
+            const OZTransactionResult(success: true, hash: 'h-add-pk');
+
+      final deps = ContextRuleFixtures.makeFlowWithDeps(
+        manager: mgr,
+        environment: MockBuilderEnvironment(),
+      );
+
+      // 26 credential bytes encode to 35 unpadded Base64URL characters — a
+      // length a padded-input decoder rejects — so this test fails if the
+      // credential ID takes a string round-trip instead of a byte slice.
+      final credentialBytes =
+          Uint8List.fromList(utf8.encode('test-credential-id-fixture'));
+      final publicKey =
+          Uint8List.fromList(List<int>.generate(65, (i) => i + 1));
+      final keyData =
+          Uint8List.fromList(<int>[...publicKey, ...credentialBytes]);
+      final added = EditSignerEntry(
+        signer: OZExternalSigner(
+          'CB26VN37RCVNTHJZDEPK6IRO2MMTS3Z2IEO5JD5BINY2OOJ5KKJG7NKY',
+          keyData,
+        ),
+        onChainId: null,
+        isOriginal: false,
+      );
+
+      final diff = ContextRuleEditDiff(
+        ruleId: 0,
+        nameChanged: false,
+        newName: null,
+        newSigners: [added],
+        removedSigners: const <EditSignerEntry>[],
+        newPolicies: const <EditPolicyEntry>[],
+        removedPolicies: const <EditPolicyEntry>[],
+        modifiedPolicies: const <EditPolicyEntry>[],
+        expiryChanged: false,
+        newExpiry: null,
+      );
+
+      final result = await deps.flow.submitContextRuleEdits(
+        diff: diff,
+        selectedSigners: const <OZSelectedSigner>[],
+        onProgress: (_) {},
+      );
+
+      expect(result.success, isTrue,
+          reason: 'add-passkey edit must succeed, got: ${result.error}');
+      final call = mgr.editCalls.single;
+      expect(call.op, 'addPasskey');
+      expect(call.args['ruleId'], 0);
+      expect(call.args['publicKey'], publicKey);
+      expect(call.args['credentialId'], credentialBytes);
     });
   });
 

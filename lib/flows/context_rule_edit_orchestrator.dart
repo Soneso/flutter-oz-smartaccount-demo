@@ -231,33 +231,16 @@ extension _ContextRuleEditOrchestrator on ContextRuleFlow {
 
       if (signer.verifierAddress == webauthnVerifier) {
         // External WebAuthn: keyData is laid out as [public key | credential
-        // ID]. The Base64URL credential ID is canonical for on-chain
-        // identification, so the raw bytes are recovered by decoding the
-        // helper-derived string. The public key is recovered through the SDK
-        // helper, which owns the secp256r1 public-key length.
-        final credentialIdString =
-            OZSmartAccountBuilders.getCredentialIdStringFromSigner(signer);
-        if (credentialIdString == null) {
-          throw const DemoError(
-            message: 'Passkey signer is missing a credential ID.',
-            category: DemoErrorCategory.validation,
-          );
-        }
+        // ID]. Both parts are recovered as raw bytes through the SDK
+        // helpers, which own the secp256r1 public-key length.
         final publicKey =
             OZSmartAccountBuilders.getPublicKeyFromSigner(signer);
-        if (publicKey == null) {
+        final credentialId =
+            OZSmartAccountBuilders.getCredentialIdFromSigner(signer);
+        if (publicKey == null || credentialId == null) {
           throw const DemoError(
             message: 'Passkey signer keyData is too short to extract a '
                 'public key and credential ID.',
-            category: DemoErrorCategory.validation,
-          );
-        }
-        final Uint8List credentialId;
-        try {
-          credentialId = base64Url.decode(credentialIdString);
-        } on FormatException {
-          throw const DemoError(
-            message: 'Passkey signer credential ID is not valid Base64URL.',
             category: DemoErrorCategory.validation,
           );
         }
