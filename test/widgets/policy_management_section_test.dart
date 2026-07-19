@@ -7,7 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_account_demo/config/demo_config.dart'
-    show knownPolicies;
+    show PolicyInfo, knownPolicies;
 import 'package:smart_account_demo/flows/context_rule_builder_types.dart';
 import 'package:smart_account_demo/util/format_utils.dart'
     show nativeTokenDecimals;
@@ -383,6 +383,34 @@ void main() {
           signers: const <StagedSigner>[],
         );
         expect(find.text('All policy types already added'), findsOneWidget);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Submitting: add card disabled, not hidden
+  // ---------------------------------------------------------------------------
+
+  group('PolicyManagementSection — submitting', () {
+    testWidgets(
+      'add card stays visible with a disabled policy-type selector while '
+      'submitting',
+      (tester) async {
+        await _pump(
+          tester,
+          policies: const <StagedPolicy>[],
+          signers: const <StagedSigner>[],
+          isSubmitting: true,
+        );
+
+        // The Add Policy card is rendered (disabled, not hidden).
+        expect(find.text('Add Policy'), findsOneWidget);
+
+        // The policy-type selector is disabled.
+        final dropdown = tester.widget<DropdownButtonFormField<PolicyInfo>>(
+          find.byType(DropdownButtonFormField<PolicyInfo>),
+        );
+        expect(dropdown.onChanged, isNull);
       },
     );
   });

@@ -74,6 +74,10 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // Drives the rule list so a removal-failure error card (rendered near the
+  // top of the list) can be brought back into view.
+  final ScrollController _scrollController = ScrollController();
+
   // ---- Expand state ----
 
   int? _expandedRuleId;
@@ -93,6 +97,23 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
     _flow = widget.flow ?? ref.read(contextRuleFlowProvider);
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => unawaited(_loadRules()),
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Animates the rule list back to the top so a removal-failure error card is
+  /// visible. No-op when the controller is not attached to a scroll view.
+  void _scrollToTop() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
     );
   }
 
@@ -185,6 +206,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
         _errorMessage = result.error?.message ??
             'Could not load signers for this account.';
       });
+      _scrollToTop();
       return;
     }
 
@@ -260,6 +282,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
         setState(() {
           _errorMessage = classifyError(e).message;
         });
+        _scrollToTop();
       }
     }
   }
@@ -298,6 +321,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
           _removingRuleId = null;
           _errorMessage = flow.classifyRemovalError(e);
         });
+        _scrollToTop();
       }
     }
   }
@@ -323,6 +347,7 @@ class _ContextRulesScreenState extends ConsumerState<ContextRulesScreen> {
       body: RefreshIndicator(
         onRefresh: _loadRules,
         child: CustomScrollView(
+          controller: _scrollController,
           slivers: [
             SliverPadding(
               padding: kCardPadding,

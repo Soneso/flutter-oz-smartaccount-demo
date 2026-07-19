@@ -100,6 +100,10 @@ class PolicyManagementSection extends StatefulWidget {
 class _PolicyManagementSectionState extends State<PolicyManagementSection> {
   PolicyInfo? _selectedType;
 
+  // Marks the staged-policy count caption so a user-initiated add can bring
+  // the newly staged policy into view.
+  final GlobalKey _captionKey = GlobalKey();
+
   /// Collapses the chooser after a successful add. Clearing [_selectedType]
   /// disposes the keyed form widget, so no explicit reset is required.
   void _onAddSucceeded() {
@@ -111,6 +115,29 @@ class _PolicyManagementSectionState extends State<PolicyManagementSection> {
   /// Announces a policy removal to assistive technology.
   void _announcePolicyRemoved() {
     SemanticsService.announce('Removed policy', Directionality.of(context));
+  }
+
+  /// Forwards a staged add to the caller and, on success, scrolls the count
+  /// caption into view. Only user-initiated adds route through here, so
+  /// edit-mode rule loading and post-failure reloads never move the viewport.
+  String? _handleAddPolicy(StagedPolicy policy) {
+    final error = widget.onAddPolicy(policy);
+    if (error == null) _scrollCaptionIntoView();
+    return error;
+  }
+
+  /// Brings the count caption into view after the add-driven rebuild has
+  /// laid it out. No-op when the caption is not mounted.
+  void _scrollCaptionIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _captionKey.currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 300),
+        alignment: 0.5,
+      );
+    });
   }
 
   // ---- Build ----
@@ -174,6 +201,7 @@ class _PolicyManagementSectionState extends State<PolicyManagementSection> {
             : widget.policies.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
+            key: _captionKey,
             _policyCount(_isEditMode
                 ? editEntries!.length
                 : widget.policies.length),
@@ -183,12 +211,13 @@ class _PolicyManagementSectionState extends State<PolicyManagementSection> {
           ),
         ],
         const SizedBox(height: 12),
-        if (!widget.isSubmitting && !atCap)
+        if (!atCap)
           _AddPolicyCard(
             colorScheme: colorScheme,
             textTheme: textTheme,
             available: available,
             selectedType: _selectedType,
+            isSubmitting: widget.isSubmitting,
             onTypeChanged: (info) {
               setState(() {
                 _selectedType = info;
@@ -246,7 +275,7 @@ class _PolicyManagementSectionState extends State<PolicyManagementSection> {
           policy: type,
           signers: widget.signers,
           isSubmitting: widget.isSubmitting,
-          onAddPolicy: widget.onAddPolicy,
+          onAddPolicy: _handleAddPolicy,
           onAddSucceeded: _onAddSucceeded,
         );
       case PolicyType.spendingLimit:
@@ -256,7 +285,7 @@ class _PolicyManagementSectionState extends State<PolicyManagementSection> {
           isSubmitting: widget.isSubmitting,
           decimals: widget.spendingLimitDecimals,
           decimalsError: widget.spendingLimitDecimalsError,
-          onAddPolicy: widget.onAddPolicy,
+          onAddPolicy: _handleAddPolicy,
           onAddSucceeded: _onAddSucceeded,
         );
       case PolicyType.weightedThreshold:
@@ -265,7 +294,7 @@ class _PolicyManagementSectionState extends State<PolicyManagementSection> {
           policy: type,
           signers: widget.signers,
           isSubmitting: widget.isSubmitting,
-          onAddPolicy: widget.onAddPolicy,
+          onAddPolicy: _handleAddPolicy,
           onAddSucceeded: _onAddSucceeded,
         );
       default:
@@ -487,6 +516,7 @@ class _AddPolicyCard extends StatelessWidget {
     required this.textTheme,
     required this.available,
     required this.selectedType,
+    required this.isSubmitting,
     required this.onTypeChanged,
     required this.body,
   });
@@ -495,6 +525,7 @@ class _AddPolicyCard extends StatelessWidget {
   final TextTheme textTheme;
   final List<PolicyInfo> available;
   final PolicyInfo? selectedType;
+  final bool isSubmitting;
   final ValueChanged<PolicyInfo?> onTypeChanged;
   final Widget body;
 
@@ -558,7 +589,7 @@ class _AddPolicyCard extends StatelessWidget {
                     ),
                   ),
               ],
-              onChanged: onTypeChanged,
+              onChanged: isSubmitting ? null : onTypeChanged,
             ),
           const SizedBox(height: 12),
           body,

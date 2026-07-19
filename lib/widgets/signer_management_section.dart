@@ -165,11 +165,38 @@ class SignerManagementSection extends StatefulWidget {
 class _SignerManagementSectionState extends State<SignerManagementSection> {
   SignerAddMode _mode = SignerAddMode.delegated;
 
+  // Marks the staged-signer count caption so a user-initiated add can bring
+  // the newly staged signer into view.
+  final GlobalKey _captionKey = GlobalKey();
+
   bool get _isEditMode => widget.editEntries != null;
 
   /// Announces a signer removal to assistive technology.
   void _announceSignerRemoved() {
     SemanticsService.announce('Removed signer', Directionality.of(context));
+  }
+
+  /// Forwards a staged add to the caller and, on success, scrolls the count
+  /// caption into view. Only user-initiated adds route through here, so
+  /// edit-mode rule loading and post-failure reloads never move the viewport.
+  String? _handleAddSigner(StagedSigner signer) {
+    final error = widget.onAddSigner(signer);
+    if (error == null) _scrollCaptionIntoView();
+    return error;
+  }
+
+  /// Brings the count caption into view after the add-driven rebuild has
+  /// laid it out. No-op when the caption is not mounted.
+  void _scrollCaptionIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _captionKey.currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 300),
+        alignment: 0.5,
+      );
+    });
   }
 
   // ---- Build ----
@@ -219,6 +246,7 @@ class _SignerManagementSectionState extends State<SignerManagementSection> {
             : widget.signers.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
+            key: _captionKey,
             _isEditMode
                 ? '${editEntries!.length} signer(s) configured'
                 : '${widget.signers.length} signer(s) added',
@@ -228,17 +256,17 @@ class _SignerManagementSectionState extends State<SignerManagementSection> {
           ),
         ],
         const SizedBox(height: 12),
-        if (!widget.isSubmitting)
-          _AddSignerCard(
-            colorScheme: colorScheme,
-            textTheme: textTheme,
-            mode: _mode,
-            atCap: atCap,
-            onModeChanged: (m) {
-              setState(() => _mode = m);
-            },
-            body: _buildModeBody(colorScheme, textTheme, atCap),
-          ),
+        _AddSignerCard(
+          colorScheme: colorScheme,
+          textTheme: textTheme,
+          mode: _mode,
+          atCap: atCap,
+          isSubmitting: widget.isSubmitting,
+          onModeChanged: (m) {
+            setState(() => _mode = m);
+          },
+          body: _buildModeBody(colorScheme, textTheme, atCap),
+        ),
       ],
     );
   }
@@ -287,7 +315,7 @@ class _SignerManagementSectionState extends State<SignerManagementSection> {
           key: const ValueKey<SignerAddMode>(SignerAddMode.delegated),
           isSubmitting: widget.isSubmitting,
           buildDelegatedSigner: widget.buildDelegatedSigner,
-          onAddSigner: widget.onAddSigner,
+          onAddSigner: _handleAddSigner,
         );
       case SignerAddMode.ed25519:
         return Ed25519AddForm(
@@ -295,7 +323,7 @@ class _SignerManagementSectionState extends State<SignerManagementSection> {
           isSubmitting: widget.isSubmitting,
           ed25519VerifierAddress: widget.ed25519VerifierAddress,
           buildEd25519Signer: widget.buildEd25519Signer,
-          onAddSigner: widget.onAddSigner,
+          onAddSigner: _handleAddSigner,
         );
       case SignerAddMode.passkey:
         return PasskeyAddForm(
@@ -304,7 +332,7 @@ class _SignerManagementSectionState extends State<SignerManagementSection> {
           loadPasskeySigners: widget.loadPasskeySigners,
           registerPasskeySigner: widget.registerPasskeySigner,
           isAlreadyAdded: _isPasskeyAlreadyAdded,
-          onAddSigner: widget.onAddSigner,
+          onAddSigner: _handleAddSigner,
           availableExistingPasskeys: widget.availableExistingPasskeys,
         );
     }
@@ -501,6 +529,7 @@ class _AddSignerCard extends StatelessWidget {
     required this.textTheme,
     required this.mode,
     required this.atCap,
+    required this.isSubmitting,
     required this.onModeChanged,
     required this.body,
   });
@@ -509,6 +538,7 @@ class _AddSignerCard extends StatelessWidget {
   final TextTheme textTheme;
   final SignerAddMode mode;
   final bool atCap;
+  final bool isSubmitting;
   final ValueChanged<SignerAddMode> onModeChanged;
   final Widget body;
 
@@ -564,7 +594,7 @@ class _AddSignerCard extends StatelessWidget {
                   ),
                 ),
             ],
-            onChanged: atCap
+            onChanged: atCap || isSubmitting
                 ? null
                 : (m) {
                     if (m != null) onModeChanged(m);

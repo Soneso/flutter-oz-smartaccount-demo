@@ -301,6 +301,45 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // Submitting: add card disabled, not hidden
+  // ---------------------------------------------------------------------------
+
+  group('SignerManagementSection — submitting', () {
+    testWidgets(
+      'add card stays visible with disabled controls while submitting',
+      (tester) async {
+        await _pump(
+          tester,
+          signers: const <StagedSigner>[],
+          isSubmitting: true,
+        );
+
+        // The Add Signer card is rendered (disabled, not hidden).
+        expect(find.text('Add Signer'), findsOneWidget);
+
+        // The signer-type selector is disabled.
+        final dropdown = tester.widget<DropdownButtonFormField<SignerAddMode>>(
+          find.byType(DropdownButtonFormField<SignerAddMode>),
+        );
+        expect(dropdown.onChanged, isNull);
+
+        // The delegated add-form input and submit button are disabled.
+        final field = tester.widget<TextField>(
+          find.widgetWithText(TextField, 'Stellar Address (G-address)'),
+        );
+        expect(field.enabled, isFalse);
+        final addButton = tester.widget<FilledButton>(
+          find.ancestor(
+            of: find.text('Add Delegated Signer'),
+            matching: find.byType(FilledButton),
+          ),
+        );
+        expect(addButton.onPressed, isNull);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
   // Remove flow
   // ---------------------------------------------------------------------------
 

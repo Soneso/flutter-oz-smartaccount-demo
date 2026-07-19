@@ -154,6 +154,11 @@ class _ContextRuleBuilderScreenState
   final TextEditingController _customExpiryController =
       TextEditingController();
 
+  // Drives the form ListView so a freshly set result / error banner (rendered
+  // near the top of the list) can be brought back into view after a failing
+  // submit.
+  final ScrollController _scrollController = ScrollController();
+
   // [_signers] is the authoritative create-mode signer list. In edit-mode
   // it is also populated from the loaded on-chain rule so the policy
   // section's weighted-threshold add form can render per-signer weight
@@ -260,7 +265,20 @@ class _ContextRuleBuilderScreenState
     _nameController.dispose();
     _wasmHashController.dispose();
     _customExpiryController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Animates the form list back to the top so the result / error banners
+  /// rendered near the top of the list are visible. No-op when the controller
+  /// is not attached to a scroll view.
+  void _scrollToTop() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   // ---- Edit-mode helpers ----
@@ -790,6 +808,7 @@ class _ContextRuleBuilderScreenState
           ..addAll(errors);
         _formError = 'Please fix the validation errors above.';
       });
+      _scrollToTop();
       return;
     }
 
@@ -806,12 +825,6 @@ class _ContextRuleBuilderScreenState
         setState(() => _formError = 'No changes to apply');
         return;
       }
-      // Multi-signer detection: edit-mode uses the original on-chain signer
-      // set (not the diff) to determine multi-signer routing — the rule's
-      // current authorization context is what authorises the per-op
-      // transactions. Count is the only criterion: a rule without a
-      // threshold policy requires all of its signers, so a multi-signer
-      // rule needs the picker even when every signer is a passkey.
       final onChainSigners = _originalSignerEntries.map((e) => e.signer).toList();
       final needsMultiSigner = onChainSigners.length > 1;
 
@@ -958,6 +971,7 @@ class _ContextRuleBuilderScreenState
         _isSubmitting = false;
         _resultError = classifyError(e);
       });
+      _scrollToTop();
     }
   }
 
@@ -991,6 +1005,7 @@ class _ContextRuleBuilderScreenState
         _isSubmitting = false;
         _resultError = flow.classifyEditError(e);
       });
+      _scrollToTop();
       return;
     }
 
@@ -1000,6 +1015,14 @@ class _ContextRuleBuilderScreenState
       _isSubmitting = false;
       _editResult = editResult;
     });
+
+    // Full success replaces the form with the success card; a partial or
+    // failed result keeps the form, so bring its result banner into view.
+    final isFullSuccess =
+        editResult.success && !editResult.partialDueToAuthGuard;
+    if (!isFullSuccess) {
+      _scrollToTop();
+    }
 
     // Refresh form state on partial success or failure so a retry sees
     // the current on-chain state.
@@ -1045,6 +1068,7 @@ class _ContextRuleBuilderScreenState
       );
 
       if (!mounted) return;
+      var didFail = false;
       setState(() {
         _isSubmitting = false;
         if (result.success) {
@@ -1052,14 +1076,17 @@ class _ContextRuleBuilderScreenState
           _resultError = null;
         } else {
           _resultError = result.error ?? 'Transaction failed';
+          didFail = true;
         }
       });
+      if (didFail) _scrollToTop();
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;
         _resultError = flow.classifyAddRuleError(e);
       });
+      _scrollToTop();
     }
   }
 
@@ -1079,6 +1106,7 @@ class _ContextRuleBuilderScreenState
         ),
       ),
       body: ListView(
+        controller: _scrollController,
         padding: kCardPadding,
         children: _buildBody(context, connectionState),
       ),
