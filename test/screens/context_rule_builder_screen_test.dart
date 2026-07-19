@@ -643,6 +643,56 @@ void main() {
         expect(mgr.editCalls, isEmpty);
       },
     );
+
+    testWidgets(
+      'edit gate uses the all-rules signer set: a one-signer rule opens the '
+      'picker when another rule contributes a second signer',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        // The edited rule (id 1) has a SINGLE signer, but a second rule (id 2)
+        // contributes a distinct signer, so the account's all-rules signer set
+        // is > 1. The edit is authorized by that set, so the picker must open.
+        // Gating on the edited rule's own single signer would submit directly.
+        final mgr = MockContextRuleFlowManager()
+          ..rules = [
+            makeRule(
+              name: 'edited',
+              signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
+            ),
+            makeRule(
+              id: 2,
+              name: 'other',
+              signers: [OZDelegatedSigner(fixtureDelegatedAddress2)],
+            ),
+          ];
+        final flow = _makeFlow(manager: mgr);
+        await tester.pumpWidget(_wrap(flow, editRuleId: 1));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Rule Name'),
+          'Renamed',
+        );
+        await tester.pumpAndSettle();
+
+        await tester.ensureVisible(find.text('Apply Changes'));
+        await tester.tap(find.text('Apply Changes'));
+        // The sheet animates in and may contain indefinitely animating
+        // children, so fixed pumps are used instead of pumpAndSettle.
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+
+        // The signer picker sheet opens and nothing was submitted directly.
+        expect(find.text('Select Signers'), findsOneWidget);
+        expect(mgr.editCalls, isEmpty);
+      },
+    );
   });
 }
 

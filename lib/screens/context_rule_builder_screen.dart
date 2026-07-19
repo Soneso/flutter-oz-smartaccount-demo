@@ -825,8 +825,13 @@ class _ContextRuleBuilderScreenState
         setState(() => _formError = 'No changes to apply');
         return;
       }
-      final onChainSigners = _originalSignerEntries.map((e) => e.signer).toList();
-      final needsMultiSigner = onChainSigners.length > 1;
+      // A context-rule edit is an admin operation authorized by the wallet's
+      // signer set (the default rule governs it), not by the signers of the
+      // rule being edited. Gate on the same all-rules signer list create mode
+      // uses; the edit picker already offers that list. Count is the only
+      // criterion.
+      final needsMultiSigner =
+          _createSignersLoaded && _createAvailableSigners.length > 1;
 
       if (needsMultiSigner) {
         await _openMultiSignerPickerForEdit(flow: flow, diff: diff);
