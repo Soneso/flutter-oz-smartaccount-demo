@@ -25,14 +25,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.7.1"
-  archive:
-    dependency: transitive
-    description:
-      name: archive
-      sha256: cb6a278ef2dbb298455e1a713bda08524a175630ec643a242c399c932a0a1f7d
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.6.1"
   args:
     dependency: transitive
     description:
@@ -865,10 +857,10 @@ packages:
     dependency: "direct main"
     description:
       name: stellar_flutter_sdk
-      sha256: ff7a6d347e2d1ec40b06e672f691d5696c41b3810a9828f3b08cce4f26d0309a
+      sha256: f5777e49c9d0bb6f8110c8829eba42dddef84a155366abcf8c3f7089b7b21a88
       url: "https://pub.dev"
     source: hosted
-    version: "3.2.1"
+    version: "3.4.0"
   stream_channel:
     dependency: transitive
     description:
