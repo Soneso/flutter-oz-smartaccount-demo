@@ -104,7 +104,7 @@ const String defaultRelayerUrl =
 /// `indexerUrl: null` and credential-to-contract lookup falls back to the
 /// on-chain scan path.
 const String defaultIndexerUrl =
-    'https://smart-account-indexer.sdf-ecosystem.workers.dev';
+    'https://testnet.mercurydata.app/rest/smart-account-indexer';
 
 // ---------------------------------------------------------------------------
 // Coordination Server (agent-signer flow, steps 4 + 5)
