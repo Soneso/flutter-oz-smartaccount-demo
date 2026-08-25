@@ -579,14 +579,16 @@ class DemoTokenService {
 
   /// Returns true when [entry] has address credentials matching [accountId].
   ///
-  /// Only entries with [SorobanCredentials.addressCredentials] pointing at
-  /// the given G-address need to be signed by that keypair. Contract-type
-  /// credentials are handled on-chain by the contract itself.
+  /// Reads the address through [SorobanCredentials.innerAddressCredentials],
+  /// which resolves every address arm (ADDRESS, ADDRESS_V2, and the delegate
+  /// arm) and yields null for source-account credentials. Only entries whose
+  /// address is the given G-address need to be signed by that keypair;
+  /// contract-type credentials are handled on-chain by the contract itself.
   bool _entryNeedsSignature(
     SorobanAuthorizationEntry entry,
     String accountId,
   ) {
-    final addrCreds = entry.credentials.addressCredentials;
+    final addrCreds = entry.credentials.innerAddressCredentials;
     if (addrCreds == null) return false;
     final address = addrCreds.address;
     if (address.type != Address.TYPE_ACCOUNT) return false;

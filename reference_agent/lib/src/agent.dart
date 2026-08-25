@@ -99,6 +99,18 @@ class Agent {
       relayerUrl: config.relayerUrl.isEmpty ? null : config.relayerUrl,
       storage: OZInMemoryStorageAdapter(),
       externalEd25519Adapter: signerAdapter,
+      // Older wallet extension builds sign only the legacy
+      // ENVELOPE_TYPE_SOROBAN_AUTHORIZATION preimage; keeping the legacy
+      // ADDRESS arm means the demo requires no minimum extension version
+      // (Freighter signs the address-bound form from 5.42.0). Flip to the
+      // SDK default (true) to require such a build.
+      useUpgradedAuthForWalletSigners: false,
+      // The relayer chain the demo submits through (OpenZeppelin Relayer
+      // Channels) parses the submitted auth XDR with a pre-protocol-27 schema
+      // and rejects ADDRESS_V2 entries. Legacy ADDRESS entries stay valid
+      // on-chain, so the kit requests and builds those instead. Remove this
+      // override once the relayer parses protocol-27 XDR.
+      useUpgradedAuth: false,
     );
     final kit = OZSmartAccountKit.create(config: ozConfig);
 

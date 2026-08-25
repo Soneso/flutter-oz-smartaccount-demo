@@ -28,9 +28,11 @@ bool isValidContractAddress(String input) {
 /// Returns true if [input] is a non-blank, valid Stellar account address.
 ///
 /// Delegates to [StrKey.isValidStellarAccountId] which performs full StrKey
-/// base32 decoding and CRC-16 checksum verification of the G-address.
+/// base32 decoding and CRC-16 checksum verification of the G-address. Trims
+/// surrounding whitespace before validating.
 bool isValidAccountAddress(String input) {
-  return input.isNotEmpty && StrKey.isValidStellarAccountId(input);
+  final trimmed = input.trim();
+  return trimmed.isNotEmpty && StrKey.isValidStellarAccountId(trimmed);
 }
 
 /// Returns true if [input] is composed exclusively of lowercase hexadecimal
@@ -57,24 +59,28 @@ final RegExp stellarDecimalAmountPattern = RegExp(r'^\d+(\.\d{1,7})?$');
 
 /// Validates [value] as a Stellar G-address or C-address.
 ///
+/// Surrounding whitespace is trimmed before validating, matching the trimmed
+/// value the screens submit.
+///
 /// Returns null when:
-/// - [value] is empty (field is not yet filled — forms should not flag on
+/// - [value] is blank (field is not yet filled — forms should not flag on
 ///   initial render).
 /// - [value] is a valid Stellar G-address ([StrKey.isValidStellarAccountId])
 ///   or C-address ([StrKey.isValidContractId]).
 ///
-/// Returns the validation error string when [value] is a non-empty,
+/// Returns the validation error string when [value] is a non-blank,
 /// non-address string.
 ///
 /// When [selfAddress] is provided, returns a self-transfer error when
 /// [value] equals [selfAddress].
 String? validateStellarAddress(String value, {String? selfAddress}) {
-  if (value.isEmpty) return null;
-  if (!StrKey.isValidStellarAccountId(value) &&
-      !StrKey.isValidContractId(value)) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return null;
+  if (!StrKey.isValidStellarAccountId(trimmed) &&
+      !StrKey.isValidContractId(trimmed)) {
     return 'Must be a valid Stellar account (G...) or contract (C...) address';
   }
-  if (selfAddress != null && value == selfAddress) {
+  if (selfAddress != null && trimmed == selfAddress) {
     return 'Cannot transfer to your own account';
   }
   return null;

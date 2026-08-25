@@ -294,13 +294,18 @@ class AgentConfig {
         ? const <String, dynamic>{}
         : _readJsonFile(resolvedJsonPath);
 
+    // Trims each resolved value: command-line, environment, and JSON sources
+    // all carry stray whitespace (shell quoting, copied addresses), and every
+    // consumer compares or parses the value exactly. An explicitly empty
+    // value is preserved as the empty string so it keeps overriding the
+    // default (an empty relayer URL disables the relayer).
     String? pick(String argKey, String envKey, String jsonKey) {
       final fromArg = argMap[argKey];
-      if (fromArg != null) return fromArg;
+      if (fromArg != null) return fromArg.trim();
       final fromEnv = environment[envKey];
-      if (fromEnv != null) return fromEnv;
+      if (fromEnv != null) return fromEnv.trim();
       final fromJson = json[jsonKey];
-      if (fromJson != null) return fromJson.toString();
+      if (fromJson != null) return fromJson.toString().trim();
       return null;
     }
 
