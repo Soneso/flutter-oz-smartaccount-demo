@@ -20,7 +20,7 @@ dependencies:
     sdk: flutter
 
   # Stellar SDK (published on pub.dev).
-  stellar_flutter_sdk: ^3.6.0
+  stellar_flutter_sdk: ^3.7.0
 
   # HTTP client for the coordination-server REST contract.
   http: ^1.6.0
