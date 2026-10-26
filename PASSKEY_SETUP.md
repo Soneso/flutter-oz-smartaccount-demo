@@ -52,7 +52,7 @@ Content-Security-Policy:
   default-src 'self';
   connect-src 'self'
     https://soroban-testnet.stellar.org
-    https://smart-account-indexer.sdf-ecosystem.workers.dev
+    https://testnet.mercurydata.app
     https://smart-account-relayer-proxy.soneso.workers.dev
     https://esm.sh;
   script-src 'self' https://esm.sh 'wasm-unsafe-eval';

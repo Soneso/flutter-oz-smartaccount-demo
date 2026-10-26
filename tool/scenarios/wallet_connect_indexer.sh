@@ -21,7 +21,7 @@
 #
 # Differences vs scenario 4 (Auto Connect): "Connect via Indexer" always
 # triggers a passkey ceremony first, then calls the indexer endpoint at
-# smart-account-indexer.sdf-ecosystem.workers.dev. Auto Connect attempts
+# testnet.mercurydata.app. Auto Connect attempts
 # session restore first and only falls back to passkey + indexer when no
 # session is present. This scenario therefore proves the explicit
 # passkey-then-indexer code path that Auto Connect skips when a session exists.
