@@ -267,106 +267,117 @@ class _ExpirySection extends StatelessWidget {
       dropdownValue = null;
     }
 
-    return Container(
+    // The tile paints its background and ink splashes on the nearest
+    // Material, so the section is a Card. The Card paints its border over
+    // its child, so the padding includes the border width.
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+      side: BorderSide(color: colorScheme.outlineVariant),
+    );
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
+      child: Card(
+        elevation: 0,
+        margin: EdgeInsets.zero,
         color: colorScheme.cardBackground,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CheckboxListTile(
-            value: hasExpiry,
-            onChanged: enabled
-                ? (v) => onChanged(v ?? false, v == true ? offset : null,
-                    v == true ? isCustom : false)
-                : null,
-            controlAffinity: ListTileControlAffinity.leading,
-            title: const Text('Set Expiry'),
-            contentPadding: EdgeInsets.zero,
-          ),
-          if (hasExpiry) ...[
-            const SizedBox(height: 8),
-            DropdownButtonFormField<int>(
-              initialValue: dropdownValue,
-              decoration: InputDecoration(
-                labelText: 'Time from now',
-                border: const OutlineInputBorder(),
-                errorText: error,
+        shape: shape,
+        semanticContainer: false,
+        child: Padding(
+          padding: const EdgeInsets.all(12).add(shape.dimensions),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CheckboxListTile(
+                value: hasExpiry,
+                onChanged: enabled
+                    ? (v) => onChanged(v ?? false, v == true ? offset : null,
+                        v == true ? isCustom : false)
+                    : null,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Set Expiry'),
+                contentPadding: EdgeInsets.zero,
               ),
-              items: [
-                for (final p in _kExpiryOptions)
-                  DropdownMenuItem<int>(
-                    // Use -1 as the sentinel for Custom so the underlying
-                    // dropdown remains keyed on int values.
-                    value: p.isCustom ? -1 : p.offset,
-                    child: Semantics(
-                      label: p.isCustom
-                          ? 'Custom. Enter a custom expiry offset in ledgers.'
-                          : '${p.label} expiry preset.',
-                      excludeSemantics: true,
-                      child: Text(p.label),
+              if (hasExpiry) ...[
+                const SizedBox(height: 8),
+                DropdownButtonFormField<int>(
+                  initialValue: dropdownValue,
+                  decoration: InputDecoration(
+                    labelText: 'Time from now',
+                    border: const OutlineInputBorder(),
+                    errorText: error,
+                  ),
+                  items: [
+                    for (final p in _kExpiryOptions)
+                      DropdownMenuItem<int>(
+                        // Use -1 as the sentinel for Custom so the underlying
+                        // dropdown remains keyed on int values.
+                        value: p.isCustom ? -1 : p.offset,
+                        child: Semantics(
+                          label: p.isCustom
+                              ? 'Custom. Enter a custom expiry offset in ledgers.'
+                              : '${p.label} expiry preset.',
+                          excludeSemantics: true,
+                          child: Text(p.label),
+                        ),
+                      ),
+                  ],
+                  onChanged: enabled
+                      ? (v) {
+                          if (v == null) return;
+                          if (v == -1) {
+                            // Custom: parse current text-field state. May be
+                            // empty until the user types something, in which
+                            // case the offset stays null and validation will
+                            // surface the empty error.
+                            final parsed =
+                                int.tryParse(customController.text.trim());
+                            onChanged(true, parsed, true);
+                          } else {
+                            onChanged(true, v, false);
+                          }
+                        }
+                      : null,
+                ),
+                if (isCustom) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: customController,
+                    enabled: enabled,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      labelText: 'Custom offset (ledgers)',
+                      hintText: 'e.g., 5760',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (txt) {
+                      final parsed = int.tryParse(txt.trim());
+                      onChanged(true, parsed, true);
+                    },
+                  ),
+                ],
+                const SizedBox(height: 6),
+                Text(
+                  'The rule will expire after the selected duration from the '
+                  'current ledger.',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (existingExpiryLedger != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Current on-chain expiry: ledger $existingExpiryLedger. '
+                    'Select a duration above to replace it.',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
+                ],
               ],
-              onChanged: enabled
-                  ? (v) {
-                      if (v == null) return;
-                      if (v == -1) {
-                        // Custom: parse current text-field state. May be
-                        // empty until the user types something, in which
-                        // case the offset stays null and validation will
-                        // surface the empty error.
-                        final parsed =
-                            int.tryParse(customController.text.trim());
-                        onChanged(true, parsed, true);
-                      } else {
-                        onChanged(true, v, false);
-                      }
-                    }
-                  : null,
-            ),
-            if (isCustom) ...[
-              const SizedBox(height: 8),
-              TextField(
-                controller: customController,
-                enabled: enabled,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  labelText: 'Custom offset (ledgers)',
-                  hintText: 'e.g., 5760',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (txt) {
-                  final parsed = int.tryParse(txt.trim());
-                  onChanged(true, parsed, true);
-                },
-              ),
             ],
-            const SizedBox(height: 6),
-            Text(
-              'The rule will expire after the selected duration from the '
-              'current ledger.',
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            if (existingExpiryLedger != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Current on-chain expiry: ledger $existingExpiryLedger. '
-                'Select a duration above to replace it.',
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
