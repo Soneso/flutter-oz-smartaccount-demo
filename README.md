@@ -32,7 +32,7 @@ Send XLM or DEMO tokens from the connected smart account to any Stellar address.
 
 ### 5. Context Rules
 
-Lists all on-chain authorization rules for the connected account. Each rule card shows its ID, name, context type (Default, CallContract, CreateContract), signers, policies, and expiry. Supports expanding rules for detail view, removing rules (with a safety check preventing removal of the last rule), and navigating to the rule builder for creating or editing rules.
+Lists all on-chain authorization rules for the connected account. Each rule card shows its ID, name, context type (Default, CallContract, CreateContract, CreateContractExternalRef), signers, policies, and expiry. Supports expanding rules for detail view, removing rules (with a safety check preventing removal of the last rule), and navigating to the rule builder for creating or editing rules.
 
 ### 6. Context Rule Builder
 
@@ -60,7 +60,7 @@ Lists the policy-rejected calls the agent escalated to the coordination server, 
 flutter-oz-smartaccount-demo/
 ├── lib/
 │   ├── main.dart                # Entry point: providers, platform deps, runApp
-│   ├── config/                  # Network, contracts, RP config, knownPolicies
+│   ├── config/                  # Network, contracts, RP config, knownPolicies, recognizedPolicies
 │   ├── flows/                   # Primary SDK consumer (most SDK calls live here)
 │   ├── services/                # Coordination-server HTTP client (agent-signer flow)
 │   ├── screens/                 # User-facing ConsumerStatefulWidget screens
@@ -171,7 +171,7 @@ All configuration lives in `lib/config/demo_config.dart`.
 |---------|-------------|
 | `rpcUrl` | Soroban RPC endpoint |
 | `networkPassphrase` | Stellar testnet passphrase |
-| `accountWasmHash` | Smart account contract WASM hash (OZ stellar-contracts v0.7.0) |
+| `accountWasmHash` | Smart account contract WASM hash (OZ stellar-contracts v0.8.0) |
 | `webauthnVerifierAddress` | On-chain WebAuthn (secp256r1) signature verifier contract |
 | `ed25519VerifierAddress` | On-chain Ed25519 signature verifier contract |
 | `nativeTokenContract` | XLM Stellar Asset Contract (SAC) address on testnet |
@@ -184,7 +184,7 @@ All configuration lives in `lib/config/demo_config.dart`.
 
 DEMO token settings (`demoToken*`) control the deterministic deployment and minting of a custom Soroban token used for testing transfers. The token admin seed is intentionally public; the demo is testnet-only and the admin key has no monetary value.
 
-Known policy contracts (threshold, spending limit, weighted threshold) are defined in `knownPolicies`.
+Known policy contracts (threshold, spending limit, weighted threshold) are defined in `knownPolicies` (the v0.8.0 deployments offered for new rules) and `recognizedPolicies` (those plus the v0.7.0 deployments that rules on v0.7.0 wallets use).
 
 The agent-signer flow's coordination server is configured by `coordinationServerUrl` and `coordinationToken`, overridable at build time with `--dart-define=COORDINATION_URL` and `--dart-define=COORDINATION_TOKEN`.
 

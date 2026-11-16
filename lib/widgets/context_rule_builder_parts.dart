@@ -43,25 +43,33 @@ class _ContextTypeSection extends StatelessWidget {
     required this.option,
     required this.contractAddress,
     required this.wasmHashController,
+    required this.refOwnerController,
+    required this.refTagController,
     required this.contractError,
     required this.wasmError,
+    required this.refOwnerError,
     required this.enabled,
     required this.onOptionChanged,
     required this.onContractChanged,
     required this.onWasmChanged,
+    required this.onRefOwnerChanged,
     this.showEditHelper = false,
   });
 
   final _ContextTypeOption option;
   final String contractAddress;
   final TextEditingController wasmHashController;
+  final TextEditingController refOwnerController;
+  final TextEditingController refTagController;
   final String? contractError;
   final String? wasmError;
+  final String? refOwnerError;
   final bool enabled;
   final bool showEditHelper;
   final ValueChanged<_ContextTypeOption> onOptionChanged;
   final ValueChanged<String> onContractChanged;
   final VoidCallback onWasmChanged;
+  final VoidCallback onRefOwnerChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -143,6 +151,38 @@ class _ContextTypeSection extends StatelessWidget {
               hintText: '64 hex characters',
               border: const OutlineInputBorder(),
               errorText: wasmError,
+            ),
+          ),
+        ],
+        if (option == _ContextTypeOption.createContractExternalRef) ...[
+          const SizedBox(height: 12),
+          TextField(
+            controller: refOwnerController,
+            onChanged: (_) => onRefOwnerChanged(),
+            enabled: enabled,
+            decoration: InputDecoration(
+              labelText: 'Executable Owner (C...)',
+              hintText: 'Owner contract address',
+              border: const OutlineInputBorder(),
+              errorText: refOwnerError,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: refTagController,
+            enabled: enabled,
+            decoration: const InputDecoration(
+              labelText: 'Executable Tag',
+              hintText: 'Tag the owner stores the code under',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'The owner contract can change the code this reference resolves '
+            'to.',
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],

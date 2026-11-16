@@ -56,7 +56,7 @@ await kit.contextRuleManager.addContextRule(
 
   // 3. Policy — a spending-limit cap over a rolling ledger window.
   policies: {
-    'CBQE7L3UNP5IR4I7IBKLS7NV256WHR5TTH26HTMUIK7WXJC6J64RSE2L':
+    'CC3CEYQAP6NPNFIYSWL5MVZRCPJZGWX4XO7WDEJOUVGO2FZX5OONYPA5':
         OZSpendingLimitPolicyParams(
       spendingLimit: cap,
       periodLedgers: Util.ledgersPerDay,
@@ -85,7 +85,7 @@ await kit.contextRuleManager.addContextRule(
    verifier-contract path the SDK's multi-signer pipeline drives.
 
 3. **Policy — `OZSpendingLimitPolicyParams`.** The spending-limit policy
-   contract `CBQE7L3UNP5IR4I7IBKLS7NV256WHR5TTH26HTMUIK7WXJC6J64RSE2L` caps the
+   contract `CC3CEYQAP6NPNFIYSWL5MVZRCPJZGWX4XO7WDEJOUVGO2FZX5OONYPA5` caps the
    total the agent may move to `spendingLimit` base units over each rolling
    `periodLedgers` window. `spendingLimit` is the cap converted to base units
    at the token's decimal scale (`OZTransactionOperations.amountToBaseUnits`).

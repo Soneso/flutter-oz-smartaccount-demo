@@ -100,7 +100,7 @@ defaults.
 |-------|---------|---------|
 | `rpcUrl` | `AGENT_RPC_URL` | `https://soroban-testnet.stellar.org` |
 | `networkPassphrase` | `AGENT_NETWORK_PASSPHRASE` | `Test SDF Network ; September 2015` |
-| `accountWasmHash` | `AGENT_ACCOUNT_WASM_HASH` | `86b49fe0…3bd06d28` |
+| `accountWasmHash` | `AGENT_ACCOUNT_WASM_HASH` | `c514d35e…1004b9e1` |
 | `webauthnVerifierAddress` | `AGENT_WEBAUTHN_VERIFIER` | `CB26VN37…G7NKY` |
 | `ed25519VerifierAddress` | `AGENT_ED25519_VERIFIER` | `CAW2Z46I…F7AJ6` |
 | `relayerUrl` | `AGENT_RELAYER_URL` | `https://smart-account-relayer-proxy.soneso.workers.dev` (empty disables) |

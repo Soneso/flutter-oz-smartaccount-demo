@@ -140,9 +140,10 @@ void main() {
   test('spendingLimitPolicyAddress matches the demo config policy', () {
     final h = _makeHarness();
     expect(h.flow.spendingLimitPolicyAddress, _spendingLimitPolicy);
+    // The OZ stellar-contracts v0.8.0 spending-limit deployment.
     expect(
       h.flow.spendingLimitPolicyAddress,
-      'CBQE7L3UNP5IR4I7IBKLS7NV256WHR5TTH26HTMUIK7WXJC6J64RSE2L',
+      'CC3CEYQAP6NPNFIYSWL5MVZRCPJZGWX4XO7WDEJOUVGO2FZX5OONYPA5',
     );
   });
 

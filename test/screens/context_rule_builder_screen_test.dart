@@ -314,6 +314,189 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // Create Contract from Reference context type
+  // ---------------------------------------------------------------------------
+
+  group('ContextRuleBuilderScreen - create contract from reference', () {
+    const owner = 'CAAQEAYEAUDAOCAJBIFQYDIOB4IBCEQTCQKRMFYYDENBWHA5DYPSBFLM';
+
+    Future<void> selectExternalRefOption(WidgetTester tester) async {
+      await tester.tap(find.text('Default (Any Operation)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create Contract from Reference').last);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> stageDelegatedSigner(WidgetTester tester) async {
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Stellar Address (G-address)'),
+        fixtureDelegatedAddress1,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add Delegated Signer'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'submits a CreateContractExternalRef context type with the owner and tag',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final mgr = MockContextRuleFlowManager()
+          ..rules = const []
+          ..addResult = const OZTransactionResult(
+            success: true,
+            hash: 'ref-hash',
+          );
+        final flow = _makeFlow(manager: mgr);
+        await tester.pumpWidget(_wrap(flow));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Rule Name'),
+          'RefRule',
+        );
+        await tester.pumpAndSettle();
+        await selectExternalRefOption(tester);
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Executable Owner (C...)'),
+          ' $owner ',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Executable Tag'),
+          'account-v1',
+        );
+        await tester.pumpAndSettle();
+        await stageDelegatedSigner(tester);
+
+        await tester.ensureVisible(find.text('Create Context Rule'));
+        await tester.tap(find.text('Create Context Rule'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Transaction Successful'), findsOneWidget);
+        expect(mgr.addCallCount, 1);
+        expect(
+          mgr.lastAddedContextType,
+          const OZContextRuleTypeCreateContractExternalRef(owner, 'account-v1'),
+        );
+      },
+    );
+
+    testWidgets(
+      'refuses an executable owner that is not a valid contract address',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final mgr = MockContextRuleFlowManager()
+          ..rules = const []
+          ..addResult = const OZTransactionResult(
+            success: true,
+            hash: 'ref-hash',
+          );
+        final flow = _makeFlow(manager: mgr);
+        await tester.pumpWidget(_wrap(flow));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Rule Name'),
+          'RefRule',
+        );
+        await tester.pumpAndSettle();
+        await selectExternalRefOption(tester);
+        await stageDelegatedSigner(tester);
+
+        final ownerField = find.widgetWithText(
+          TextField,
+          'Executable Owner (C...)',
+        );
+        final submit = find.text('Create Context Rule');
+
+        // A G-address fails the C-prefix and length check.
+        await tester.enterText(ownerField, fixtureDelegatedAddress1);
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(submit);
+        await tester.tap(submit);
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            'Invalid executable owner. Must start with C and be 56 '
+            'characters, got 56',
+          ),
+          findsOneWidget,
+        );
+
+        // A C-prefixed 56-character string with a wrong checksum fails the
+        // strkey check.
+        final badChecksum = '${owner.substring(0, 55)}A';
+        await tester.enterText(ownerField, badChecksum);
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(submit);
+        await tester.tap(submit);
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            'Invalid executable owner. Not a valid contract address: '
+            '$badChecksum',
+          ),
+          findsOneWidget,
+        );
+
+        expect(mgr.addCallCount, 0);
+      },
+    );
+
+    testWidgets('edit-mode shows the stored owner and tag of a loaded rule', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final mgr = MockContextRuleFlowManager()
+        ..rules = [
+          makeRule(
+            id: 5,
+            name: 'RefRule',
+            contextType: const OZContextRuleTypeCreateContractExternalRef(
+              owner,
+              'account-v1',
+            ),
+          ),
+        ];
+      final flow = _makeFlow(manager: mgr);
+      await tester.pumpWidget(_wrap(flow, editRuleId: 5));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Create Contract from Reference'), findsOneWidget);
+      final ownerField = tester.widget<TextField>(
+        find.widgetWithText(TextField, 'Executable Owner (C...)'),
+      );
+      final tagField = tester.widget<TextField>(
+        find.widgetWithText(TextField, 'Executable Tag'),
+      );
+      expect(ownerField.controller?.text, owner);
+      expect(tagField.controller?.text, 'account-v1');
+      // The context type of an existing rule cannot change.
+      expect(ownerField.enabled, isFalse);
+      expect(tagField.enabled, isFalse);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Multi-signer picker description (when EXISTING on-chain signers > 1)
   //
   // Create-mode multi-signer routing is driven by the EXISTING on-chain
@@ -691,6 +874,51 @@ void main() {
         // The signer picker sheet opens and nothing was submitted directly.
         expect(find.text('Select Signers'), findsOneWidget);
         expect(mgr.editCalls, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'loads a v0.7.0 policy with its "(v0.7.0)" label and its on-chain '
+      'parameters',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        // The OZ stellar-contracts v0.7.0 threshold deployment, which rules
+        // of wallets created before v0.8.0 carry.
+        const legacyThreshold =
+            'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC';
+        final env = MockBuilderEnvironment()
+          ..contractDataValues[legacyThreshold] = XdrSCVal.forU32(2);
+        final mgr = MockContextRuleFlowManager()
+          ..rules = [
+            OZParsedContextRule(
+              id: 3,
+              contextType: const OZContextRuleTypeDefault(),
+              name: 'legacy',
+              signers: [OZDelegatedSigner(fixtureDelegatedAddress1)],
+              signerIds: const [3],
+              policies: const [legacyThreshold],
+              policyIds: const [8],
+            ),
+          ];
+        final flow = _makeFlow(manager: mgr, environment: env);
+        await tester.pumpWidget(_wrap(flow, editRuleId: 3));
+        await tester.pumpAndSettle();
+
+        // The policy row shows the recognized name in its type pill and in
+        // its label.
+        expect(find.text('Threshold (M-of-N) (v0.7.0)'), findsNWidgets(2));
+        expect(find.text('Unknown Policy'), findsNothing);
+        final thresholdField = tester.widget<TextField>(
+          find.widgetWithText(TextField, 'Threshold (required signers)'),
+        );
+        expect(thresholdField.controller?.text, '2');
+        expect(find.text('Current on-chain value: 2'), findsOneWidget);
       },
     );
   });

@@ -19,6 +19,8 @@ import 'signer_type_label.dart';
 /// - Default              → "Default (Any Operation)"
 /// - CallContract(addr)   → "Call Contract: ${truncated address}"
 /// - CreateContract(hash) → "Create Contract: ${first 8 hex chars}..."
+/// - CreateContractExternalRef(owner, tag)
+///   → "Create Contract from Ref: ${truncated owner} / ${tag}"
 String formatContextType(OZContextRuleType contextType) {
   if (contextType is OZContextRuleTypeDefault) {
     return 'Default (Any Operation)';
@@ -30,6 +32,10 @@ String formatContextType(OZContextRuleType contextType) {
     final hexFull = bytesToHex(contextType.wasmHash);
     final preview = hexFull.length > 8 ? hexFull.substring(0, 8) : hexFull;
     return 'Create Contract: $preview...';
+  }
+  if (contextType is OZContextRuleTypeCreateContractExternalRef) {
+    return 'Create Contract from Ref: '
+        '${truncateAddress(contextType.owner)} / ${contextType.tag}';
   }
   // Defensive fallback — new subtypes would land here.
   return 'Unknown';
