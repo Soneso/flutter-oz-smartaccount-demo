@@ -529,6 +529,26 @@ void main() {
       expect(params!.type, 'threshold');
       expect(params.threshold, 3);
     });
+
+    test('parses a threshold value from the v0.8.0 threshold deployment',
+        () async {
+      const policyAddress =
+          'CAZ2WFUDXGX265LOEARFEOYYUL6F4BYWXZLGUAWZNJY3MRFPNLSZVS4S';
+      final env = MockBuilderEnvironment()
+        ..contractDataValues[policyAddress] = XdrSCVal.forU32(2);
+      final deps = ContextRuleFixtures.makeFlowWithDeps(
+        manager: MockContextRuleFlowManager(),
+        environment: env,
+      );
+
+      final params = await deps.flow.readPolicyParams(
+        policyAddress: policyAddress,
+        ruleId: 1,
+      );
+      expect(params, isNotNull);
+      expect(params!.type, 'threshold');
+      expect(params.threshold, 2);
+    });
   });
 
   // ---------------------------------------------------------------------------

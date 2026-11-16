@@ -30,6 +30,19 @@ void main() {
       expect(config.isCompleteForLiveRun, isFalse);
     });
 
+    test('the defaults name the OZ stellar-contracts v0.8.0 testnet deployments',
+        () {
+      expect(AgentDefaults.accountWasmHash,
+          'c514d35ea67eaea9bfc1fb3327854c0c06111bc1ddebd4fe217c504c1004b9e1');
+      expect(AgentDefaults.knownPolicies, {
+        'threshold': 'CAZ2WFUDXGX265LOEARFEOYYUL6F4BYWXZLGUAWZNJY3MRFPNLSZVS4S',
+        'spendingLimit':
+            'CC3CEYQAP6NPNFIYSWL5MVZRCPJZGWX4XO7WDEJOUVGO2FZX5OONYPA5',
+        'weightedThreshold':
+            'CDBYLFLUNPAYGE3AHZSMB4TFWECFCCHX6CJFMFO6HRPKK2W5PFU2LCKE',
+      });
+    });
+
     test('toString redacts the seed and coordination token', () {
       final config = AgentConfig(
         agentSecretSeed: validSeedHex(),

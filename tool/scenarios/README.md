@@ -329,6 +329,8 @@ button "Apply Changes" [ref=eN]                 # builder submit (edit-mode)
 button "Done. Close edit context rule screen." [ref=eN]  # edit success card
 textbox "Passkey Name" [ref=eN]                 # wallet creation
 textbox "Rule Name" [ref=eN]                    # context rule builder
+textbox "Executable Owner (C...)" [ref=eN]      # builder, Create Contract from Reference
+textbox "Executable Tag" [ref=eN]               # builder, Create Contract from Reference
 textbox "Stellar Address (G-address)" [ref=eN]  # delegated signer input
 textbox "Amount" [ref=eN]                       # transfer + approve
 textbox "Recipient Address" [ref=eN]            # transfer
@@ -336,6 +338,7 @@ textbox "Spender Address" [ref=eN]              # approve
 textbox "Contract Address" [ref=eN]             # connect-with-address path
 checkbox "Set Expiry" [checked=false, ref=eN]   # builder
 menuitem "10 days expiry preset." [ref=eN]      # expiry dropdown open
+menuitem "Create Contract from Reference. ..." [ref=eN]  # context type dropdown open
 ```
 
 ## Known Flutter Web semantics quirks (catalogue)

@@ -53,6 +53,13 @@ void main() {
       );
     });
 
+    test('accountWasmHash is the OZ stellar-contracts v0.8.0 build', () {
+      expect(
+        accountWasmHash,
+        'c514d35ea67eaea9bfc1fb3327854c0c06111bc1ddebd4fe217c504c1004b9e1',
+      );
+    });
+
     // -------------------------------------------------------------------------
     // Service URLs
     // -------------------------------------------------------------------------
@@ -177,6 +184,50 @@ void main() {
         types,
         containsAll({'threshold', 'spending_limit', 'weighted_threshold'}),
       );
+    });
+
+    test('knownPolicies offers the OZ stellar-contracts v0.8.0 deployments',
+        () {
+      expect(
+        {for (final p in knownPolicies) p.type: p.address},
+        {
+          'threshold': 'CAZ2WFUDXGX265LOEARFEOYYUL6F4BYWXZLGUAWZNJY3MRFPNLSZVS4S',
+          'spending_limit':
+              'CC3CEYQAP6NPNFIYSWL5MVZRCPJZGWX4XO7WDEJOUVGO2FZX5OONYPA5',
+          'weighted_threshold':
+              'CDBYLFLUNPAYGE3AHZSMB4TFWECFCCHX6CJFMFO6HRPKK2W5PFU2LCKE',
+        },
+      );
+    });
+
+    test(
+        'recognizedPolicies lists the offered policies, then the v0.7.0 '
+        'deployments labeled "(v0.7.0)"', () {
+      expect(recognizedPolicies.take(3), orderedEquals(knownPolicies));
+      final legacy = recognizedPolicies.skip(3).toList();
+      expect(
+        [for (final p in legacy) (p.type, p.name, p.address)],
+        [
+          (
+            'threshold',
+            'Threshold (M-of-N) (v0.7.0)',
+            'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC',
+          ),
+          (
+            'spending_limit',
+            'Spending Limit (v0.7.0)',
+            'CBQE7L3UNP5IR4I7IBKLS7NV256WHR5TTH26HTMUIK7WXJC6J64RSE2L',
+          ),
+          (
+            'weighted_threshold',
+            'Weighted Threshold (v0.7.0)',
+            'CAF4OCRIB73T5777UWAQS7KGOG6WVIZ3EFXNNUYSPFSBKW2Q5XEIOSPW',
+          ),
+        ],
+      );
+      for (var i = 0; i < legacy.length; i++) {
+        expect(legacy[i].description, knownPolicies[i].description);
+      }
     });
 
     // -------------------------------------------------------------------------

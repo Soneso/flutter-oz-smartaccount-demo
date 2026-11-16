@@ -71,6 +71,11 @@ enum _ContextTypeOption {
   createContract(
     'Create Contract',
     'Matches contract deployments using a specific WASM hash',
+  ),
+  createContractExternalRef(
+    'Create Contract from Reference',
+    'Matches contract deployments from the code an owner contract stores '
+        'under a tag',
   );
 
   const _ContextTypeOption(this.displayName, this.description);
@@ -146,6 +151,8 @@ class _ContextRuleBuilderScreenState
   _ContextTypeOption _contextType = _ContextTypeOption.defaultRule;
   String _contractAddress = config.nativeTokenContract;
   final TextEditingController _wasmHashController = TextEditingController();
+  final TextEditingController _refOwnerController = TextEditingController();
+  final TextEditingController _refTagController = TextEditingController();
   bool _hasExpiry = false;
   bool _isCustomExpiry = false;
   int? _expiryOffset;
@@ -264,6 +271,8 @@ class _ContextRuleBuilderScreenState
   void dispose() {
     _nameController.dispose();
     _wasmHashController.dispose();
+    _refOwnerController.dispose();
+    _refTagController.dispose();
     _customExpiryController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -334,6 +343,13 @@ class _ContextRuleBuilderScreenState
       final wasm =
           (parsed.contextType as OZContextRuleTypeCreateContract).wasmHash;
       _wasmHashController.text = bytesToHex(wasm);
+    } else if (parsed.contextType
+        is OZContextRuleTypeCreateContractExternalRef) {
+      _contextType = _ContextTypeOption.createContractExternalRef;
+      final externalRef =
+          parsed.contextType as OZContextRuleTypeCreateContractExternalRef;
+      _refOwnerController.text = externalRef.owner;
+      _refTagController.text = externalRef.tag;
     } else {
       _contextType = _ContextTypeOption.defaultRule;
     }
@@ -362,13 +378,13 @@ class _ContextRuleBuilderScreenState
       ..addAll(_stagedAdapter(loadedSignerEntries));
 
     // Policy entries: positionally aligned with policyIds. Load on-chain
-    // params for each known policy. Re-check [mounted] after each await so
-    // a screen pop mid-load does not push state through `_nameController`
+    // params for each recognized policy. Re-check [mounted] after each await
+    // so a screen pop mid-load does not push state through `_nameController`
     // or `_editPolicyEntries` after disposal.
     final loadedPolicyEntries = <EditPolicyEntry>[];
     for (var i = 0; i < parsed.policies.length; i++) {
       final addr = parsed.policies[i];
-      final known = config.knownPolicies
+      final known = config.recognizedPolicies
           .where((p) => p.address == addr)
           .cast<PolicyInfo?>()
           .firstWhere(
@@ -752,6 +768,16 @@ class _ContextRuleBuilderScreenState
           } else if (!isValidHex(hex)) {
             errors['wasmHash'] = 'Invalid hex characters';
           }
+        case _ContextTypeOption.createContractExternalRef:
+          final owner = _refOwnerController.text.trim();
+          if (!owner.startsWith('C') || owner.length != 56) {
+            errors['refOwner'] = 'Invalid executable owner. Must start with C '
+                'and be 56 characters, got ${owner.length}';
+          } else if (!isValidContractAddress(owner)) {
+            errors['refOwner'] =
+                'Invalid executable owner. Not a valid contract address: '
+                '$owner';
+          }
       }
     }
     if (_hasExpiry && _expiryModified) {
@@ -791,6 +817,11 @@ class _ContextRuleBuilderScreenState
       case _ContextTypeOption.createContract:
         final hex = _wasmHashController.text.trim().toLowerCase();
         return flow.buildCreateContractContextType(hexToBytes(hex));
+      case _ContextTypeOption.createContractExternalRef:
+        return flow.buildCreateContractExternalRefContextType(
+          _refOwnerController.text,
+          _refTagController.text,
+        );
     }
   }
 
@@ -1225,8 +1256,11 @@ class _ContextRuleBuilderScreenState
           option: _contextType,
           contractAddress: _contractAddress,
           wasmHashController: _wasmHashController,
+          refOwnerController: _refOwnerController,
+          refTagController: _refTagController,
           contractError: _fieldErrors['contractAddress'],
           wasmError: _fieldErrors['wasmHash'],
+          refOwnerError: _fieldErrors['refOwner'],
           enabled: !_isSubmitting && !_isEditMode,
           showEditHelper: _isEditMode,
           onOptionChanged: (opt) {
@@ -1234,7 +1268,8 @@ class _ContextRuleBuilderScreenState
               _contextType = opt;
               _fieldErrors
                 ..remove('contractAddress')
-                ..remove('wasmHash');
+                ..remove('wasmHash')
+                ..remove('refOwner');
               if (opt == _ContextTypeOption.callContract &&
                   _contractAddress.isEmpty) {
                 _contractAddress = config.nativeTokenContract;
@@ -1252,6 +1287,11 @@ class _ContextRuleBuilderScreenState
           onWasmChanged: () {
             if (_fieldErrors.containsKey('wasmHash')) {
               setState(() => _fieldErrors.remove('wasmHash'));
+            }
+          },
+          onRefOwnerChanged: () {
+            if (_fieldErrors.containsKey('refOwner')) {
+              setState(() => _fieldErrors.remove('refOwner'));
             }
           },
         ),

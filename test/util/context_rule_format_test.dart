@@ -39,6 +39,17 @@ void main() {
       expect(result, contains('abababab'));
       expect(result, endsWith('...'));
     });
+
+    test(
+        'CreateContractExternalRef returns '
+        '"Create Contract from Ref: <truncated owner> / <tag>"', () {
+      const owner = 'CAAQEAYEAUDAOCAJBIFQYDIOB4IBCEQTCQKRMFYYDENBWHA5DYPSBFLM';
+      final result = formatContextType(
+        const OZContextRuleTypeCreateContractExternalRef(owner, 'account-v1'),
+      );
+
+      expect(result, 'Create Contract from Ref: CAAQ...BFLM / account-v1');
+    });
   });
 
   // ---------------------------------------------------------------------------

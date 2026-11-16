@@ -43,6 +43,12 @@ typedef OZContextRuleTypeCallContract = sdk.OZContextRuleTypeCallContract;
 /// edit-mode to pre-populate the WASM hash field from a loaded rule.
 typedef OZContextRuleTypeCreateContract = sdk.OZContextRuleTypeCreateContract;
 
+/// Re-export of the `CreateContractExternalRef` context-type variant. Used in
+/// edit-mode to pre-populate the executable owner and tag fields from a
+/// loaded rule.
+typedef OZContextRuleTypeCreateContractExternalRef
+    = sdk.OZContextRuleTypeCreateContractExternalRef;
+
 /// Re-export of the [OZParsedContextRule] shape returned by the SDK's
 /// context-rule manager. Held on the builder screen during edit-mode to
 /// drive form pre-population.

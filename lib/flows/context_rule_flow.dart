@@ -594,6 +594,23 @@ final class ContextRuleFlow with MultiSignerRegistrar {
     return OZContextRuleTypeCreateContract(wasmHash);
   }
 
+  /// Builds a `CreateContractExternalRef` context type targeting deployments
+  /// from the executable reference that the contract [owner] stores under
+  /// [tag].
+  ///
+  /// The owner is trimmed of surrounding whitespace before construction.
+  /// Throws [SmartAccountValidationException] when [owner] is not a valid
+  /// contract address.
+  OZContextRuleType buildCreateContractExternalRefContextType(
+    String owner,
+    String tag,
+  ) {
+    return OZBuilders.createCreateContractExternalRefContextType(
+      owner.trim(),
+      tag,
+    );
+  }
+
   // -------------------------------------------------------------------------
   // Public: resolveAbsoluteLedger
   // -------------------------------------------------------------------------
@@ -724,7 +741,8 @@ final class ContextRuleFlow with MultiSignerRegistrar {
     if (smartAccount == null) return null;
 
     final env = _requireEnvironment('readPolicyParams');
-    final known = config.knownPolicies.where((p) => p.address == policyAddress);
+    final known =
+        config.recognizedPolicies.where((p) => p.address == policyAddress);
     if (known.isEmpty) return null;
     final policyType = known.first.type;
 

@@ -22,10 +22,13 @@ const String networkPassphrase = 'Test SDF Network ; September 2015';
 // Smart Account Contract
 // ---------------------------------------------------------------------------
 
-/// WASM hash of the multisig smart account contract deployed on testnet.
-/// Passed to OZSmartAccountConfig.accountWasmHash for wallet deployment.
+/// WASM hash of the multisig smart account contract deployed on testnet
+/// (OZ stellar-contracts v0.8.0).
+/// Passed to OZSmartAccountConfig.accountWasmHash for wallet deployment. The
+/// SDK signs for this build with the v0.8.0 digest and for wallets on other
+/// builds, such as the v0.7.0 build 86b49fe0, with the v0.7 digest.
 const String accountWasmHash =
-    '86b49fe03f7df0ad1c2a28bd8361b923ab57096e09f397f92f0c00ae3bd06d28';
+    'c514d35ea67eaea9bfc1fb3327854c0c06111bc1ddebd4fe217c504c1004b9e1';
 
 // ---------------------------------------------------------------------------
 // Verifier Contracts
@@ -222,7 +225,7 @@ const String freighterDownloadUrl = 'https://www.freighter.app';
 // Known Policy Contracts
 // ---------------------------------------------------------------------------
 
-/// Metadata for a known policy contract deployed on testnet.
+/// Metadata for a policy contract deployed on testnet.
 final class PolicyInfo {
   const PolicyInfo({
     required this.type,
@@ -237,25 +240,56 @@ final class PolicyInfo {
   final String address;
 }
 
-/// Known policy contracts available for installation on testnet.
+/// The OZ stellar-contracts v0.8.0 policy contracts, offered for new rules.
 const List<PolicyInfo> knownPolicies = [
   PolicyInfo(
     type: PolicyType.threshold,
     name: 'Threshold (M-of-N)',
     description: 'Requires M signatures out of N total signers.',
-    address: 'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC',
+    address: 'CAZ2WFUDXGX265LOEARFEOYYUL6F4BYWXZLGUAWZNJY3MRFPNLSZVS4S',
   ),
   PolicyInfo(
     type: PolicyType.spendingLimit,
     name: 'Spending Limit',
     description: 'Limits spending to a maximum amount per time period.',
-    address: 'CBQE7L3UNP5IR4I7IBKLS7NV256WHR5TTH26HTMUIK7WXJC6J64RSE2L',
+    address: 'CC3CEYQAP6NPNFIYSWL5MVZRCPJZGWX4XO7WDEJOUVGO2FZX5OONYPA5',
   ),
   PolicyInfo(
     type: PolicyType.weightedThreshold,
     name: 'Weighted Threshold',
     description:
         'Requires minimum total weight from signers with different voting weights.',
-    address: 'CAF4OCRIB73T5777UWAQS7KGOG6WVIZ3EFXNNUYSPFSBKW2Q5XEIOSPW',
+    address: 'CDBYLFLUNPAYGE3AHZSMB4TFWECFCCHX6CJFMFO6HRPKK2W5PFU2LCKE',
   ),
 ];
+
+/// The OZ stellar-contracts v0.7.0 policy contracts that rules on v0.7.0
+/// wallets use, by policy type. The demo reads and labels them but does not
+/// offer them for new rules.
+const Map<String, String> _legacyPolicyAddresses = {
+  PolicyType.threshold:
+      'CAZJ3UVRY3R3S5C5BH32GMYBRSN23N75ZEEXEOLXOUUAHDFIMVP4AXUC',
+  PolicyType.spendingLimit:
+      'CBQE7L3UNP5IR4I7IBKLS7NV256WHR5TTH26HTMUIK7WXJC6J64RSE2L',
+  PolicyType.weightedThreshold:
+      'CAF4OCRIB73T5777UWAQS7KGOG6WVIZ3EFXNNUYSPFSBKW2Q5XEIOSPW',
+};
+
+/// Every policy contract the demo can read on an existing rule: the offered
+/// v0.8.0 policies first, then the v0.7.0 policies, labeled "(v0.7.0)".
+final List<PolicyInfo> recognizedPolicies = List<PolicyInfo>.unmodifiable([
+  ...knownPolicies,
+  for (final MapEntry(key: type, value: address)
+      in _legacyPolicyAddresses.entries)
+    _legacyPolicy(type, address),
+]);
+
+PolicyInfo _legacyPolicy(String type, String address) {
+  final current = knownPolicies.firstWhere((p) => p.type == type);
+  return PolicyInfo(
+    type: type,
+    name: '${current.name} (v0.7.0)',
+    description: current.description,
+    address: address,
+  );
+}
